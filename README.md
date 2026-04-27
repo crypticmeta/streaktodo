@@ -159,7 +159,7 @@ Feature monetization is intentionally deferred. Current product direction is ful
 
 ### Phase 12: polish and release readiness
 
-- [ ] Add onboarding for first launch
+- [x] Add onboarding for first launch — see [`app/onboarding.tsx`](./app/onboarding.tsx) (3 swipeable slides, completion stored in `expo-secure-store` via [`src/lib/onboarding.ts`](./src/lib/onboarding.ts), gated in `_layout.tsx`)
 - [ ] Add animations for composer open/close and task completion
 - [ ] Improve accessibility for touch targets, labels, and contrast
 - [ ] Add offline-safe persistence migration plan

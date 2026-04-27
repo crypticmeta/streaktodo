@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../src/lib/auth';
 import { getDb } from '../src/db';
 import * as scheduler from '../src/lib/notificationScheduler';
+import { getOnboardingCompleted } from '../src/lib/onboarding';
 import { ThemeProvider, useTheme } from '../src/theme';
 
 type DbState = { status: 'loading' } | { status: 'ready' } | { status: 'error'; message: string };
@@ -39,9 +40,27 @@ function useDbBootstrap(): DbState {
   return state;
 }
 
+type OnboardingState = 'loading' | 'pending' | 'completed';
+
+function useOnboardingState(): OnboardingState {
+  const [state, setState] = useState<OnboardingState>('loading');
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const done = await getOnboardingCompleted();
+      if (!cancelled) setState(done ? 'completed' : 'pending');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return state;
+}
+
 function AppGate() {
   const dbState = useDbBootstrap();
   const { state: authState } = useAuth();
+  const onboardingState = useOnboardingState();
   const router = useRouter();
   const segments = useSegments();
   const theme = useTheme();
@@ -49,16 +68,30 @@ function AppGate() {
   useEffect(() => {
     if (dbState.status !== 'ready') return;
     if (authState.status === 'loading') return;
+    if (onboardingState === 'loading') return;
 
     const inAuthGroup = segments[0] === 'sign-in';
+    const inOnboarding = segments[0] === 'onboarding';
     const isSignedIn = authState.status === 'signed-in';
 
-    if (!isSignedIn && !inAuthGroup) {
-      router.replace('/sign-in');
-    } else if (isSignedIn && inAuthGroup) {
+    // Routing precedence:
+    //   1. Not signed in → /sign-in
+    //   2. Signed in but onboarding pending → /onboarding
+    //   3. Signed in + onboarded → /(tabs)
+    if (!isSignedIn) {
+      if (!inAuthGroup) router.replace('/sign-in');
+      return;
+    }
+
+    if (onboardingState === 'pending') {
+      if (!inOnboarding) router.replace('/onboarding');
+      return;
+    }
+
+    if (inAuthGroup || inOnboarding) {
       router.replace('/(tabs)');
     }
-  }, [dbState.status, authState.status, segments, router]);
+  }, [dbState.status, authState.status, onboardingState, segments, router]);
 
   if (dbState.status === 'error') {
     return (
@@ -73,7 +106,11 @@ function AppGate() {
     );
   }
 
-  if (dbState.status === 'loading' || authState.status === 'loading') {
+  if (
+    dbState.status === 'loading' ||
+    authState.status === 'loading' ||
+    onboardingState === 'loading'
+  ) {
     return (
       <View style={[styles.loading, { backgroundColor: theme.color.background }]}>
         <ActivityIndicator color={theme.color.accent} />
