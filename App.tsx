@@ -3,15 +3,16 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AuthProvider, useAuth } from './src/lib/auth';
 import { SignInScreen } from './src/screens/SignInScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
-import { colors } from './src/theme/colors';
+import { ThemeProvider, useTheme } from './src/theme';
 
 function Router() {
   const { state } = useAuth();
+  const theme = useTheme();
 
   if (state.status === 'loading') {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.primary} />
+      <View style={[styles.loading, { backgroundColor: theme.color.background }]}>
+        <ActivityIndicator color={theme.color.accent} />
       </View>
     );
   }
@@ -20,24 +21,23 @@ function Router() {
     return <NotificationsScreen />;
   }
 
-  // 'signed-out' | 'unsupported' both render the sign-in screen,
-  // which is responsible for explaining why a runtime might be unsupported.
   return <SignInScreen />;
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router />
-      <StatusBar style="auto" />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router />
+        <StatusBar style="auto" />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
