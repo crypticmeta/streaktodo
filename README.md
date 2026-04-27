@@ -20,7 +20,7 @@ Primary reference points from `inspiration/app/`:
 
 - [x] Finalize branding: app name, icon set, package IDs, and launch assets — single source in [`branding.js`](./branding.js)
 - [x] Define color, spacing, type, and icon tokens for the mobile UI — see [`src/theme/`](./src/theme)
-- [ ] Set up navigation shell for Tasks, Calendar, and Profile tabs
+- [x] Set up navigation shell for Tasks, Calendar, and Profile tabs — expo-router under [`app/`](./app)
 - [ ] Add local persistence model for tasks, categories, subtasks, reminders, and repeat rules
 - [ ] Create seed/demo data for rapid UI iteration
 
