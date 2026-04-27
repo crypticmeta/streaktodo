@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CategoryPills } from '../../src/components/CategoryPills';
 import { Fab } from '../../src/components/Fab';
 import { TaskComposer } from '../../src/components/TaskComposer';
 import { TaskRow } from '../../src/components/TaskRow';
@@ -15,6 +16,7 @@ import {
   type Task,
 } from '../../src/db';
 import type { CreateTaskFullInput } from '../../src/db/repos/tasks';
+import { groupTasksIntoSections } from '../../src/lib/taskGrouping';
 import { useTheme } from '../../src/theme';
 
 // Pure mapper: schedule draft → repo input. Lives here because it's the bridge
@@ -58,7 +60,15 @@ type Patch = Partial<Pick<Task, 'status' | 'isPinned' | 'completedAt'>>;
 export default function TasksScreen() {
   const t = useTheme();
   const [composerOpen, setComposerOpen] = useState(false);
-  const { tasks, loading, error, refresh } = useTasks({ status: 'all' });
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  // useTasks filter: categoryId undefined = "All" (no filter); a string id =
+  // tasks in that category. We never pass null here (which would mean "no
+  // category" — a niche case we'll expose later if needed).
+  const { tasks, loading, error, refresh } = useTasks(
+    selectedCategoryId !== null
+      ? { status: 'all', categoryId: selectedCategoryId }
+      : { status: 'all' }
+  );
   const { categories } = useCategories();
   const [subtaskCounts, setSubtaskCounts] = useState<
     Record<string, { total: number; done: number }>
@@ -104,6 +114,9 @@ export default function TasksScreen() {
       return p ? { ...task, ...p } : task;
     });
   }, [tasks, optimistic]);
+
+  // Bucket into Previous / Today / Upcoming / No Date for SectionList.
+  const sections = useMemo(() => groupTasksIntoSections(visibleTasks), [visibleTasks]);
 
   const setPatch = useCallback((id: string, patch: Patch | null) => {
     setOptimistic((prev) => {
@@ -228,41 +241,60 @@ export default function TasksScreen() {
         >
           Tasks
         </Text>
-        {!loading && !error && visibleTasks.length > 0 ? (
-          <Text
-            style={{
-              color: t.color.textSecondary,
-              fontSize: t.fontSize.base,
-              marginTop: 4,
-              lineHeight: 21,
-            }}
-          >
-            {visibleTasks.length} task{visibleTasks.length === 1 ? '' : 's'}
-          </Text>
-        ) : null}
       </View>
 
-      <FlatList
-        data={visibleTasks}
+      <CategoryPills
+        categories={categories}
+        selectedId={selectedCategoryId}
+        onSelect={setSelectedCategoryId}
+      />
+
+      <SectionList
+        sections={sections}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
+        renderSectionHeader={({ section }) => (
+          <View
+            style={[
+              styles.sectionHeader,
+              { paddingTop: t.spacing.lg, paddingBottom: t.spacing.sm },
+            ]}
+          >
+            <Text
+              style={{
+                color: t.color.textMuted,
+                fontSize: 11,
+                fontWeight: t.fontWeight.semibold,
+                textTransform: 'uppercase',
+                letterSpacing: t.tracking.wider,
+              }}
+            >
+              {section.title}
+            </Text>
+            <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, marginLeft: 6 }}>
+              · {section.data.length}
+            </Text>
+          </View>
+        )}
         contentContainerStyle={[
           styles.listContent,
           {
             paddingHorizontal: t.spacing.xl,
-            paddingTop: t.spacing.lg,
+            paddingTop: t.spacing.sm,
             paddingBottom: t.spacing['6xl'],
           },
-          visibleTasks.length === 0 && styles.listContentEmpty,
+          sections.length === 0 && styles.listContentEmpty,
         ]}
         ItemSeparatorComponent={() => <View style={{ height: t.spacing.sm }} />}
+        SectionSeparatorComponent={null}
+        stickySectionHeadersEnabled={false}
         ListEmptyComponent={
           loading ? (
             <Loading />
           ) : error ? (
             <ErrorState message={error} onRetry={refresh} />
           ) : (
-            <EmptyState />
+            <EmptyState filtered={selectedCategoryId !== null} />
           )
         }
         keyboardShouldPersistTaps="handled"
@@ -338,7 +370,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => Prom
   );
 }
 
-function EmptyState() {
+function EmptyState({ filtered }: { filtered: boolean }) {
   const t = useTheme();
   return (
     <View style={styles.centered}>
@@ -361,7 +393,7 @@ function EmptyState() {
             fontWeight: t.fontWeight.bold,
           }}
         >
-          Nothing on your plate
+          {filtered ? 'No tasks here' : 'Nothing on your plate'}
         </Text>
         <Text
           style={{
@@ -372,7 +404,9 @@ function EmptyState() {
             textAlign: 'center',
           }}
         >
-          Tap the + button to add your first task.
+          {filtered
+            ? 'Try a different filter, or add a task in this category.'
+            : 'Tap the + button to add your first task.'}
         </Text>
       </View>
     </View>
@@ -403,5 +437,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderWidth: 1,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
 });

@@ -49,8 +49,8 @@ Primary reference points from `inspiration/app/`:
 - [x] Support task completion with immediate UI feedback — optimistic patch overlay with rollback on failure
 - [x] Support pinning or flagging important tasks — `tasksRepo.setPinned` + accent border on pinned rows
 - [x] Add empty state and loading state for the task list — plus error state with retry
-- [ ] Add grouped sections such as Previous, Today, Upcoming, and No Date
-- [ ] Add top category pills: All, Work, Personal, Wishlist
+- [x] Add grouped sections such as Previous, Today, Upcoming, and No Date — see [`src/lib/taskGrouping.ts`](./src/lib/taskGrouping.ts), rendered via `SectionList`
+- [x] Add top category pills: All, Work, Personal, Wishlist — see [`src/components/CategoryPills.tsx`](./src/components/CategoryPills.tsx)
 
 ### Phase 4: categories
 
