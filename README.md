@@ -1,6 +1,6 @@
 # Streak Todo (Expo + TypeScript)
 
-The first standalone app in this workspace — a simple todo + scheduler with notifications and streaks. Future apps (e.g. the creator-focused BittyAI) will live as siblings under `apps/` and reuse code from here.
+Simple todo + scheduler app with notifications and streaks.
 
 ## What's in V0
 
@@ -85,6 +85,10 @@ EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.<ios-client-id>   #
 ```
 
 The Web client ID is the audience your Next.js backend will verify the ID token against. The Google client SECRET stays on the server only — never in the mobile bundle.
+
+## Repo hygiene
+
+Public-repo guardrails live in [`REPO_HYGIENE.md`](./REPO_HYGIENE.md). Follow that before every push.
 
 ## Layout
 

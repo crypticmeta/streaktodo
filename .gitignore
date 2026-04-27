@@ -25,6 +25,9 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
+*.tmp
+*.pid
 
 # macOS
 .DS_Store
@@ -37,6 +40,22 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# AI / editor / local tooling artifacts
+.claude/
+.codex/
+.cursor/
+.windsurf/
+.idea/
+.vscode/
+claude-outputs/
+codex-outputs/
+prompt-logs/
+transcripts/
+tmp/
+temp/
+test-results/
+playwright-report/
 
 # generated native folders
 /ios
