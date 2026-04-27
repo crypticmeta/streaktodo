@@ -22,7 +22,7 @@ const config: ExpoConfig = {
   android: {
     package: branding.androidPackage,
     adaptiveIcon: {
-      foregroundImage: './assets/adaptive-icon.png',
+      foregroundImage: './assets/adaptive-icon-foreground.png',
       backgroundColor: branding.backgroundColor,
     },
     edgeToEdgeEnabled: true,

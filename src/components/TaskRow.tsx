@@ -45,11 +45,12 @@ function TaskRowImpl({
       style={[
         styles.row,
         {
-          backgroundColor: t.color.surface,
-          borderColor: task.isPinned ? t.color.accent : t.color.border,
+          // Filled card — no visible border. Pinned rows get the soft accent
+          // tint as a quiet differentiator instead of a stroke.
+          backgroundColor: task.isPinned ? t.color.accentSoft : t.color.surfaceMuted,
           borderRadius: t.radius.lg,
           paddingHorizontal: t.spacing.lg,
-          paddingVertical: t.spacing.md,
+          paddingVertical: t.spacing.lg,
         },
       ]}
     >
@@ -98,7 +99,7 @@ function TaskRowImpl({
         />
       </View>
 
-      {/* Pin / star action */}
+      {/* Pin / flag action — outlined flag glyph, matches inspiration */}
       <Pressable
         onPress={handleTogglePin}
         hitSlop={10}
@@ -110,10 +111,10 @@ function TaskRowImpl({
         <Text
           style={{
             fontSize: 20,
-            color: task.isPinned ? t.color.accent : t.color.borderStrong,
+            color: task.isPinned ? t.color.accent : t.color.textMuted,
           }}
         >
-          {task.isPinned ? '★' : '☆'}
+          {task.isPinned ? '⚑' : '⚐'}
         </Text>
       </Pressable>
     </View>
@@ -235,7 +236,6 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderWidth: 1,
     gap: 12,
   },
   checkbox: {

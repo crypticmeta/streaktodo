@@ -15,8 +15,8 @@ const branding = {
 
   // Brand color used by native plugins (notifications icon tint, splash, etc).
   // This is a NATIVE-ONLY value. UI colors live in src/theme/tokens.ts.
-  primaryColor: '#1e3a34',
-  backgroundColor: '#fffaf2',
+  primaryColor: '#1f2328',
+  backgroundColor: '#1f2328',
 
   // Contact / legal — fill in before public launch.
   supportEmail: 'support@streaktodo.app',

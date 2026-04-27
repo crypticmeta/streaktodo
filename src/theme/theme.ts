@@ -70,16 +70,16 @@ const lightColors: SemanticColors = {
   borderMuted: palette.cream[500],
   borderStrong: palette.cream[600],
 
-  textPrimary: palette.cream[900],
-  textSecondary: palette.cream[800],
-  textMuted: palette.cream[700],
+  textPrimary: '#1F2328',
+  textSecondary: '#4b443d',
+  textMuted: '#7a6e62',
   textInverse: palette.white,
-  textOnAccent: palette.white,
-  textOnAccentSoft: '#e6eee9',
+  textOnAccent: '#F4EFE6',
+  textOnAccentSoft: '#dcccb7',
 
-  accent: palette.evergreen[500],
-  accentSoft: palette.evergreen[100],
-  accentMuted: palette.evergreen[200],
+  accent: '#1F2328',
+  accentSoft: '#D2B48C',
+  accentMuted: '#EAD7B7',
 
   success: palette.evergreen[500],
   successSoft: palette.evergreen[100],
@@ -88,32 +88,32 @@ const lightColors: SemanticColors = {
   danger: palette.crimson[500],
   dangerSoft: palette.crimson[100],
 
-  scrim: 'rgba(15, 32, 29, 0.45)',
+  scrim: 'rgba(31, 35, 40, 0.45)',
   divider: palette.cream[400],
-  link: palette.evergreen[500],
-  focusRing: palette.evergreen[300],
+  link: '#1F2328',
+  focusRing: '#D2B48C',
 };
 
 const darkColors: SemanticColors = {
-  background: palette.slate[950],
-  surface: palette.slate[900],
-  surfaceMuted: palette.slate[800],
-  surfaceRaised: palette.slate[800],
+  background: '#1F2328',
+  surface: '#2A2F35',
+  surfaceMuted: '#343A42',
+  surfaceRaised: '#31363D',
 
-  border: palette.slate[700],
-  borderMuted: palette.slate[800],
-  borderStrong: palette.slate[600],
+  border: '#444b54',
+  borderMuted: '#383f47',
+  borderStrong: '#59626d',
 
-  textPrimary: palette.slate[50],
-  textSecondary: palette.slate[300],
-  textMuted: palette.slate[400],
-  textInverse: palette.slate[900],
-  textOnAccent: palette.white,
-  textOnAccentSoft: palette.evergreen[100],
+  textPrimary: '#F4EFE6',
+  textSecondary: '#d5cdc1',
+  textMuted: '#b1a89b',
+  textInverse: '#1F2328',
+  textOnAccent: '#1F2328',
+  textOnAccentSoft: '#4d4338',
 
-  accent: palette.evergreen[300],
-  accentSoft: palette.evergreen[700],
-  accentMuted: palette.evergreen[600],
+  accent: '#D2B48C',
+  accentSoft: '#4b3f33',
+  accentMuted: '#6e5b46',
 
   success: palette.evergreen[300],
   successSoft: palette.evergreen[700],
@@ -123,9 +123,9 @@ const darkColors: SemanticColors = {
   dangerSoft: palette.crimson[700],
 
   scrim: 'rgba(0, 0, 0, 0.6)',
-  divider: palette.slate[700],
-  link: palette.evergreen[300],
-  focusRing: palette.evergreen[400],
+  divider: '#444b54',
+  link: '#D2B48C',
+  focusRing: '#D2B48C',
 };
 
 // Static, non-color tokens are shared across schemes.

@@ -219,83 +219,78 @@ export default function TasksScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.color.background }]} edges={['top']}>
-      <View style={[styles.header, { paddingHorizontal: t.spacing.xl, paddingTop: t.spacing.lg }]}>
-        <Text
-          style={{
-            color: t.color.textMuted,
-            fontSize: 11,
-            textTransform: 'uppercase',
-            letterSpacing: t.tracking.wider,
-            fontWeight: t.fontWeight.semibold,
-          }}
-        >
-          Today
-        </Text>
-        <Text
-          style={{
-            color: t.color.textPrimary,
-            fontSize: t.fontSize['3xl'],
-            fontWeight: t.fontWeight.bold,
-            marginTop: 4,
-          }}
-        >
-          Tasks
-        </Text>
+      {/* No big "Tasks" header — pills sit at the top under the status bar,
+          matching inspiration/app/tasks.jpeg. The Tasks tab itself is named
+          in the bottom tab bar already, so a duplicate title is wasted space. */}
+      <View style={{ paddingTop: t.spacing.sm }}>
+        <CategoryPills
+          categories={categories}
+          selectedId={selectedCategoryId}
+          onSelect={setSelectedCategoryId}
+        />
       </View>
-
-      <CategoryPills
-        categories={categories}
-        selectedId={selectedCategoryId}
-        onSelect={setSelectedCategoryId}
-      />
 
       <SectionList
         sections={sections}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        renderSectionHeader={({ section }) => (
-          <View
-            style={[
-              styles.sectionHeader,
-              { paddingTop: t.spacing.lg, paddingBottom: t.spacing.sm },
-            ]}
-          >
-            <Text
-              style={{
-                color: t.color.textMuted,
-                fontSize: 11,
-                fontWeight: t.fontWeight.semibold,
-                textTransform: 'uppercase',
-                letterSpacing: t.tracking.wider,
-              }}
+        renderSectionHeader={({ section }) => {
+          const isFirst = sections[0]?.key === section.key;
+          return (
+            <View
+              style={[
+                styles.sectionHeader,
+                {
+                  paddingTop: isFirst ? 6 : t.spacing.xl,
+                  paddingBottom: t.spacing.sm,
+                },
+              ]}
             >
-              {section.title}
-            </Text>
-            <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, marginLeft: 6 }}>
-              · {section.data.length}
-            </Text>
-          </View>
-        )}
+              <Text
+                style={{
+                  color: t.color.textPrimary,
+                  fontSize: t.fontSize.lg,
+                  fontWeight: t.fontWeight.bold,
+                  flex: 1,
+                }}
+              >
+                {section.title}
+              </Text>
+              {/* Collapse chevron — visual only for now; collapse logic
+                  arrives later. Pointing up matches the inspiration's
+                  expanded-section state. */}
+              <Text
+                style={{
+                  color: t.color.textMuted,
+                  fontSize: t.fontSize.sm,
+                  fontWeight: t.fontWeight.bold,
+                }}
+              >
+                ▴
+              </Text>
+            </View>
+          );
+        }}
         contentContainerStyle={[
           styles.listContent,
           {
             paddingHorizontal: t.spacing.xl,
-            paddingTop: t.spacing.sm,
-            paddingBottom: t.spacing['6xl'],
+            paddingTop: 0,
+            paddingBottom: t.spacing['5xl'],
           },
-          sections.length === 0 && styles.listContentEmpty,
         ]}
-        ItemSeparatorComponent={() => <View style={{ height: t.spacing.sm }} />}
-        SectionSeparatorComponent={null}
+        ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
         stickySectionHeadersEnabled={false}
         ListEmptyComponent={
-          loading ? (
-            <Loading />
-          ) : error ? (
-            <ErrorState message={error} onRetry={refresh} />
-          ) : (
-            <EmptyState filtered={selectedCategoryId !== null} />
-          )
+          <View style={{ paddingTop: t.spacing['2xl'] }}>
+            {loading ? (
+              <Loading />
+            ) : error ? (
+              <ErrorState message={error} onRetry={refresh} />
+            ) : (
+              <EmptyState filtered={selectedCategoryId !== null} />
+            )}
+          </View>
         }
         keyboardShouldPersistTaps="handled"
       />
@@ -415,16 +410,10 @@ function EmptyState({ filtered }: { filtered: boolean }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {},
   listContent: {},
-  listContentEmpty: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
   centered: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 32,
   },
   emptyCard: {
     borderWidth: 1,

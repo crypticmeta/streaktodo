@@ -18,13 +18,9 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: theme.color.background },
-        headerTitleStyle: {
-          color: theme.color.textPrimary,
-          fontSize: theme.fontSize.lg,
-          fontWeight: theme.fontWeight.semibold,
-        },
-        headerShadowVisible: false,
+        // Each screen owns its own header — the Tabs header was duplicating
+        // titles and stealing top whitespace.
+        headerShown: false,
         tabBarStyle: {
           backgroundColor: theme.color.surface,
           borderTopColor: theme.color.border,

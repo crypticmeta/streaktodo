@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import type { Category } from '../db';
 import { useTheme } from '../theme';
 
@@ -25,7 +25,6 @@ export function CategoryPills({ categories, selectedId, onSelect }: CategoryPill
         label="All"
         selected={selectedId === null}
         onPress={() => onSelect(null)}
-        dotColor={null}
       />
       {categories.map((c) => (
         <Pill
@@ -33,7 +32,6 @@ export function CategoryPills({ categories, selectedId, onSelect }: CategoryPill
           label={c.name}
           selected={selectedId === c.id}
           onPress={() => onSelect(c.id)}
-          dotColor={c.color}
         />
       ))}
     </ScrollView>
@@ -44,12 +42,10 @@ function Pill({
   label,
   selected,
   onPress,
-  dotColor,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
-  dotColor: string | null;
 }) {
   const t = useTheme();
   return (
@@ -62,32 +58,20 @@ function Pill({
       style={({ pressed }) => [
         styles.pill,
         {
-          borderColor: selected ? t.color.accent : t.color.borderStrong,
           backgroundColor: selected
             ? t.color.accent
             : pressed
-              ? t.color.surfaceMuted
-              : t.color.surface,
+              ? t.color.accentMuted
+              : t.color.surfaceMuted,
           borderRadius: t.radius.pill,
           paddingHorizontal: t.spacing.lg,
-          paddingVertical: t.spacing.sm,
+          paddingVertical: 10,
         },
       ]}
     >
-      {dotColor ? (
-        <View
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: dotColor,
-            marginRight: 8,
-          }}
-        />
-      ) : null}
       <Text
         style={{
-          color: selected ? t.color.textOnAccent : t.color.textSecondary,
+          color: selected ? t.color.textOnAccent : t.color.textPrimary,
           fontSize: t.fontSize.sm,
           fontWeight: selected ? t.fontWeight.bold : t.fontWeight.semibold,
         }}
@@ -102,11 +86,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
   },
 });

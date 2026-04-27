@@ -15,7 +15,7 @@ export const colors = {
   cardBorder: c.border,
   primary: c.accent,
   primarySoft: c.accentSoft,
-  secondary: '#675641',
+  secondary: '#6e5b46',
   warn: c.warnSoft,
   muted: c.surfaceMuted,
   mutedBorder: c.borderMuted,
