@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Fab } from '../../src/components/Fab';
 import { TaskComposer } from '../../src/components/TaskComposer';
-import { subtasksRepo, tasksRepo, useTasks } from '../../src/db';
+import { subtasksRepo, tasksRepo, useCategories, useTasks } from '../../src/db';
 import { useTheme } from '../../src/theme';
 
 // Phase 2 surface: persistence + composer subtasks work, but the polished
@@ -14,9 +14,17 @@ export default function TasksScreen() {
   const t = useTheme();
   const [composerOpen, setComposerOpen] = useState(false);
   const { tasks, loading, error, refresh } = useTasks({ status: 'all' });
+  const { categories } = useCategories();
   const [subtaskCounts, setSubtaskCounts] = useState<
     Record<string, { total: number; done: number }>
   >({});
+
+  // Lookup map so each card can resolve its category in O(1).
+  const categoriesById = useMemo(() => {
+    const m = new Map<string, { name: string; color: string | null }>();
+    for (const c of categories) m.set(c.id, { name: c.name, color: c.color });
+    return m;
+  }, [categories]);
 
   // Reload subtask counts whenever the task list changes.
   const taskIds = useMemo(() => tasks.map((task) => task.id), [tasks]);
@@ -32,8 +40,16 @@ export default function TasksScreen() {
   }, [taskIds]);
 
   const handleSubmit = useCallback(
-    async ({ title, subtasks }: { title: string; subtasks: string[] }) => {
-      await tasksRepo.createTaskWithSubtasks({ title }, subtasks);
+    async ({
+      title,
+      subtasks,
+      categoryId,
+    }: {
+      title: string;
+      subtasks: string[];
+      categoryId: string | null;
+    }) => {
+      await tasksRepo.createTaskWithSubtasks({ title, categoryId }, subtasks);
       await refresh();
     },
     [refresh]
@@ -95,6 +111,7 @@ export default function TasksScreen() {
             <View style={{ marginTop: t.spacing['2xl'], gap: t.spacing.sm }}>
               {tasks.map((task) => {
                 const counts = subtaskCounts[task.id];
+                const cat = task.categoryId ? categoriesById.get(task.categoryId) : null;
                 return (
                   <View
                     key={task.id}
@@ -105,30 +122,57 @@ export default function TasksScreen() {
                       borderRadius: t.radius.lg,
                       paddingHorizontal: t.spacing.lg,
                       paddingVertical: t.spacing.md,
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: t.spacing.md,
                     }}
                   >
-                    <Text
+                    <View
                       style={{
-                        color: t.color.textPrimary,
-                        fontSize: t.fontSize.md,
-                        fontWeight: t.fontWeight.medium,
-                        textDecorationLine: task.status === 'done' ? 'line-through' : 'none',
-                        opacity: task.status === 'done' ? 0.55 : 1,
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        marginTop: 6,
+                        backgroundColor: cat?.color ?? 'transparent',
+                        borderWidth: cat ? 0 : 1,
+                        borderColor: t.color.borderStrong,
                       }}
-                    >
-                      {task.title}
-                    </Text>
-                    {counts && counts.total > 0 ? (
+                    />
+                    <View style={{ flex: 1 }}>
                       <Text
                         style={{
-                          color: t.color.textMuted,
-                          fontSize: t.fontSize.xs,
-                          marginTop: 4,
+                          color: t.color.textPrimary,
+                          fontSize: t.fontSize.md,
+                          fontWeight: t.fontWeight.medium,
+                          textDecorationLine: task.status === 'done' ? 'line-through' : 'none',
+                          opacity: task.status === 'done' ? 0.55 : 1,
                         }}
                       >
-                        {counts.done}/{counts.total} subtask{counts.total === 1 ? '' : 's'}
+                        {task.title}
                       </Text>
-                    ) : null}
+                      {counts && counts.total > 0 ? (
+                        <Text
+                          style={{
+                            color: t.color.textMuted,
+                            fontSize: t.fontSize.xs,
+                            marginTop: 4,
+                          }}
+                        >
+                          {counts.done}/{counts.total} subtask{counts.total === 1 ? '' : 's'}
+                          {cat ? ` · ${cat.name}` : ''}
+                        </Text>
+                      ) : cat ? (
+                        <Text
+                          style={{
+                            color: t.color.textMuted,
+                            fontSize: t.fontSize.xs,
+                            marginTop: 4,
+                          }}
+                        >
+                          {cat.name}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 );
               })}

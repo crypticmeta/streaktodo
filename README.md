@@ -30,7 +30,7 @@ Primary reference points from `inspiration/app/`:
 - [x] Build bottom-sheet composer with title input — see [`src/components/TaskComposer.tsx`](./src/components/TaskComposer.tsx)
 - [x] Add submit action and validation for creating a task — composer persists via `tasksRepo.createTask`, inline error + length-hint surfacing
 - [x] Add inline subtask row inside the composer — atomic insert via `tasksRepo.createTaskWithSubtasks`
-- [ ] Add category picker trigger
+- [x] Add category picker trigger — chip in composer + `CategoryPickerSheet` + `useCategories` hook
 - [ ] Add date picker trigger
 - [ ] Add reminder trigger
 - [ ] Add repeat trigger

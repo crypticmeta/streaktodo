@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { tasksRepo, type Task } from './index';
+import { categoriesRepo, tasksRepo, type Category, type Task } from './index';
 import type { ListTasksFilter } from './repos/tasks';
 
 type UseTasksState = {
@@ -69,4 +69,46 @@ function serializeFilter(f: ListTasksFilter | undefined): string {
     f.dueAtMax ?? '_',
     f.pinnedFirst === false ? 'no-pin' : 'pin',
   ].join('|');
+}
+
+type UseCategoriesState = {
+  categories: Category[];
+  loading: boolean;
+  error: string | null;
+};
+
+type UseCategoriesReturn = UseCategoriesState & {
+  refresh: () => Promise<void>;
+};
+
+/**
+ * List of all (non-deleted) categories. The default three (Work / Personal /
+ * Wishlist) are seeded on first DB open, so the list is never empty in
+ * practice.
+ */
+export function useCategories(): UseCategoriesReturn {
+  const [state, setState] = useState<UseCategoriesState>({
+    categories: [],
+    loading: true,
+    error: null,
+  });
+
+  const refresh = useCallback(async () => {
+    try {
+      const categories = await categoriesRepo.listCategories();
+      setState({ categories, loading: false, error: null });
+    } catch (err) {
+      setState({
+        categories: [],
+        loading: false,
+        error: err instanceof Error ? err.message : 'Failed to load categories.',
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return { ...state, refresh };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   Modal,
@@ -11,11 +11,14 @@ import {
   type KeyboardEvent,
   type TextInput as RNTextInput,
 } from 'react-native';
+import { useCategories } from '../db';
 import { useTheme } from '../theme';
+import { CategoryPickerSheet } from './CategoryPickerSheet';
 
 export type ComposerSubmitInput = {
   title: string;
   subtasks: string[];
+  categoryId: string | null;
 };
 
 type TaskComposerProps = {
@@ -66,17 +69,27 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
   const t = useTheme();
   const [title, setTitle] = useState('');
   const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<RNTextInput>(null);
   const subtaskRefs = useRef<Map<string, RNTextInput | null>>(new Map());
   const keyboardOffset = useKeyboardOffset();
+  const { categories } = useCategories();
+
+  const selectedCategory = useMemo(
+    () => (categoryId ? categories.find((c) => c.id === categoryId) ?? null : null),
+    [categories, categoryId]
+  );
 
   // Reset content + focus the input every time the sheet opens.
   useEffect(() => {
     if (!visible) return;
     setTitle('');
     setSubtasks([]);
+    setCategoryId(null);
+    setPickerOpen(false);
     setSubmitting(false);
     setError(null);
     subtaskRefs.current.clear();
@@ -141,12 +154,17 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmit?.({ title: trimmed, subtasks: cleanedSubtasks });
+      await onSubmit?.({ title: trimmed, subtasks: cleanedSubtasks, categoryId });
       handleClose();
     } catch (err) {
       setSubmitting(false);
       setError(err instanceof Error ? err.message : 'Could not save the task. Try again.');
     }
+  };
+
+  const handleOpenPicker = () => {
+    Keyboard.dismiss();
+    setPickerOpen(true);
   };
 
   return (
@@ -340,13 +358,10 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
             </Pressable>
           </View>
 
-          {/*
-            Other triggers (category / date / reminder / repeat) land in the next
-            checkboxes.
-          */}
+          {/* Trigger chips: category (here), date / reminder / repeat coming next */}
           <View
             style={[
-              styles.triggersPlaceholder,
+              styles.triggersRow,
               {
                 borderTopColor: t.color.borderMuted,
                 marginTop: t.spacing.lg,
@@ -354,12 +369,60 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
               },
             ]}
           >
-            <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, letterSpacing: t.tracking.wider }}>
-              CATEGORY · DATE · REMINDER · REPEAT — coming next
-            </Text>
+            <Pressable
+              onPress={handleOpenPicker}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={
+                selectedCategory ? `Category: ${selectedCategory.name}` : 'Pick category'
+              }
+              accessibilityHint="Opens the category picker"
+              style={({ pressed }) => [
+                styles.chip,
+                {
+                  borderColor: selectedCategory ? t.color.accent : t.color.borderStrong,
+                  backgroundColor: selectedCategory
+                    ? t.color.accentSoft
+                    : pressed
+                      ? t.color.surfaceMuted
+                      : 'transparent',
+                  paddingHorizontal: t.spacing.md,
+                  paddingVertical: t.spacing.sm,
+                  borderRadius: t.radius.pill,
+                },
+              ]}
+            >
+              {selectedCategory ? (
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: selectedCategory.color ?? t.color.accent,
+                  }}
+                />
+              ) : null}
+              <Text
+                style={{
+                  color: selectedCategory ? t.color.textPrimary : t.color.textSecondary,
+                  fontSize: t.fontSize.sm,
+                  fontWeight: t.fontWeight.semibold,
+                }}
+              >
+                {selectedCategory ? selectedCategory.name : 'Category'}
+              </Text>
+            </Pressable>
           </View>
         </View>
       </View>
+
+      <CategoryPickerSheet
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        categories={categories}
+        selectedId={categoryId}
+        onSelect={setCategoryId}
+      />
     </Modal>
   );
 }
@@ -419,7 +482,17 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 4,
   },
-  triggersPlaceholder: {
+  triggersRow: {
     borderTopWidth: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
   },
 });
