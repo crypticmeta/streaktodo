@@ -18,6 +18,7 @@ import { MONTH_SHORT } from '../lib/date';
 import { useTheme } from '../theme';
 import { CategoryPickerMenu } from './CategoryPickerMenu';
 import { CreateCategoryDialog } from './CreateCategoryDialog';
+import { Icon } from './Icon';
 import { SchedulePickerSheet } from './SchedulePickerSheet';
 import { EMPTY_SCHEDULE, type ScheduleDraft } from './scheduleTypes';
 
@@ -419,7 +420,7 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
                   </Text>
                 </View>
               ) : (
-                <Text style={{ fontSize: 18, color: t.color.textMuted }}>📅</Text>
+                <Icon name="calendar" size={20} color={t.color.textSecondary} />
               )}
             </Pressable>
 
@@ -437,7 +438,7 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
                 },
               ]}
             >
-              <Text style={{ fontSize: 18, color: t.color.textMuted }}>🔗</Text>
+              <Icon name="subtask" size={20} color={t.color.textSecondary} />
             </Pressable>
 
             {/* Templates placeholder — premium-flagged, stub for Phase 11 */}
@@ -457,12 +458,14 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
                 },
               ]}
             >
-              <Text style={{ fontSize: 18, color: t.color.textMuted }}>📋</Text>
+              <Icon name="template" size={20} color={t.color.textMuted} />
             </Pressable>
 
             <View style={{ flex: 1 }} />
 
-            {/* Circular send button — replaces the text Save */}
+            {/* Circular send button — replaces the text Save. Always rendered
+                with the accent fill so it stays visible behind a scrim; uses
+                opacity + a softer arrow color to communicate disabled state. */}
             <Pressable
               onPress={handleSave}
               disabled={!canSave}
@@ -473,24 +476,15 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
               style={({ pressed }) => [
                 styles.sendButton,
                 {
-                  backgroundColor: canSave ? t.color.accent : t.color.borderStrong,
-                  opacity: pressed ? 0.85 : 1,
-                  transform: [{ scale: pressed ? 0.95 : 1 }],
+                  backgroundColor: t.color.accent,
+                  opacity: !canSave ? 0.4 : pressed ? 0.85 : 1,
+                  transform: [{ scale: pressed && canSave ? 0.95 : 1 }],
                   ...t.elevation.md,
                   shadowColor: t.color.accent,
                 },
               ]}
             >
-              <Text
-                style={{
-                  color: t.color.textOnAccent,
-                  fontSize: 22,
-                  fontWeight: t.fontWeight.bold,
-                  marginTop: -3,
-                }}
-              >
-                ▴
-              </Text>
+              <Icon name="send" size={22} color={t.color.textOnAccent} />
             </Pressable>
           </View>
         </View>

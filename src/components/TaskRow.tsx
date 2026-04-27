@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Task } from '../db';
 import { formatRelativeShort, formatTimeFromMinutes, isOverdue } from '../lib/date';
 import { useTheme } from '../theme';
+import { Icon } from './Icon';
 
 export type TaskRowCategory = {
   name: string;
@@ -69,9 +70,7 @@ function TaskRowImpl({
           },
         ]}
       >
-        {isDone ? (
-          <Text style={{ color: t.color.textOnAccent, fontSize: 14, fontWeight: '700' }}>✓</Text>
-        ) : null}
+        {isDone ? <Icon name="check" size={14} color={t.color.textOnAccent} /> : null}
       </Pressable>
 
       {/* Body: title + meta */}
@@ -108,14 +107,11 @@ function TaskRowImpl({
         accessibilityState={{ selected: task.isPinned }}
         style={styles.pinButton}
       >
-        <Text
-          style={{
-            fontSize: 20,
-            color: task.isPinned ? t.color.accent : t.color.textMuted,
-          }}
-        >
-          {task.isPinned ? '★' : '☆'}
-        </Text>
+        <Icon
+          name={task.isPinned ? 'star-filled' : 'star'}
+          size={20}
+          color={task.isPinned ? t.color.accent : t.color.textMuted}
+        />
       </Pressable>
     </View>
   );
@@ -190,14 +186,14 @@ function Meta({
       ) : null}
 
       {hasReminder ? (
-        <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, marginLeft: 6 }}>
-          🔔
-        </Text>
+        <View style={{ marginLeft: 6 }}>
+          <Icon name="reminder-filled" size={12} color={t.color.textMuted} />
+        </View>
       ) : null}
       {hasRepeat ? (
-        <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, marginLeft: 4 }}>
-          🔁
-        </Text>
+        <View style={{ marginLeft: 4 }}>
+          <Icon name="repeat-filled" size={12} color={t.color.textMuted} />
+        </View>
       ) : null}
 
       {tail.length > 0 ? (

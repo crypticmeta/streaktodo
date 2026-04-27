@@ -124,36 +124,41 @@ export function CalendarGrid({ month, onMonthChange, selected, onSelect }: Calen
         {cells.map((cell) => {
           const isSelected = selected !== null && isSameDay(cell.ts, selected);
           const isToday = isSameDay(cell.ts, today);
+          // Past days are non-tappable: the user can still navigate to a past
+          // month for context, but they can't choose a date earlier than today
+          // for a new task.
+          const isPast = startOfDay(cell.ts) < today;
           const day = new Date(cell.ts).getDate();
 
           let textColor = t.color.textPrimary;
           if (!cell.inMonth) textColor = t.color.textMuted;
+          if (isPast) textColor = t.color.textMuted;
           if (isSelected) textColor = t.color.textOnAccent;
           if (isToday && !isSelected) textColor = t.color.accent;
 
           return (
             <Pressable
               key={cell.ts}
-              onPress={() => onSelect(startOfDay(cell.ts))}
+              onPress={() => !isPast && onSelect(startOfDay(cell.ts))}
               hitSlop={2}
+              disabled={isPast}
               style={({ pressed }) => [
                 styles.cell,
-                isSelected && {
-                  backgroundColor: t.color.accent,
-                },
-                !isSelected && pressed && {
+                isSelected && { backgroundColor: t.color.accent },
+                !isSelected && !isPast && pressed && {
                   backgroundColor: t.color.surfaceMuted,
                 },
               ]}
               accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
+              accessibilityState={{ selected: isSelected, disabled: isPast }}
             >
               <Text
                 style={{
                   color: textColor,
                   fontSize: t.fontSize.md,
                   fontWeight: isToday || isSelected ? t.fontWeight.semibold : t.fontWeight.regular,
-                  opacity: cell.inMonth ? 1 : 0.45,
+                  opacity: !cell.inMonth ? 0.45 : isPast ? 0.35 : 1,
+                  textDecorationLine: isPast ? 'line-through' : 'none',
                 }}
               >
                 {day}

@@ -19,6 +19,7 @@ import {
 } from '../lib/date';
 import { useTheme } from '../theme';
 import { CalendarGrid } from './CalendarGrid';
+import { Icon, type IconName } from './Icon';
 import { ReminderPopover } from './ReminderPopover';
 import { RepeatPopover } from './RepeatPopover';
 import {
@@ -208,7 +209,7 @@ export function SchedulePickerSheet({
 
             {/* Time row */}
             <ScheduleRow
-              icon="🕒"
+              icon="time"
               label="Time"
               valueLabel={draft.dueTime !== null ? formatTimeFromMinutes(draft.dueTime) : 'No'}
               valueDimmed={draft.dueTime === null}
@@ -220,7 +221,7 @@ export function SchedulePickerSheet({
 
             {/* Reminder row */}
             <ScheduleRow
-              icon="🔔"
+              icon="reminder"
               label="Reminder"
               valueLabel={reminderLabel(draft)}
               valueDimmed={!draft.reminder.enabled}
@@ -231,7 +232,7 @@ export function SchedulePickerSheet({
 
             {/* Repeat row */}
             <ScheduleRow
-              icon="🔁"
+              icon="repeat"
               label="Repeat"
               valueLabel={repeatLabel(draft)}
               valueDimmed={draft.repeat.preset === 'none'}
@@ -313,7 +314,7 @@ function ScheduleRow({
   disabled,
   disabledHint,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   valueLabel: string;
   valueDimmed: boolean;
@@ -340,7 +341,7 @@ function ScheduleRow({
       accessibilityHint={disabledHint}
     >
       <View style={styles.rowIconBubble}>
-        <Text style={{ fontSize: 16 }}>{icon}</Text>
+        <Icon name={icon} size={20} color={t.color.textSecondary} />
       </View>
       <Text
         style={{

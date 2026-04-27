@@ -1,15 +1,9 @@
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Icon, type IconName } from '../../src/components/Icon';
 import { useTheme } from '../../src/theme';
 
-type GlyphProps = { glyph: string; color: string };
-
-function TabGlyph({ glyph, color }: GlyphProps) {
-  // Placeholder icon system. Phase 2 will swap this for @expo/vector-icons
-  // (or a custom Icon component) once we settle on a library.
-  return (
-    <Text style={{ fontSize: 22, color, lineHeight: 26 }}>{glyph}</Text>
-  );
+function TabIcon({ name, color }: { name: IconName; color: string }) {
+  return <Icon name={name} size={22} color={color} />;
 }
 
 export default function TabsLayout() {
@@ -41,21 +35,21 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Tasks',
-          tabBarIcon: ({ color }) => <TabGlyph glyph="✓" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="tasks" color={color} />,
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
           title: 'Calendar',
-          tabBarIcon: ({ color }) => <TabGlyph glyph="▦" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="calendar-tab" color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <TabGlyph glyph="◉" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="profile" color={color} />,
         }}
       />
     </Tabs>
