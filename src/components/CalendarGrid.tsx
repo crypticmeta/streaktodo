@@ -18,6 +18,17 @@ type CalendarGridProps = {
   /** Currently selected day (any timestamp within the day). null = none. */
   selected: number | null;
   onSelect: (dayStartTs: number) => void;
+  /**
+   * Days that should render a marker dot under the number (e.g. days that
+   * have tasks). Set of start-of-day epoch ms.
+   */
+  markedDays?: ReadonlySet<number>;
+  /**
+   * Block selecting any day strictly before today. Defaults to true so the
+   * SchedulePickerSheet keeps its old behaviour; the Calendar tab passes
+   * false because browsing past days is fine when reviewing history.
+   */
+  disablePast?: boolean;
 };
 
 type Cell = {
@@ -60,7 +71,14 @@ function buildCells(monthTs: number): Cell[] {
   return cells;
 }
 
-export function CalendarGrid({ month, onMonthChange, selected, onSelect }: CalendarGridProps) {
+export function CalendarGrid({
+  month,
+  onMonthChange,
+  selected,
+  onSelect,
+  markedDays,
+  disablePast = true,
+}: CalendarGridProps) {
   const t = useTheme();
   const cells = useMemo(() => buildCells(month), [month]);
   const today = startOfDay();
@@ -122,47 +140,59 @@ export function CalendarGrid({ month, onMonthChange, selected, onSelect }: Calen
       {/* Day grid */}
       <View style={styles.grid}>
         {cells.map((cell) => {
+          const dayStart = startOfDay(cell.ts);
           const isSelected = selected !== null && isSameDay(cell.ts, selected);
           const isToday = isSameDay(cell.ts, today);
-          // Past days are non-tappable: the user can still navigate to a past
-          // month for context, but they can't choose a date earlier than today
-          // for a new task.
-          const isPast = startOfDay(cell.ts) < today;
+          const isPast = dayStart < today;
+          const isBlocked = disablePast && isPast;
+          const isMarked = markedDays?.has(dayStart) ?? false;
           const day = new Date(cell.ts).getDate();
 
           let textColor = t.color.textPrimary;
           if (!cell.inMonth) textColor = t.color.textMuted;
-          if (isPast) textColor = t.color.textMuted;
+          if (isBlocked) textColor = t.color.textMuted;
           if (isSelected) textColor = t.color.textOnAccent;
           if (isToday && !isSelected) textColor = t.color.accent;
 
           return (
             <Pressable
               key={cell.ts}
-              onPress={() => !isPast && onSelect(startOfDay(cell.ts))}
+              onPress={() => !isBlocked && onSelect(dayStart)}
               hitSlop={2}
-              disabled={isPast}
+              disabled={isBlocked}
               style={({ pressed }) => [
                 styles.cell,
                 isSelected && { backgroundColor: t.color.accent },
-                !isSelected && !isPast && pressed && {
+                !isSelected && !isBlocked && pressed && {
                   backgroundColor: t.color.surfaceMuted,
                 },
               ]}
               accessibilityRole="button"
-              accessibilityState={{ selected: isSelected, disabled: isPast }}
+              accessibilityState={{ selected: isSelected, disabled: isBlocked }}
             >
               <Text
                 style={{
                   color: textColor,
                   fontSize: t.fontSize.md,
                   fontWeight: isToday || isSelected ? t.fontWeight.semibold : t.fontWeight.regular,
-                  opacity: !cell.inMonth ? 0.45 : isPast ? 0.35 : 1,
-                  textDecorationLine: isPast ? 'line-through' : 'none',
+                  opacity: !cell.inMonth ? 0.45 : isBlocked ? 0.35 : 1,
+                  textDecorationLine: isBlocked ? 'line-through' : 'none',
                 }}
               >
                 {day}
               </Text>
+              {isMarked ? (
+                <View
+                  style={[
+                    styles.marker,
+                    {
+                      backgroundColor: isSelected
+                        ? t.color.textOnAccent
+                        : t.color.accent,
+                    },
+                  ]}
+                />
+              ) : null}
             </Pressable>
           );
         })}
@@ -209,5 +239,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: CELL_SIZE / 2,
     marginBottom: 2,
+  },
+  marker: {
+    position: 'absolute',
+    bottom: 4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
 });

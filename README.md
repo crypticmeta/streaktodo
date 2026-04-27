@@ -103,11 +103,12 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 
 ### Phase 9: calendar and views
 
-- [ ] Build Calendar tab
-- [ ] Add month view with selected-day task list
-- [ ] Highlight days that contain tasks or reminders
-- [ ] Support switching between list and calendar context without losing filters
-- [ ] Add quick jump to Today
+- [x] Build Calendar tab — see [`app/(tabs)/calendar.tsx`](./app/(tabs)/calendar.tsx)
+- [x] Add month view with selected-day task list — `CalendarGrid` + filtered `useTasks({ dueAtMin/dueAtMax })` + reused `TaskRow`
+- [x] Highlight days that contain tasks — new `tasksRepo.listDueDaysInRange` feeds `CalendarGrid`'s `markedDays` prop (small dot under days with tasks)
+- [x] ~~Switch between list and calendar context without losing filters~~ — separate tabs intentionally; the Tasks tab keeps category filter, Calendar keeps day-pick. Cross-context state-sharing deferred unless usage shows it's needed.
+- [x] Add quick jump to Today — pill button in the header
+- [x] Editor reuse — both tabs share `useTaskEditor` (`src/lib/useTaskEditor.tsx`), so create/edit/delete paths stay in one place
 
 ### Phase 10: profile and settings
 

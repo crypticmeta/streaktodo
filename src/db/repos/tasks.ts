@@ -74,6 +74,27 @@ export async function listTasks(filter: ListTasksFilter = {}): Promise<Task[]> {
   return rows.map(taskFromRow);
 }
 
+/**
+ * Distinct dueAt timestamps (start-of-day epoch ms) of non-deleted tasks
+ * within a window. Used by the calendar to draw markers on days that have
+ * tasks. Cheap O(window) query — one row per matching dueAt.
+ */
+export async function listDueDaysInRange(args: {
+  fromTs: number;
+  toTs: number;
+}): Promise<Set<number>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ due_at: number }>(
+    `SELECT DISTINCT due_at FROM tasks
+      WHERE deleted_at IS NULL
+        AND due_at IS NOT NULL
+        AND due_at >= ?
+        AND due_at <= ?`,
+    [args.fromTs, args.toTs]
+  );
+  return new Set(rows.map((r) => r.due_at));
+}
+
 export async function getTaskById(id: string): Promise<Task | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<unknown>(
