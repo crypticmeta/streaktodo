@@ -146,8 +146,8 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [ ] Add notification settings summary
 - [ ] Add category management screen
 - [ ] Add theme/settings scaffold
-- [ ] Migrate `SignInScreen` and `NotificationsScreen` off the deprecated `colors` shim onto `useTheme()` (currently pinned to light theme)
-- [ ] Delete `src/theme/colors.ts` shim once the migration is done
+- [x] Migrate `SignInScreen` and `NotificationsScreen` off the deprecated `colors` shim onto `useTheme()` — both screens now follow light/dark via the theme provider
+- [x] Delete `src/theme/colors.ts` shim — done
 - [ ] Add data export/import placeholder if needed later
 
 ### Phase 11: premium groundwork

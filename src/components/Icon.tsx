@@ -14,10 +14,13 @@ export type IconName =
   | 'time'            // 🕒 → time-outline
   | 'reminder'        // 🔔 → notifications-outline
   | 'repeat'          // 🔁 → repeat
-  // Tab bar
+  // Tab bar — outlined for inactive, filled for active
   | 'tasks'
+  | 'tasks-filled'
   | 'calendar-tab'
+  | 'calendar-tab-filled'
   | 'profile'
+  | 'profile-filled'
   // Row meta
   | 'reminder-filled'
   | 'repeat-filled'
@@ -36,8 +39,11 @@ const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   reminder: 'notifications-outline',
   repeat: 'repeat',
   tasks: 'checkmark-circle-outline',
+  'tasks-filled': 'checkmark-circle',
   'calendar-tab': 'calendar-outline',
+  'calendar-tab-filled': 'calendar',
   profile: 'person-circle-outline',
+  'profile-filled': 'person-circle',
   'reminder-filled': 'notifications',
   'repeat-filled': 'repeat',
   star: 'star-outline',

@@ -1,9 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { branding } from '../../branding';
 import { useAuth } from '../lib/auth';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme';
 
 export function SignInScreen() {
+  const t = useTheme();
   const { state, signIn } = useAuth();
 
   const isLoading = state.status === 'loading';
@@ -11,37 +12,133 @@ export function SignInScreen() {
   const error = state.status === 'signed-out' ? state.error : null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: t.color.background }]}>
       <View style={styles.shell}>
-        <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>Welcome</Text>
-          <Text style={styles.title}>{branding.appName}</Text>
-          <Text style={styles.subtitle}>
+        <View
+          style={[
+            styles.heroCard,
+            {
+              backgroundColor: t.color.surface,
+              borderColor: t.color.border,
+              borderRadius: t.radius['3xl'],
+              padding: t.spacing['2xl'],
+              ...t.elevation.lg,
+            },
+          ]}
+        >
+          <Text
+            style={{
+              fontSize: t.fontSize.xs,
+              textTransform: 'uppercase',
+              letterSpacing: t.tracking.wider,
+              color: t.color.textMuted,
+              fontWeight: t.fontWeight.bold,
+              marginBottom: 10,
+            }}
+          >
+            Welcome
+          </Text>
+          <Text
+            style={{
+              fontSize: t.fontSize['4xl'],
+              fontWeight: t.fontWeight.bold,
+              color: t.color.textPrimary,
+              letterSpacing: t.tracking.tight,
+            }}
+          >
+            {branding.appName}
+          </Text>
+          <Text
+            style={{
+              fontSize: t.fontSize.base,
+              lineHeight: t.fontSize.base * t.lineHeight.normal,
+              color: t.color.textSecondary,
+              marginTop: t.spacing.sm,
+            }}
+          >
             Sign in to plan content, schedule tasks, and keep a streak.
           </Text>
 
           {isUnsupported ? (
-            <View style={styles.messageBox}>
-              <Text style={styles.messageTitle}>Unsupported runtime</Text>
-              <Text style={styles.helperText}>{state.reason}</Text>
+            <View
+              style={[
+                styles.messageBox,
+                {
+                  backgroundColor: t.color.warnSoft,
+                  borderColor: t.color.borderMuted,
+                  borderRadius: t.radius.xl,
+                  padding: t.spacing.lg,
+                  marginTop: t.spacing.lg,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: t.fontSize.md, fontWeight: t.fontWeight.bold, color: t.color.textPrimary }}>
+                Unsupported runtime
+              </Text>
+              <Text
+                style={{
+                  fontSize: t.fontSize.sm,
+                  lineHeight: t.fontSize.sm * t.lineHeight.normal,
+                  color: t.color.textSecondary,
+                  marginTop: 8,
+                }}
+              >
+                {state.reason}
+              </Text>
             </View>
           ) : null}
 
           {error ? (
-            <View style={[styles.messageBox, styles.messageBoxMuted]}>
-              <Text style={styles.messageTitle}>Sign-in error</Text>
-              <Text style={styles.helperText}>{error}</Text>
+            <View
+              style={[
+                styles.messageBox,
+                {
+                  backgroundColor: t.color.surfaceMuted,
+                  borderColor: t.color.borderMuted,
+                  borderRadius: t.radius.xl,
+                  padding: t.spacing.lg,
+                  marginTop: t.spacing.lg,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: t.fontSize.md, fontWeight: t.fontWeight.bold, color: t.color.danger }}>
+                Sign-in error
+              </Text>
+              <Text
+                style={{
+                  fontSize: t.fontSize.sm,
+                  lineHeight: t.fontSize.sm * t.lineHeight.normal,
+                  color: t.color.textSecondary,
+                  marginTop: 8,
+                }}
+              >
+                {error}
+              </Text>
             </View>
           ) : null}
         </View>
 
         <Pressable
-          style={[styles.button, (isLoading || isUnsupported) && styles.buttonDisabled]}
+          style={({ pressed }) => [
+            styles.button,
+            {
+              backgroundColor: t.color.accent,
+              borderRadius: t.radius['2xl'],
+              paddingHorizontal: t.spacing.lg,
+              paddingVertical: t.spacing.lg,
+              ...t.elevation.md,
+              shadowColor: t.color.accent,
+            },
+            (isLoading || isUnsupported) && styles.buttonDisabled,
+            pressed && styles.buttonPressed,
+          ]}
           onPress={signIn}
           disabled={isLoading || isUnsupported}
         >
-          <Text style={styles.buttonTitle}>Sign in with Google</Text>
-          <Text style={styles.buttonCaption}>
+          <Text style={{ color: t.color.textOnAccent, fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold }}>
+            Sign in with Google
+          </Text>
+          <Text style={{ color: t.color.textOnAccentSoft, fontSize: t.fontSize.sm, marginTop: 4 }}>
             {isLoading ? 'Restoring session…' : 'Uses your Google account'}
           </Text>
         </Pressable>
@@ -53,7 +150,6 @@ export function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -64,82 +160,19 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   heroCard: {
-    backgroundColor: colors.card,
-    borderRadius: 28,
-    padding: 24,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    shadowColor: '#6f4e37',
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 4,
-  },
-  eyebrow: {
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    color: colors.textTertiary,
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: colors.textSecondary,
-    marginTop: 8,
   },
   messageBox: {
-    marginTop: 18,
-    borderRadius: 18,
-    padding: 16,
-    backgroundColor: '#f8eddc',
     borderWidth: 1,
-    borderColor: '#ead7b7',
-  },
-  messageBoxMuted: {
-    backgroundColor: colors.muted,
-    borderColor: colors.mutedBorder,
-  },
-  messageTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#2f261f',
-  },
-  helperText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#5f5246',
-    marginTop: 8,
-    textAlign: 'left',
   },
   button: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 22,
     alignItems: 'flex-start',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
   },
   buttonDisabled: {
     opacity: 0.45,
   },
-  buttonTitle: {
-    color: colors.textOnPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  buttonCaption: {
-    color: colors.textOnPrimarySoft,
-    fontSize: 13,
-    marginTop: 4,
+  buttonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
   },
 });
