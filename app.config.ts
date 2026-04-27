@@ -44,6 +44,7 @@ const config: ExpoConfig = {
       { iosUrlScheme: branding.googleIosUrlScheme },
     ],
     'expo-secure-store',
+    '@react-native-community/datetimepicker',
   ],
   experiments: {
     typedRoutes: true,

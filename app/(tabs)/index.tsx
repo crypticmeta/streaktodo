@@ -3,9 +3,46 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Fab } from '../../src/components/Fab';
 import { TaskComposer } from '../../src/components/TaskComposer';
+import type { ScheduleDraft } from '../../src/components/scheduleTypes';
 import { subtasksRepo, tasksRepo, useCategories, useTasks } from '../../src/db';
+import type { CreateTaskFullInput } from '../../src/db/repos/tasks';
 import { formatRelativeShort, isOverdue } from '../../src/lib/date';
 import { useTheme } from '../../src/theme';
+
+// Pure mapper: schedule draft → repo input. Lives here because it's the bridge
+// between composer-shaped state and DB-shaped state, both of which already
+// belong to the home screen's submit flow.
+const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
+
+function repeatRuleFromSchedule(s: ScheduleDraft): CreateTaskFullInput['repeatRule'] {
+  if (s.repeat.preset === 'none' || s.dueAt === null) return null;
+  const d = new Date(s.dueAt);
+  switch (s.repeat.preset) {
+    case 'daily':
+      return { freq: 'daily', intervalN: 1 };
+    case 'weekly':
+      return { freq: 'weekly', intervalN: 1, byWeekday: WEEKDAY_CODES[d.getDay()] };
+    case 'monthly':
+      return { freq: 'monthly', intervalN: 1, byMonthDay: d.getDate() };
+    case 'yearly':
+      return { freq: 'yearly', intervalN: 1, byMonth: d.getMonth() + 1, byMonthDay: d.getDate() };
+    case 'custom':
+      return s.repeat.custom
+        ? {
+            freq: s.repeat.custom.freq,
+            intervalN: s.repeat.custom.intervalN,
+            byWeekday: s.repeat.custom.byWeekday ?? null,
+            byMonthDay: s.repeat.custom.byMonthDay ?? null,
+            byMonth: s.repeat.custom.byMonth ?? null,
+          }
+        : { freq: 'weekly', intervalN: 1 };
+  }
+}
+
+function remindersFromSchedule(s: ScheduleDraft): CreateTaskFullInput['reminders'] {
+  if (!s.reminder.enabled || s.dueAt === null) return undefined;
+  return [{ leadMinutes: s.reminder.leadMinutes, type: s.reminder.type }];
+}
 
 // Phase 2 surface: persistence + composer subtasks work, but the polished
 // row UI (checkbox in row, pin star, metadata line, day grouping) is the
@@ -45,14 +82,24 @@ export default function TasksScreen() {
       title,
       subtasks,
       categoryId,
+      schedule,
     }: {
       title: string;
       subtasks: string[];
       categoryId: string | null;
+      schedule: ScheduleDraft;
     }) => {
-      // dueAt comes through as null until the Schedule sheet ships in the next
-      // phase; the home card already reads task.dueAt so render is forward-compatible.
-      await tasksRepo.createTaskWithSubtasks({ title, categoryId }, subtasks);
+      await tasksRepo.createTaskFull({
+        task: {
+          title,
+          categoryId,
+          dueAt: schedule.dueAt,
+          dueTime: schedule.dueTime,
+        },
+        subtaskTitles: subtasks,
+        reminders: remindersFromSchedule(schedule),
+        repeatRule: repeatRuleFromSchedule(schedule),
+      });
       await refresh();
     },
     [refresh]

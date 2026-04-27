@@ -12,13 +12,17 @@ import {
   type TextInput as RNTextInput,
 } from 'react-native';
 import { useCategories } from '../db';
+import { formatRelativeShort, MONTH_SHORT } from '../lib/date';
 import { useTheme } from '../theme';
 import { CategoryPickerSheet } from './CategoryPickerSheet';
+import { SchedulePickerSheet } from './SchedulePickerSheet';
+import { EMPTY_SCHEDULE, type ScheduleDraft } from './scheduleTypes';
 
 export type ComposerSubmitInput = {
   title: string;
   subtasks: string[];
   categoryId: string | null;
+  schedule: ScheduleDraft;
 };
 
 type TaskComposerProps = {
@@ -71,6 +75,8 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
   const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [schedule, setSchedule] = useState<ScheduleDraft>(EMPTY_SCHEDULE);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<RNTextInput>(null);
@@ -90,6 +96,8 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
     setSubtasks([]);
     setCategoryId(null);
     setPickerOpen(false);
+    setSchedule(EMPTY_SCHEDULE);
+    setScheduleOpen(false);
     setSubmitting(false);
     setError(null);
     subtaskRefs.current.clear();
@@ -154,7 +162,7 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmit?.({ title: trimmed, subtasks: cleanedSubtasks, categoryId });
+      await onSubmit?.({ title: trimmed, subtasks: cleanedSubtasks, categoryId, schedule });
       handleClose();
     } catch (err) {
       setSubmitting(false);
@@ -165,6 +173,11 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
   const handleOpenPicker = () => {
     Keyboard.dismiss();
     setPickerOpen(true);
+  };
+
+  const handleOpenSchedule = () => {
+    Keyboard.dismiss();
+    setScheduleOpen(true);
   };
 
   return (
@@ -412,6 +425,45 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
                 {selectedCategory ? selectedCategory.name : 'Category'}
               </Text>
             </Pressable>
+
+            {/* Calendar / schedule trigger. Mirrors the inspiration's icon button:
+                shows a calendar emoji when empty, the day-of-month overlaid on a
+                tinted box when a date is set. */}
+            <Pressable
+              onPress={handleOpenSchedule}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={
+                schedule.dueAt !== null ? `Schedule: ${formatRelativeShort(schedule.dueAt)}` : 'Set schedule'
+              }
+              accessibilityHint="Opens the date, time, reminder and repeat picker"
+              style={({ pressed }) => [
+                styles.iconTrigger,
+                {
+                  backgroundColor:
+                    schedule.dueAt !== null
+                      ? t.color.accentSoft
+                      : pressed
+                        ? t.color.surfaceMuted
+                        : 'transparent',
+                  borderColor: schedule.dueAt !== null ? t.color.accent : t.color.borderStrong,
+                  borderRadius: t.radius.md,
+                },
+              ]}
+            >
+              {schedule.dueAt !== null ? (
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ color: t.color.accent, fontSize: 9, fontWeight: t.fontWeight.bold, lineHeight: 11 }}>
+                    {MONTH_SHORT[new Date(schedule.dueAt).getMonth()].toUpperCase()}
+                  </Text>
+                  <Text style={{ color: t.color.textPrimary, fontSize: 14, fontWeight: t.fontWeight.bold, lineHeight: 16 }}>
+                    {new Date(schedule.dueAt).getDate()}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={{ fontSize: 18 }}>📅</Text>
+              )}
+            </Pressable>
           </View>
         </View>
       </View>
@@ -422,6 +474,16 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
         categories={categories}
         selectedId={categoryId}
         onSelect={setCategoryId}
+      />
+
+      <SchedulePickerSheet
+        visible={scheduleOpen}
+        initial={schedule}
+        onCancel={() => setScheduleOpen(false)}
+        onConfirm={(next) => {
+          setSchedule(next);
+          setScheduleOpen(false);
+        }}
       />
     </Modal>
   );
@@ -493,6 +555,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    borderWidth: 1,
+  },
+  iconTrigger: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
   },
 });

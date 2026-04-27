@@ -77,3 +77,69 @@ export const Weekday = {
   Fri: 5,
   Sat: 6,
 } as const;
+
+/** First-of-month at 00:00 local. */
+export function startOfMonth(ts: number = Date.now()): number {
+  const d = new Date(ts);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Number of days in the month containing ts. */
+export function daysInMonth(ts: number = Date.now()): number {
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+
+/** Add n calendar months (clamps day if target month is shorter). */
+export function addMonths(ts: number, n: number): number {
+  const d = new Date(ts);
+  const targetMonth = d.getMonth() + n;
+  d.setDate(1);
+  d.setMonth(targetMonth);
+  return d.getTime();
+}
+
+/** Same calendar day? Compares local-time start-of-day. */
+export function isSameDay(a: number, b: number): boolean {
+  return startOfDay(a) === startOfDay(b);
+}
+
+/** Format a time stored as minutes-since-midnight in the user's locale. */
+export function formatTimeFromMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+/** "12 May 2026" style; used for compact metadata where the year matters. */
+export function formatLongDate(ts: number): string {
+  return new Date(ts).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+/** "27th" style ordinal suffix for the day-of-month. Used in repeat labels. */
+export function formatDayOfMonthOrdinal(day: number): string {
+  if (day >= 11 && day <= 13) return `${day}th`;
+  switch (day % 10) {
+    case 1: return `${day}st`;
+    case 2: return `${day}nd`;
+    case 3: return `${day}rd`;
+    default: return `${day}th`;
+  }
+}
+
+export const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+export const WEEKDAY_LONG = [
+  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+] as const;
+export const MONTH_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+] as const;

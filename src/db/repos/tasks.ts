@@ -161,12 +161,23 @@ export async function softDeleteTask(id: string): Promise<void> {
   );
 }
 
-// Composite create: parent task + N subtasks in a single transaction.
-// All-or-nothing: a failed subtask insert rolls back the parent.
-export async function createTaskWithSubtasks(
-  input: CreateTaskInput,
-  subtaskTitles: string[]
-): Promise<Task> {
+// Composite create: parent task + N subtasks + N reminders + optional repeat
+// rule, all in one transaction. All-or-nothing semantics.
+export type CreateTaskFullInput = {
+  task: CreateTaskInput;
+  subtaskTitles: string[];
+  reminders?: Array<{ leadMinutes: number; type?: 'notification' | 'silent' | 'alarm' }>;
+  repeatRule?: {
+    freq: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+    intervalN?: number;
+    byWeekday?: string | null;
+    byMonthDay?: number | null;
+    byMonth?: number | null;
+    untilAt?: number | null;
+  } | null;
+};
+
+export async function createTaskFull(input: CreateTaskFullInput): Promise<Task> {
   const db = await getDb();
   const taskId = newId();
   const ts = now();
@@ -178,25 +189,57 @@ export async function createTaskWithSubtasks(
        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, NULL, ?, ?, ?)`,
       [
         taskId,
-        input.title,
-        input.notes ?? null,
-        input.categoryId ?? null,
-        input.dueAt ?? null,
-        input.dueTime ?? null,
-        input.isPinned ? 1 : 0,
-        input.sortOrder ?? 0,
+        input.task.title,
+        input.task.notes ?? null,
+        input.task.categoryId ?? null,
+        input.task.dueAt ?? null,
+        input.task.dueTime ?? null,
+        input.task.isPinned ? 1 : 0,
+        input.task.sortOrder ?? 0,
         ts,
         ts,
       ]
     );
 
-    for (let i = 0; i < subtaskTitles.length; i++) {
-      const title = subtaskTitles[i]!.trim();
+    for (let i = 0; i < input.subtaskTitles.length; i++) {
+      const title = input.subtaskTitles[i]!.trim();
       if (title.length === 0) continue;
       await db.runAsync(
         `INSERT INTO subtasks (id, task_id, title, status, sort_order, created_at, updated_at)
          VALUES (?, ?, ?, 'pending', ?, ?, ?)`,
         [newId(), taskId, title, i, ts, ts]
+      );
+    }
+
+    if (input.reminders && input.reminders.length > 0) {
+      for (const r of input.reminders) {
+        await db.runAsync(
+          `INSERT INTO task_reminders
+             (id, task_id, lead_minutes, type, scheduled_notification_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, NULL, ?, ?)`,
+          [newId(), taskId, r.leadMinutes, r.type ?? 'notification', ts, ts]
+        );
+      }
+    }
+
+    if (input.repeatRule) {
+      const rr = input.repeatRule;
+      await db.runAsync(
+        `INSERT INTO task_repeat_rules
+           (id, task_id, freq, interval_n, by_weekday, by_month_day, by_month, until_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newId(),
+          taskId,
+          rr.freq,
+          rr.intervalN ?? 1,
+          rr.byWeekday ?? null,
+          rr.byMonthDay ?? null,
+          rr.byMonth ?? null,
+          rr.untilAt ?? null,
+          ts,
+          ts,
+        ]
       );
     }
   });
@@ -205,3 +248,4 @@ export async function createTaskWithSubtasks(
   if (!created) throw new Error('Task insert succeeded but row not found');
   return created;
 }
+

@@ -29,17 +29,18 @@ Primary reference points from `inspiration/app/`:
 - [x] Add floating action button to open the task composer — see [`src/components/Fab.tsx`](./src/components/Fab.tsx)
 - [x] Build bottom-sheet composer with title input — see [`src/components/TaskComposer.tsx`](./src/components/TaskComposer.tsx)
 - [x] Add submit action and validation for creating a task — composer persists via `tasksRepo.createTask`, inline error + length-hint surfacing
-- [x] Add inline subtask row inside the composer — atomic insert via `tasksRepo.createTaskWithSubtasks`
+- [x] Add inline subtask row inside the composer — atomic insert via `tasksRepo.createTaskFull`
 - [x] Add category picker trigger — chip in composer + `CategoryPickerSheet` + `useCategories` hook
-- [ ] Build the rich Schedule sheet (date + time + reminder + repeat in one surface, matching `inspiration/app/click_on_calendar_icon.jpeg`)
-  - [ ] Calendar grid with month nav
-  - [ ] Quick shortcuts: Today / Tomorrow / 3 Days Later / This Sunday / No Date
-  - [ ] Time field (opens time picker; null = all-day)
-  - [ ] Reminder field (opens reminder popover with on/off + lead time)
-  - [ ] Repeat field (opens repeat popover with None / Daily / Weekly / Monthly / Yearly / Custom)
-  - [ ] Cancel / Done footer commits to draft state, not DB
-- [ ] Replace temporary `DatePickerSheet` with the Schedule sheet trigger (calendar icon button beside the category chip)
-- [ ] Extend `tasksRepo` with a `createTaskFull` transaction (parent + subtasks + reminders + repeat rule)
+- [x] Build the rich Schedule sheet (date + time + reminder + repeat in one surface, matching `inspiration/app/click_on_calendar_icon.jpeg`)
+  - [x] Calendar grid with month nav — [`src/components/CalendarGrid.tsx`](./src/components/CalendarGrid.tsx)
+  - [x] Quick shortcuts: Today / Tomorrow / 3 Days Later / This Sunday / No Date
+  - [x] Time field (opens native time picker; null = all-day)
+  - [x] Reminder field (opens `ReminderPopover` with on/off + lead time + type + ScreenLock)
+  - [x] Repeat field (opens `RepeatPopover` with None / Daily / Weekly / Monthly / Yearly / Custom)
+  - [x] Cancel / Done footer commits to draft state, not DB
+- [x] Calendar-icon trigger in composer wired to the Schedule sheet
+- [x] Extend `tasksRepo` with a `createTaskFull` transaction (parent + subtasks + reminders + repeat rule)
+- [x] Premium matrix scaffold — see [`src/lib/premium.ts`](./src/lib/premium.ts) (Alarm/Silent reminder, ScreenLock, Custom repeat all FREE today, tagged for later gating)
 
 ### Phase 3: task list home
 
