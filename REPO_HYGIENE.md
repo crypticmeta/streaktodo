@@ -1,12 +1,12 @@
 # Repo Hygiene SOP
 
-This repo is public-facing. Keep it free of local secrets, debug traces, and AI/tooling artifacts.
+This repo is public-facing. Keep it free of local secrets, debug traces, and private tooling artifacts.
 
 ## Never commit
 
 - `.env`, `.env.*`, API keys, OAuth secrets, tokens, cookies
 - local device logs, Metro logs, crash dumps, temp files
-- AI transcripts, prompt logs, generated chat exports, agent scratch output
+- private transcripts, prompt logs, generated chat exports, agent scratch output
 - release keystores, signing keys, provisioning profiles
 - editor state folders such as `.vscode/`, `.idea/`, `.cursor/`
 - build output such as `.expo/`, `android/app/build/`, `dist/`, `test-results/`
@@ -29,7 +29,7 @@ This repo is public-facing. Keep it free of local secrets, debug traces, and AI/
 
 - Use `Streak Todo` and `streaktodo` consistently in docs, config, and store assets.
 - Do not mention abandoned product names or internal project codenames in public docs.
-- Do not describe which AI tools were used to build the app in repo docs or commit messages unless explicitly required.
+- Do not describe internal build assistants, private tooling, or drafting workflows in repo docs or commit messages unless explicitly required.
 
 ## Signing / auth hygiene
 

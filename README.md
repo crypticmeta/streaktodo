@@ -1,120 +1,140 @@
-# Streak Todo (Expo + TypeScript)
+# Streak Todo
 
-Simple todo + scheduler app with notifications and streaks.
+Simple todo + scheduler app with categories, reminders, repeat rules, subtasks, and an upgrade path for premium features.
 
-## What's in V0
+## Product direction
 
-- **Sign-in screen** — Google Sign-In via `@react-native-google-signin/google-signin`. Returns an ID token your Next.js backend will verify later.
-- **Notifications screen** — gated behind sign-in. Two buttons:
-  - **Fire now** — schedules an immediate local notification
-  - **Fire in 5s** — schedules a notification 5 seconds out (lock the phone or background the app to verify it still fires)
+Primary reference points from `inspiration/app/`:
 
-Google Sign-In requires a **development build**. Expo Go cannot load native modules.
+- task list with category pills across the top
+- quick-add composer opened from a floating action button
+- date picker with shortcuts such as Today, Tomorrow, 3 Days Later, This Sunday, and No Date
+- reminder settings with lead time and type
+- repeat rules including daily, weekly, monthly, yearly, and custom
+- subtask input inside the composer
+- premium upgrade screen for advanced reminders, widgets, templates, attachments, sync, and ad removal
 
-## Local Android workflow
+## Build plan
 
-You have `android/` checked in, so the dev client builds locally and installs over USB. After the first build, day-to-day iteration is `npx expo start` with Fast Refresh — same as Expo Go.
+### Phase 1: foundation
 
-### One-time: get the SHA-1 fingerprint
+- [ ] Finalize branding: app name, icon set, package IDs, and launch assets
+- [ ] Define color, spacing, type, and icon tokens for the mobile UI
+- [ ] Set up navigation shell for Tasks, Calendar, and Profile tabs
+- [ ] Add local persistence model for tasks, categories, subtasks, reminders, and repeat rules
+- [ ] Create seed/demo data for rapid UI iteration
 
-```bash
-keytool -list -v -keystore ./android/app/debug.keystore \
-  -alias androiddebugkey -storepass android -keypass android | grep SHA1
-```
+### Phase 2: task list home
 
-This is the keystore that signs the APK installed on your phone — register **this** SHA-1 in Google Cloud Console, not `~/.android/debug.keystore`.
+- [ ] Build the main task list screen
+- [ ] Add top category pills: All, Work, Personal, Wishlist
+- [ ] Add empty state and loading state for the task list
+- [ ] Add grouped sections such as Previous, Today, Upcoming, and No Date
+- [ ] Design the base task row with checkbox, title, metadata line, and pin/star action
+- [ ] Support task completion with immediate UI feedback
+- [ ] Support pinning or flagging important tasks
 
-### One-time: create an Android OAuth client in Google Cloud Console
+### Phase 3: quick add composer
 
-In [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials):
+- [ ] Add floating action button to open the task composer
+- [ ] Build bottom-sheet composer with title input
+- [ ] Add inline subtask row inside the composer
+- [ ] Add category picker trigger
+- [ ] Add date picker trigger
+- [ ] Add reminder trigger
+- [ ] Add repeat trigger
+- [ ] Add submit action and validation for creating a task
 
-1. **+ CREATE CREDENTIALS → OAuth client ID**
-2. Application type: **Android**
-3. Package name: `com.streaktodo.app`
-4. SHA-1 certificate fingerprint: paste the value from the command above
-5. Save
+### Phase 4: categories
 
-You don't need to copy the Android client ID anywhere — Google ties it to your Cloud project automatically. The app uses your **Web** client ID (in `.env`) as `webClientId` so the returned ID token has the Web client as its audience for backend verification.
+- [ ] Build category dropdown from the composer
+- [ ] Support default categories: Work, Personal, Wishlist
+- [ ] Add create-new-category flow
+- [ ] Add category-based task filtering on the home screen
+- [ ] Persist category colors or labels for future expansion
 
-### One-time: connect your phone
+### Phase 5: scheduling
 
-Enable USB debugging on the phone, plug in, then:
+- [ ] Build date picker modal with month navigation
+- [ ] Add quick date shortcuts: Today, Tomorrow, 3 Days Later, This Sunday, No Date
+- [ ] Support optional task time
+- [ ] Show scheduled date/time clearly in the task row metadata
+- [ ] Handle overdue styling for past-due tasks
 
-```bash
-adb devices
-```
+### Phase 6: reminders
 
-### Build and run
+- [ ] Enable local notification permissions flow
+- [ ] Add reminder on/off state in the composer
+- [ ] Add reminder lead time options such as at time, 5 minutes before, 15 minutes before, 1 hour before
+- [ ] Add reminder type options for the free tier baseline
+- [ ] Save reminder metadata on the task model
+- [ ] Schedule local notifications for dated tasks
+- [ ] Cancel or reschedule notifications when a task is edited or completed
 
-From `apps/streaktodo/`:
+### Phase 7: recurrence
 
-```bash
-npx expo run:android
-```
+- [ ] Add repeat options: None, Every Day, Weekly, Monthly, Yearly, Custom
+- [ ] Support weekly repeat by weekday
+- [ ] Support monthly repeat by calendar day
+- [ ] Support yearly repeat by month and day
+- [ ] Define behavior for completing recurring tasks and generating the next occurrence
+- [ ] Show repeat status in task metadata
 
-This compiles the dev client, installs the APK on your phone, and starts Metro. After the first build, the binary stays on your phone — subsequent code changes only need:
+### Phase 8: task details and editing
 
-```bash
-npx expo start
-```
+- [ ] Add edit flow for existing tasks
+- [ ] Add task detail screen or expanded editor
+- [ ] Edit title, category, due date, time, reminder, repeat, and subtasks
+- [ ] Delete task flow
+- [ ] Duplicate task flow
+- [ ] Preserve completed-task history
 
-…then shake the phone or press `R` to reload.
+### Phase 9: calendar and views
 
-## When native config changes
+- [ ] Build Calendar tab
+- [ ] Add month view with selected-day task list
+- [ ] Highlight days that contain tasks or reminders
+- [ ] Support switching between list and calendar context without losing filters
+- [ ] Add quick jump to Today
 
-Edits to `app.config.ts`, plugin lists, or anything that affects the native project require a rebuild:
+### Phase 10: profile and settings
 
-```bash
-npx expo prebuild --clean   # regenerate android/ from app.config.ts
-npx expo run:android
-```
+- [ ] Build Profile tab
+- [ ] Add account state, sign-in status, and sign-out
+- [ ] Add notification settings summary
+- [ ] Add category management screen
+- [ ] Add theme/settings scaffold
+- [ ] Add data export/import placeholder if needed later
 
-JS/TS-only changes never need a rebuild — Metro hot-reloads them.
+### Phase 11: premium groundwork
 
-## Brand placeholder
+- [ ] Build Upgrade to Pro screen
+- [ ] Define free vs pro matrix based on the reference list
+- [ ] Gate advanced reminders behind premium
+- [ ] Gate advanced repeat/custom rules behind premium if needed
+- [ ] Add placeholders for attachments, templates, widgets, and sync
+- [ ] Add restore purchases and billing flow later
 
-App name and package identifiers live in [`branding.js`](./branding.js). Both `app.config.ts` and runtime code read from there. Rename once, rebuild native.
+### Phase 12: polish and release readiness
 
-## Env vars
+- [ ] Add onboarding for first launch
+- [ ] Add animations for composer open/close and task completion
+- [ ] Improve accessibility for touch targets, labels, and contrast
+- [ ] Add offline-safe persistence migration plan
+- [ ] Add analytics/events plan if required
+- [ ] Add Play Store screenshots, description, privacy policy, and release checklist
 
-`.env` (loaded automatically by Expo when starting Metro):
+## Current implementation status
 
-```
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<web-client-id>
-EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.<ios-client-id>   # required before iOS builds
-```
+- [x] Expo app shell exists
+- [x] Android local dev build path exists
+- [x] Google sign-in wiring exists
+- [x] Local notification test surface exists
+- [x] Streak Todo branding is in place
+- [ ] Product task system is not built yet
+- [ ] Calendar experience is not built yet
+- [ ] Premium flow is not built yet
 
-The Web client ID is the audience your Next.js backend will verify the ID token against. The Google client SECRET stays on the server only — never in the mobile bundle.
+## Public repo note
 
-## Repo hygiene
-
-Public-repo guardrails live in [`REPO_HYGIENE.md`](./REPO_HYGIENE.md). Follow that before every push.
-
-## Layout
-
-```
-apps/streaktodo/
-├── App.tsx                          ← thin auth router
-├── app.config.ts                    ← dynamic Expo config (reads branding.js + env)
-├── branding.js                      ← single source of truth for app name / IDs
-├── eas.json                         ← EAS Build profiles (used later for store builds)
-├── android/                         ← native project (kept for local USB builds)
-├── src/
-│   ├── lib/
-│   │   └── auth.tsx                 ← AuthProvider + useAuth (Google Sign-In + secure storage)
-│   ├── screens/
-│   │   ├── SignInScreen.tsx
-│   │   └── NotificationsScreen.tsx
-│   └── theme/
-│       └── colors.ts
-```
-
-## iOS later
-
-When you're ready for iOS, use EAS Build's macOS workers — `eas build --profile development --platform ios`. The same `branding.js` + `app.config.ts` produces the iOS bundle.
-
-## Notes
-
-- SDK 54, expo-notifications 0.32, @react-native-google-signin/google-signin 16, new architecture enabled
-- `android/` is checked in. Don't hand-edit `build.gradle`; change `app.config.ts` and run `npx expo prebuild --clean` to regenerate.
-- The Google Sign-In plugin requires `iosUrlScheme` even on Android-only builds — a placeholder ships in `branding.js`.
+Follow [`REPO_HYGIENE.md`](./REPO_HYGIENE.md) before every push.

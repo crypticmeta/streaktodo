@@ -41,7 +41,7 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# AI / editor / local tooling artifacts
+# editor / local tooling artifacts
 .claude/
 .codex/
 .cursor/
