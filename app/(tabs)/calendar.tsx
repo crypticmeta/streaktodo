@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarGrid } from '../../src/components/CalendarGrid';
 import { Fab } from '../../src/components/Fab';
+import { Icon } from '../../src/components/Icon';
 import { TaskComposer } from '../../src/components/TaskComposer';
 import { TaskRow } from '../../src/components/TaskRow';
 import {
@@ -28,6 +29,7 @@ export default function CalendarScreen() {
 
   const [month, setMonth] = useState<number>(() => startOfMonth());
   const [selectedDay, setSelectedDay] = useState<number>(() => startOfDay());
+  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
   const today = useMemo(() => startOfDay(), []);
 
   // Tasks for the selected day. We pass dueAtMin = dueAtMax = day so the
@@ -232,6 +234,7 @@ export default function CalendarScreen() {
                 {
                   backgroundColor: pressed ? t.color.accentMuted : t.color.surfaceMuted,
                   borderRadius: t.radius.pill,
+                  marginRight: t.spacing.sm,
                 },
               ]}
             >
@@ -240,6 +243,35 @@ export default function CalendarScreen() {
               </Text>
             </Pressable>
           ) : null}
+          <Pressable
+            onPress={() => {
+              setCalendarCollapsed((wasCollapsed) => {
+                // Snap the anchor so the visible window keeps the selected day
+                // in view across the mode switch. Going to week-mode: anchor on
+                // the day. Going back to month-mode: anchor on the day's month.
+                if (wasCollapsed) setMonth(startOfMonth(selectedDay));
+                else setMonth(startOfDay(selectedDay));
+                return !wasCollapsed;
+              });
+            }}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={calendarCollapsed ? 'Expand calendar' : 'Collapse calendar'}
+            accessibilityState={{ expanded: !calendarCollapsed }}
+            style={({ pressed }) => [
+              styles.collapseButton,
+              {
+                backgroundColor: pressed ? t.color.accentMuted : t.color.surfaceMuted,
+                borderRadius: t.radius.pill,
+              },
+            ]}
+          >
+            <Icon
+              name={calendarCollapsed ? 'chevron-down' : 'chevron-up'}
+              size={18}
+              color={t.color.textPrimary}
+            />
+          </Pressable>
         </View>
 
         <View
@@ -256,14 +288,30 @@ export default function CalendarScreen() {
             onSelect={setSelectedDay}
             markedDays={markedDays}
             disablePast={false}
+            mode={calendarCollapsed ? 'week' : 'month'}
           />
         </View>
 
         <View style={{ marginTop: t.spacing['2xl'] }}>
+          <Text
+            style={{
+              color: t.color.textMuted,
+              fontSize: t.fontSize.xs,
+              fontWeight: t.fontWeight.semibold,
+              letterSpacing: t.tracking.wide,
+              textTransform: 'uppercase',
+              marginBottom: t.spacing.sm,
+            }}
+          >
+            {visibleTasks.length === 0
+              ? 'Nothing scheduled'
+              : `${visibleTasks.length} ${visibleTasks.length === 1 ? 'task' : 'tasks'}`}
+          </Text>
+
           {visibleTasks.length === 0 ? (
             <View
               style={{
-                paddingVertical: t.spacing['3xl'],
+                paddingVertical: t.spacing['2xl'],
                 alignItems: 'center',
               }}
             >
@@ -273,7 +321,7 @@ export default function CalendarScreen() {
                   fontSize: t.fontSize.sm,
                 }}
               >
-                Nothing scheduled for this day.
+                Tap + to add a task for this day.
               </Text>
             </View>
           ) : (
@@ -320,5 +368,11 @@ const styles = StyleSheet.create({
   todayButton: {
     paddingHorizontal: 14,
     paddingVertical: 8,
+  },
+  collapseButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

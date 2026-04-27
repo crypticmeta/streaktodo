@@ -44,6 +44,20 @@ function TaskRowImpl({
     onTogglePin(task.id, !task.isPinned);
   };
 
+  // Compose a screen-reader label that surfaces information the visual row
+  // de-emphasizes — category name (we removed it from the meta tail) and
+  // overdue state (which is now a colored stripe + pill, both invisible to
+  // assistive tech that doesn't read color).
+  const a11yLabel = (() => {
+    const parts: string[] = [task.title];
+    if (overdue) parts.push('overdue');
+    if (category) parts.push(category.name);
+    if (task.dueAt !== null) parts.push(`due ${formatRelativeShort(task.dueAt)}`);
+    if (task.dueTime !== null) parts.push(`at ${formatTimeFromMinutes(task.dueTime)}`);
+    if (task.isPinned) parts.push('pinned');
+    return parts.join(', ');
+  })();
+
   // Pinned rows already shout via the accentSoft tint; layering a danger stripe
   // on top would visually fight. Pinned-and-overdue is rare; if it happens we
   // lean on the red date text + Overdue pill instead of the stripe.
@@ -101,7 +115,8 @@ function TaskRowImpl({
         disabled={!onPress}
         style={styles.body}
         accessibilityRole={onPress ? 'button' : undefined}
-        accessibilityLabel={onPress ? `Edit ${task.title}` : undefined}
+        accessibilityLabel={onPress ? a11yLabel : undefined}
+        accessibilityHint={onPress ? 'Opens the editor' : undefined}
       >
         <Text
           numberOfLines={3}

@@ -84,7 +84,7 @@ Primary reference points from `inspiration/app/`:
 UI for date / time selection lives in the Schedule sheet (Phase 2). This phase covers everything else.
 
 - [x] Show scheduled date and time clearly in the task row metadata — `TaskRow` meta line renders date + time + reminder + repeat icons
-- [ ] Handle overdue styling for past-due tasks — pending row polish pass
+- [x] Handle overdue styling for past-due tasks — left-edge danger stripe (suppressed for pinned rows) + uppercase "Overdue" pill in the meta row + danger-tinted date text. Screen-reader label includes the overdue state and category name so grayscale/a11y users get the same signal.
 - [x] Group tasks into Previous / Today / Upcoming / No Date sections — see [`src/lib/taskGrouping.ts`](./src/lib/taskGrouping.ts)
 - [x] Day grouping helper in `src/lib/date.ts` — `startOfDay`, `addDays`, etc.
 
@@ -130,9 +130,10 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [x] ~~Switch between list and calendar context without losing filters~~ — separate tabs intentionally; the Tasks tab keeps category filter, Calendar keeps day-pick. Cross-context state-sharing deferred unless usage shows it's needed.
 - [x] Add quick jump to Today — pill button in the header
 - [x] Editor reuse — both tabs share `useTaskEditor` (`src/lib/useTaskEditor.tsx`), so create/edit/delete paths stay in one place
-- [ ] Add collapse / expand affordance in the calendar header to match `calendar_screen.jpeg`
-- [ ] Add calendar overflow actions
-- [ ] Refine the selected-day task card styling to match the reference more closely
+- [x] Add collapse / expand affordance in the calendar header — chevron toggle flips `CalendarGrid` between `mode='month'` (6×7 grid) and `mode='week'` (single 7-cell strip with week-stepping arrows); anchor snaps so the selected day stays visible across mode switches
+- [x] ~~Add calendar overflow actions~~ — deferred: a kebab with one item that already exists in the header is busywork. Will revisit when a real second action emerges (e.g. category filter, show-completed-only)
+- [x] Refine the selected-day task card styling — small uppercase count label (`3 TASKS` / `NOTHING SCHEDULED`) and friendlier empty state above the list
+- [x] Mute past-date cells on the Calendar tab — 0.55 opacity + muted text so they read as historical; still tappable so users can review history. Composer's date picker keeps its hard block (`disablePast=true` default).
 
 ### Phase 10: profile and settings
 
@@ -180,6 +181,8 @@ Feature monetization is intentionally deferred. Current product direction is ful
 - [ ] Add collaboration notifications for invites, assignments, and completions
 
 ### Phase 14: backup, restore, and sync
+
+> **Deferred.** Local-only persistence is sufficient for the current product loop; cloud sync would also be a prerequisite for collaboration (Phase 13), so both move together when revisited.
 
 - [ ] Define canonical JSON export shape across all tables
 - [ ] Implement local JSON export with `expo-sharing`

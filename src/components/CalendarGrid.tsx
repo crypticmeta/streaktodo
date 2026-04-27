@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
+  addDays,
   addMonths,
   daysInMonth,
   isSameDay,
@@ -12,8 +13,12 @@ import {
 import { useTheme } from '../theme';
 
 type CalendarGridProps = {
-  /** Currently displayed month (any timestamp within it). */
+  /** Currently displayed anchor (any timestamp within the visible window). */
   month: number;
+  /**
+   * Called when the user taps the prev/next arrow. The new value advances
+   * by one month in `'month'` mode and by 7 days in `'week'` mode.
+   */
   onMonthChange: (next: number) => void;
   /** Currently selected day (any timestamp within the day). null = none. */
   selected: number | null;
@@ -29,6 +34,13 @@ type CalendarGridProps = {
    * false because browsing past days is fine when reviewing history.
    */
   disablePast?: boolean;
+  /**
+   * `'month'` (default) renders the full 6×7 grid. `'week'` renders only the
+   * single 7-cell row containing `selected` (or `month` if no selection),
+   * and the prev/next arrows step by 7 days instead of by month. Lets the
+   * caller hand more vertical space to a day-list below the grid.
+   */
+  mode?: 'month' | 'week';
 };
 
 type Cell = {
@@ -38,7 +50,7 @@ type Cell = {
 
 // Build a 6×7 cell matrix for the given month, padded with leading/trailing
 // days from the surrounding months. Sunday-start, matching the inspiration.
-function buildCells(monthTs: number): Cell[] {
+function buildMonthCells(monthTs: number): Cell[] {
   const first = startOfMonth(monthTs);
   const firstDay = new Date(first).getDay(); // 0..6 (Sun..Sat)
   const days = daysInMonth(monthTs);
@@ -71,6 +83,24 @@ function buildCells(monthTs: number): Cell[] {
   return cells;
 }
 
+// Build 7 cells for the week containing `anchorTs`. Sunday-start. `inMonth`
+// is computed against `anchorTs`'s month so the surrounding days dim
+// consistently with month mode.
+function buildWeekCells(anchorTs: number): Cell[] {
+  const anchor = startOfDay(anchorTs);
+  const dayOfWeek = new Date(anchor).getDay(); // 0..6 (Sun..Sat)
+  const sunday = addDays(anchor, -dayOfWeek);
+  const anchorMonth = new Date(anchor).getMonth();
+
+  const cells: Cell[] = [];
+  for (let i = 0; i < 7; i++) {
+    const ts = addDays(sunday, i);
+    const inMonth = new Date(ts).getMonth() === anchorMonth;
+    cells.push({ ts, inMonth });
+  }
+  return cells;
+}
+
 export function CalendarGrid({
   month,
   onMonthChange,
@@ -78,25 +108,51 @@ export function CalendarGrid({
   onSelect,
   markedDays,
   disablePast = true,
+  mode = 'month',
 }: CalendarGridProps) {
   const t = useTheme();
-  const cells = useMemo(() => buildCells(month), [month]);
+  // In week mode, the visible week tracks the parent's anchor (`month`) so
+  // that nav arrows actually advance the displayed week. The selected day
+  // still highlights within the visible week if it falls inside it; if the
+  // user navigates away, the selection just stops showing as highlighted —
+  // we don't auto-move it, navigation and selection are distinct.
+  const weekAnchor = month;
+  const cells = useMemo(
+    () => (mode === 'week' ? buildWeekCells(weekAnchor) : buildMonthCells(month)),
+    [mode, weekAnchor, month]
+  );
   const today = startOfDay();
 
-  const monthLabel = useMemo(() => {
+  const headerLabel = useMemo(() => {
+    if (mode === 'week') {
+      const sunday = addDays(startOfDay(weekAnchor), -new Date(weekAnchor).getDay());
+      const saturday = addDays(sunday, 6);
+      const a = new Date(sunday);
+      const b = new Date(saturday);
+      const aLabel = `${MONTH_SHORT[a.getMonth()]} ${a.getDate()}`;
+      const bLabel = a.getMonth() === b.getMonth()
+        ? `${b.getDate()}`
+        : `${MONTH_SHORT[b.getMonth()]} ${b.getDate()}`;
+      return `${aLabel} — ${bLabel}`.toUpperCase();
+    }
     const d = new Date(month);
     return `${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`.toUpperCase();
-  }, [month]);
+  }, [mode, month, weekAnchor]);
+
+  const stepBackward = () =>
+    onMonthChange(mode === 'week' ? addDays(weekAnchor, -7) : addMonths(month, -1));
+  const stepForward = () =>
+    onMonthChange(mode === 'week' ? addDays(weekAnchor, 7) : addMonths(month, 1));
 
   return (
     <View>
       {/* Header */}
       <View style={styles.headerRow}>
         <Pressable
-          onPress={() => onMonthChange(addMonths(month, -1))}
+          onPress={stepBackward}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Previous month"
+          accessibilityLabel={mode === 'week' ? 'Previous week' : 'Previous month'}
           style={styles.navButton}
         >
           <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.lg }}>‹</Text>
@@ -109,13 +165,13 @@ export function CalendarGrid({
             letterSpacing: t.tracking.wide,
           }}
         >
-          {monthLabel}
+          {headerLabel}
         </Text>
         <Pressable
-          onPress={() => onMonthChange(addMonths(month, 1))}
+          onPress={stepForward}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Next month"
+          accessibilityLabel={mode === 'week' ? 'Next week' : 'Next month'}
           style={styles.navButton}
         >
           <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.lg }}>›</Text>
@@ -145,12 +201,17 @@ export function CalendarGrid({
           const isToday = isSameDay(cell.ts, today);
           const isPast = dayStart < today;
           const isBlocked = disablePast && isPast;
+          // Past-but-viewable: caller passed disablePast=false (e.g. the
+          // calendar tab for history review). The day stays tappable but
+          // visually de-emphasizes so it doesn't read as a future option.
+          const isPastViewable = !disablePast && isPast;
           const isMarked = markedDays?.has(dayStart) ?? false;
           const day = new Date(cell.ts).getDate();
 
           let textColor = t.color.textPrimary;
           if (!cell.inMonth) textColor = t.color.textMuted;
           if (isBlocked) textColor = t.color.textMuted;
+          if (isPastViewable) textColor = t.color.textMuted;
           if (isSelected) textColor = t.color.textOnAccent;
           if (isToday && !isSelected) textColor = t.color.accent;
 
@@ -175,7 +236,13 @@ export function CalendarGrid({
                   color: textColor,
                   fontSize: t.fontSize.md,
                   fontWeight: isToday || isSelected ? t.fontWeight.semibold : t.fontWeight.regular,
-                  opacity: !cell.inMonth ? 0.45 : isBlocked ? 0.35 : 1,
+                  opacity: !cell.inMonth
+                    ? 0.45
+                    : isBlocked
+                      ? 0.35
+                      : isPastViewable && !isSelected
+                        ? 0.55
+                        : 1,
                   textDecorationLine: isBlocked ? 'line-through' : 'none',
                 }}
               >

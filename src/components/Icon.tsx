@@ -35,7 +35,10 @@ export type IconName =
   | 'theme-dark'
   // Category management
   | 'edit'
-  | 'plus';
+  | 'plus'
+  // Disclosure
+  | 'chevron-up'
+  | 'chevron-down';
 
 const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   calendar: 'calendar-outline',
@@ -63,6 +66,8 @@ const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   'theme-dark': 'moon-outline',
   edit: 'create-outline',
   plus: 'add',
+  'chevron-up': 'chevron-up',
+  'chevron-down': 'chevron-down',
 };
 
 type IconProps = {
