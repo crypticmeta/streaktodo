@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Dimensions,
   Keyboard,
   Modal,
   Platform,
@@ -9,12 +10,14 @@ import {
   TextInput,
   View,
   type KeyboardEvent,
+  type LayoutChangeEvent,
   type TextInput as RNTextInput,
 } from 'react-native';
-import { useCategories } from '../db';
-import { formatRelativeShort, MONTH_SHORT } from '../lib/date';
+import { categoriesRepo, useCategories } from '../db';
+import { MONTH_SHORT } from '../lib/date';
 import { useTheme } from '../theme';
-import { CategoryPickerSheet } from './CategoryPickerSheet';
+import { CategoryPickerMenu } from './CategoryPickerMenu';
+import { CreateCategoryDialog } from './CreateCategoryDialog';
 import { SchedulePickerSheet } from './SchedulePickerSheet';
 import { EMPTY_SCHEDULE, type ScheduleDraft } from './scheduleTypes';
 
@@ -75,14 +78,16 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
   const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
   const [schedule, setSchedule] = useState<ScheduleDraft>(EMPTY_SCHEDULE);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chipAnchor, setChipAnchor] = useState<{ left: number; bottom: number } | null>(null);
   const inputRef = useRef<RNTextInput>(null);
   const subtaskRefs = useRef<Map<string, RNTextInput | null>>(new Map());
   const keyboardOffset = useKeyboardOffset();
-  const { categories } = useCategories();
+  const { categories, refresh: refreshCategories } = useCategories();
 
   const selectedCategory = useMemo(
     () => (categoryId ? categories.find((c) => c.id === categoryId) ?? null : null),
@@ -96,6 +101,7 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
     setSubtasks([]);
     setCategoryId(null);
     setPickerOpen(false);
+    setCreateCategoryOpen(false);
     setSchedule(EMPTY_SCHEDULE);
     setScheduleOpen(false);
     setSubmitting(false);
@@ -122,7 +128,6 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
   const handleAddSubtask = () => {
     const draft: SubtaskDraft = { draftId: newDraftId(), title: '' };
     setSubtasks((prev) => [...prev, draft]);
-    // Focus the new row after it mounts.
     requestAnimationFrame(() => {
       subtaskRefs.current.get(draft.draftId)?.focus();
     });
@@ -141,8 +146,6 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
   };
 
   const handleSubtaskSubmit = (draftId: string) => {
-    // If the row has content, append a new empty row right after; otherwise
-    // remove the empty row so we don't accumulate blanks.
     const row = subtasks.find((s) => s.draftId === draftId);
     if (!row) return;
     if (row.title.trim().length === 0) {
@@ -170,14 +173,39 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
     }
   };
 
+  // Chip-anchored category menu. We measure where the category chip sits in
+  // the screen, then ask the menu to position itself just above it.
+  const handleChipLayout = (e: LayoutChangeEvent) => {
+    // We need screen-relative coords; the chip is inside a positioned sheet
+    // that's translated for the keyboard. Use measureInWindow at tap time
+    // instead via a ref. For now, capture the local layout — the menu
+    // anchor refines this on actual press.
+    void e; // unused; kept to keep onLayout wired for future precise anchoring
+  };
+
+  const chipRef = useRef<View>(null);
+
   const handleOpenPicker = () => {
     Keyboard.dismiss();
-    setPickerOpen(true);
+    chipRef.current?.measureInWindow((x, y, _w, h) => {
+      const screen = Dimensions.get('window');
+      // Place the menu's bottom just above the chip, left-aligned with it.
+      setChipAnchor({ left: x, bottom: screen.height - y + 6 });
+      setScheduleOpen(false);
+      setPickerOpen(true);
+    });
   };
 
   const handleOpenSchedule = () => {
     Keyboard.dismiss();
     setScheduleOpen(true);
+  };
+
+  const handleCreateCategory = async ({ name, color }: { name: string; color: string }) => {
+    const created = await categoriesRepo.createCategory({ name, color });
+    await refreshCategories();
+    setCategoryId(created.id);
+    setCreateCategoryOpen(false);
   };
 
   return (
@@ -208,237 +236,168 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
               borderColor: t.color.border,
               paddingHorizontal: t.spacing['2xl'],
               paddingTop: t.spacing.lg,
-              paddingBottom: t.spacing['4xl'],
+              paddingBottom: t.spacing['2xl'],
               transform: [{ translateY: -keyboardOffset }],
             },
           ]}
         >
           <View style={[styles.handle, { backgroundColor: t.color.borderStrong, borderRadius: t.radius.pill }]} />
 
-          <View style={styles.headerRow}>
-            <Pressable
-              onPress={handleClose}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel"
-            >
-              <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.md, fontWeight: t.fontWeight.medium }}>
-                Cancel
-              </Text>
-            </Pressable>
-
-            <Text
+          {/* Title input — large; matches the inspiration's "Input new task here" */}
+          <View
+            style={{
+              backgroundColor: t.color.surfaceMuted,
+              borderRadius: t.radius.lg,
+              paddingHorizontal: t.spacing.lg,
+              paddingVertical: t.spacing.md,
+              marginTop: t.spacing.sm,
+            }}
+          >
+            <TextInput
+              ref={inputRef}
+              value={title}
+              onChangeText={handleTitleChange}
+              placeholder="Input new task here"
+              placeholderTextColor={t.color.textMuted}
+              maxLength={TITLE_MAX_LENGTH}
+              multiline
+              scrollEnabled={false}
+              returnKeyType="done"
+              onSubmitEditing={handleSave}
+              blurOnSubmit
               style={{
                 color: t.color.textPrimary,
                 fontSize: t.fontSize.lg,
-                fontWeight: t.fontWeight.semibold,
+                lineHeight: t.fontSize.lg * t.lineHeight.snug,
+                fontWeight: t.fontWeight.medium,
+                minHeight: 44,
+                padding: 0,
               }}
-            >
-              New task
-            </Text>
-
-            <Pressable
-              onPress={handleSave}
-              disabled={!canSave}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Save task"
-              accessibilityState={{ disabled: !canSave }}
-            >
-              <Text
-                style={{
-                  color: canSave ? t.color.accent : t.color.textMuted,
-                  fontSize: t.fontSize.md,
-                  fontWeight: t.fontWeight.bold,
-                  opacity: canSave ? 1 : 0.55,
-                }}
-              >
-                {submitting ? 'Saving…' : 'Save'}
-              </Text>
-            </Pressable>
+            />
           </View>
 
-          <TextInput
-            ref={inputRef}
-            value={title}
-            onChangeText={handleTitleChange}
-            placeholder="What needs doing?"
-            placeholderTextColor={t.color.textMuted}
-            maxLength={TITLE_MAX_LENGTH}
-            multiline
-            scrollEnabled={false}
-            returnKeyType="done"
-            onSubmitEditing={handleSave}
-            blurOnSubmit
-            style={[
-              styles.input,
-              {
-                color: t.color.textPrimary,
-                fontSize: t.fontSize['2xl'],
-                lineHeight: t.fontSize['2xl'] * t.lineHeight.snug,
-                marginTop: t.spacing.lg,
-                paddingVertical: t.spacing.sm,
-              },
-            ]}
-          />
-
-          <View style={styles.metaRow}>
-            <Text
-              style={{
-                color: error ? t.color.danger : t.color.textMuted,
-                fontSize: t.fontSize.xs,
-                flex: 1,
-              }}
-            >
-              {error ?? ' '}
-            </Text>
-            {showLengthHint ? (
+          {error || showLengthHint ? (
+            <View style={styles.metaRow}>
               <Text
                 style={{
-                  color: remaining <= 0 ? t.color.danger : t.color.textMuted,
+                  color: error ? t.color.danger : t.color.textMuted,
                   fontSize: t.fontSize.xs,
-                  fontVariant: ['tabular-nums'],
+                  flex: 1,
                 }}
               >
-                {remaining} left
+                {error ?? ' '}
               </Text>
-            ) : null}
-          </View>
-
-          {/* Subtasks block */}
-          <View
-            style={{
-              borderTopColor: t.color.borderMuted,
-              borderTopWidth: 1,
-              marginTop: t.spacing.lg,
-              paddingTop: t.spacing.lg,
-              gap: t.spacing.sm,
-            }}
-          >
-            {subtasks.map((s) => (
-              <View key={s.draftId} style={styles.subtaskRow}>
-                <View
-                  style={[
-                    styles.subtaskBullet,
-                    { borderColor: t.color.borderStrong },
-                  ]}
-                />
-                <TextInput
-                  ref={(ref) => {
-                    if (ref) subtaskRefs.current.set(s.draftId, ref);
-                    else subtaskRefs.current.delete(s.draftId);
-                  }}
-                  value={s.title}
-                  onChangeText={(next) => handleSubtaskChange(s.draftId, next)}
-                  placeholder="Subtask"
-                  placeholderTextColor={t.color.textMuted}
-                  maxLength={SUBTASK_MAX_LENGTH}
-                  returnKeyType="next"
-                  onSubmitEditing={() => handleSubtaskSubmit(s.draftId)}
-                  blurOnSubmit={false}
-                  style={[
-                    styles.subtaskInput,
-                    {
-                      color: t.color.textPrimary,
-                      fontSize: t.fontSize.md,
-                    },
-                  ]}
-                />
-                <Pressable
-                  onPress={() => handleRemoveSubtask(s.draftId)}
-                  hitSlop={12}
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove subtask"
-                >
-                  <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>×</Text>
-                </Pressable>
-              </View>
-            ))}
-
-            <Pressable
-              onPress={handleAddSubtask}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Add subtask"
-              style={styles.addSubtaskRow}
-            >
-              <Text style={{ color: t.color.accent, fontSize: t.fontSize.lg, fontWeight: t.fontWeight.regular }}>
-                +
-              </Text>
-              <Text style={{ color: t.color.accent, fontSize: t.fontSize.md, fontWeight: t.fontWeight.semibold }}>
-                Add subtask
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Trigger chips: category (here), date / reminder / repeat coming next */}
-          <View
-            style={[
-              styles.triggersRow,
-              {
-                borderTopColor: t.color.borderMuted,
-                marginTop: t.spacing.lg,
-                paddingTop: t.spacing.lg,
-              },
-            ]}
-          >
-            <Pressable
-              onPress={handleOpenPicker}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={
-                selectedCategory ? `Category: ${selectedCategory.name}` : 'Pick category'
-              }
-              accessibilityHint="Opens the category picker"
-              style={({ pressed }) => [
-                styles.chip,
-                {
-                  borderColor: selectedCategory ? t.color.accent : t.color.borderStrong,
-                  backgroundColor: selectedCategory
-                    ? t.color.accentSoft
-                    : pressed
-                      ? t.color.surfaceMuted
-                      : 'transparent',
-                  paddingHorizontal: t.spacing.md,
-                  paddingVertical: t.spacing.sm,
-                  borderRadius: t.radius.pill,
-                },
-              ]}
-            >
-              {selectedCategory ? (
-                <View
+              {showLengthHint ? (
+                <Text
                   style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: selectedCategory.color ?? t.color.accent,
+                    color: remaining <= 0 ? t.color.danger : t.color.textMuted,
+                    fontSize: t.fontSize.xs,
+                    fontVariant: ['tabular-nums'],
                   }}
-                />
+                >
+                  {remaining} left
+                </Text>
               ) : null}
-              <Text
-                style={{
-                  color: selectedCategory ? t.color.textPrimary : t.color.textSecondary,
-                  fontSize: t.fontSize.sm,
-                  fontWeight: t.fontWeight.semibold,
-                }}
-              >
-                {selectedCategory ? selectedCategory.name : 'Category'}
-              </Text>
-            </Pressable>
+            </View>
+          ) : null}
 
-            {/* Calendar / schedule trigger. Mirrors the inspiration's icon button:
-                shows a calendar emoji when empty, the day-of-month overlaid on a
-                tinted box when a date is set. */}
+          {/* Subtask rows. Each row matches the inspiration's "○ Input the sub-task ×" */}
+          {subtasks.length > 0 ? (
+            <View style={{ gap: t.spacing.sm, marginTop: t.spacing.md }}>
+              {subtasks.map((s) => (
+                <View key={s.draftId} style={styles.subtaskRow}>
+                  <View style={[styles.subtaskBullet, { borderColor: t.color.borderStrong }]} />
+                  <TextInput
+                    ref={(ref) => {
+                      if (ref) subtaskRefs.current.set(s.draftId, ref);
+                      else subtaskRefs.current.delete(s.draftId);
+                    }}
+                    value={s.title}
+                    onChangeText={(next) => handleSubtaskChange(s.draftId, next)}
+                    placeholder="Input the sub-task"
+                    placeholderTextColor={t.color.textMuted}
+                    maxLength={SUBTASK_MAX_LENGTH}
+                    returnKeyType="next"
+                    onSubmitEditing={() => handleSubtaskSubmit(s.draftId)}
+                    blurOnSubmit={false}
+                    style={[
+                      styles.subtaskInput,
+                      { color: t.color.textPrimary, fontSize: t.fontSize.md },
+                    ]}
+                  />
+                  <Pressable
+                    onPress={() => handleRemoveSubtask(s.draftId)}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove subtask"
+                  >
+                    <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>×</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Action row: [chip] [📅] [🔗 subtasks] [📋 templates 👑] · spacer · [● send] */}
+          <View style={[styles.actionRow, { marginTop: t.spacing.lg }]}>
+            <View
+              ref={chipRef}
+              onLayout={handleChipLayout}
+              collapsable={false}
+              style={styles.chipWrap}
+            >
+              <Pressable
+                onPress={handleOpenPicker}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  selectedCategory ? `Category: ${selectedCategory.name}` : 'Pick category'
+                }
+                accessibilityHint="Opens the category menu"
+                style={({ pressed }) => [
+                  styles.chip,
+                  {
+                    backgroundColor: selectedCategory
+                      ? t.color.accentSoft
+                      : pressed
+                        ? t.color.accentMuted
+                        : t.color.surfaceMuted,
+                    paddingHorizontal: t.spacing.md,
+                    paddingVertical: t.spacing.sm,
+                    borderRadius: t.radius.pill,
+                  },
+                ]}
+              >
+                {selectedCategory ? (
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: selectedCategory.color ?? t.color.accent,
+                    }}
+                  />
+                ) : null}
+                <Text
+                  style={{
+                    color: t.color.textPrimary,
+                    fontSize: t.fontSize.sm,
+                    fontWeight: t.fontWeight.semibold,
+                  }}
+                >
+                  {selectedCategory ? selectedCategory.name : 'No Category'}
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Calendar trigger */}
             <Pressable
               onPress={handleOpenSchedule}
               hitSlop={6}
               accessibilityRole="button"
-              accessibilityLabel={
-                schedule.dueAt !== null ? `Schedule: ${formatRelativeShort(schedule.dueAt)}` : 'Set schedule'
-              }
-              accessibilityHint="Opens the date, time, reminder and repeat picker"
+              accessibilityLabel="Set schedule"
               style={({ pressed }) => [
-                styles.iconTrigger,
+                styles.iconButton,
                 {
                   backgroundColor:
                     schedule.dueAt !== null
@@ -446,7 +405,6 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
                       : pressed
                         ? t.color.surfaceMuted
                         : 'transparent',
-                  borderColor: schedule.dueAt !== null ? t.color.accent : t.color.borderStrong,
                   borderRadius: t.radius.md,
                 },
               ]}
@@ -456,24 +414,102 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
                   <Text style={{ color: t.color.accent, fontSize: 9, fontWeight: t.fontWeight.bold, lineHeight: 11 }}>
                     {MONTH_SHORT[new Date(schedule.dueAt).getMonth()].toUpperCase()}
                   </Text>
-                  <Text style={{ color: t.color.textPrimary, fontSize: 14, fontWeight: t.fontWeight.bold, lineHeight: 16 }}>
+                  <Text style={{ color: t.color.textPrimary, fontSize: 13, fontWeight: t.fontWeight.bold, lineHeight: 15 }}>
                     {new Date(schedule.dueAt).getDate()}
                   </Text>
                 </View>
               ) : (
-                <Text style={{ fontSize: 18 }}>📅</Text>
+                <Text style={{ fontSize: 18, color: t.color.textMuted }}>📅</Text>
               )}
+            </Pressable>
+
+            {/* Subtasks toggle — adds a fresh subtask row inline */}
+            <Pressable
+              onPress={handleAddSubtask}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Add subtask"
+              style={({ pressed }) => [
+                styles.iconButton,
+                {
+                  backgroundColor: pressed ? t.color.surfaceMuted : 'transparent',
+                  borderRadius: t.radius.md,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 18, color: t.color.textMuted }}>🔗</Text>
+            </Pressable>
+
+            {/* Templates placeholder — premium-flagged, stub for Phase 11 */}
+            <Pressable
+              onPress={() => {
+                /* templates land in Phase 11 */
+              }}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Templates (coming soon)"
+              style={({ pressed }) => [
+                styles.iconButton,
+                {
+                  backgroundColor: pressed ? t.color.surfaceMuted : 'transparent',
+                  borderRadius: t.radius.md,
+                  opacity: 0.45,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 18, color: t.color.textMuted }}>📋</Text>
+            </Pressable>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Circular send button — replaces the text Save */}
+            <Pressable
+              onPress={handleSave}
+              disabled={!canSave}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Save task"
+              accessibilityState={{ disabled: !canSave }}
+              style={({ pressed }) => [
+                styles.sendButton,
+                {
+                  backgroundColor: canSave ? t.color.accent : t.color.borderStrong,
+                  opacity: pressed ? 0.85 : 1,
+                  transform: [{ scale: pressed ? 0.95 : 1 }],
+                  ...t.elevation.md,
+                  shadowColor: t.color.accent,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: t.color.textOnAccent,
+                  fontSize: 22,
+                  fontWeight: t.fontWeight.bold,
+                  marginTop: -3,
+                }}
+              >
+                ▴
+              </Text>
             </Pressable>
           </View>
         </View>
       </View>
 
-      <CategoryPickerSheet
+      <CategoryPickerMenu
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
         categories={categories}
         selectedId={categoryId}
         onSelect={setCategoryId}
+        anchor={chipAnchor ?? { left: 24, bottom: 100 }}
+        onCreateNew={() => setCreateCategoryOpen(true)}
+      />
+
+      <CreateCategoryDialog
+        visible={createCategoryOpen}
+        onCancel={() => setCreateCategoryOpen(false)}
+        onCreate={handleCreateCategory}
       />
 
       <SchedulePickerSheet
@@ -488,6 +524,8 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
     </Modal>
   );
 }
+
+const SEND_SIZE = 48;
 
 const styles = StyleSheet.create({
   root: {
@@ -506,21 +544,12 @@ const styles = StyleSheet.create({
     height: 4,
     marginBottom: 12,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  input: {
-    fontWeight: '600',
-    minHeight: 36,
-  },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 16,
-    marginTop: 4,
+    marginTop: 6,
   },
   subtaskRow: {
     flexDirection: 'row',
@@ -538,30 +567,31 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     fontWeight: '500',
   },
-  addSubtaskRow: {
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 4,
   },
-  triggersRow: {
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 8,
+  chipWrap: {
+    // Wrapper exists so we can measureInWindow on the chip without disturbing
+    // its own pressed/hover state.
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderWidth: 1,
   },
-  iconTrigger: {
+  iconButton: {
     width: 38,
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+  },
+  sendButton: {
+    width: SEND_SIZE,
+    height: SEND_SIZE,
+    borderRadius: SEND_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

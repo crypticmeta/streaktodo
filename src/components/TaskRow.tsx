@@ -99,7 +99,7 @@ function TaskRowImpl({
         />
       </View>
 
-      {/* Pin / flag action — outlined flag glyph, matches inspiration */}
+      {/* Pin action — star glyph; outlined when unpinned, filled when pinned. */}
       <Pressable
         onPress={handleTogglePin}
         hitSlop={10}
@@ -114,7 +114,7 @@ function TaskRowImpl({
             color: task.isPinned ? t.color.accent : t.color.textMuted,
           }}
         >
-          {task.isPinned ? '⚑' : '⚐'}
+          {task.isPinned ? '★' : '☆'}
         </Text>
       </Pressable>
     </View>

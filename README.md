@@ -54,11 +54,12 @@ Primary reference points from `inspiration/app/`:
 
 ### Phase 4: categories
 
-- [x] ~~Build category dropdown from the composer~~ — covered by `CategoryPickerSheet` in Phase 2
+- [x] ~~Build category dropdown from the composer~~ — covered by anchored `CategoryPickerMenu` in Phase 2 (replaced the earlier sheet)
 - [x] ~~Support default categories: Work, Personal, Wishlist~~ — seeded on first launch in Phase 1
-- [ ] Add create-new-category flow (composer + category management screen)
-- [ ] Add category-based task filtering on the home screen (driven by Phase 3 pills)
-- [ ] Persist category colors or labels for future expansion (already in schema; UI for picking color on create)
+- [x] Add create-new-category flow — `+ Create New` row in the menu opens [`CreateCategoryDialog`](./src/components/CreateCategoryDialog.tsx) with name input + color swatches; persists via `categoriesRepo.createCategory`
+- [x] Add category-based task filtering on the home screen — Phase 3 pills wired through `useTasks({ categoryId })`
+- [x] Persist category colors — color swatch chosen at create time is stored on the row
+- [ ] Category management screen (rename / delete / reorder) — Phase 10
 
 ### Phase 5: scheduling (runtime semantics)
 
