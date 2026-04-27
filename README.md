@@ -22,28 +22,28 @@ Primary reference points from `inspiration/app/`:
 - [x] Define color, spacing, type, and icon tokens for the mobile UI — see [`src/theme/`](./src/theme)
 - [x] Set up navigation shell for Tasks, Calendar, and Profile tabs — expo-router under [`app/`](./app)
 - [x] Add local persistence model for tasks, categories, subtasks, reminders, and repeat rules — sqlite + raw SQL repos under [`src/db/`](./src/db)
-- [ ] Create seed/demo data for rapid UI iteration
+- [x] ~~Create seed/demo data for rapid UI iteration~~ — **deliberately skipped.** Phase 3 (composer) is built before Phase 2 (list), so all data is real user-created from day one. A targeted dev-only fixture helper may be added later if edge-case coverage is needed.
 
-### Phase 2: task list home
+### Phase 2: quick add composer (build first, so the list has real data)
 
-- [ ] Build the main task list screen
-- [ ] Add top category pills: All, Work, Personal, Wishlist
-- [ ] Add empty state and loading state for the task list
-- [ ] Add grouped sections such as Previous, Today, Upcoming, and No Date
-- [ ] Design the base task row with checkbox, title, metadata line, and pin/star action
-- [ ] Support task completion with immediate UI feedback
-- [ ] Support pinning or flagging important tasks
-
-### Phase 3: quick add composer
-
-- [ ] Add floating action button to open the task composer
-- [ ] Build bottom-sheet composer with title input
+- [x] Add floating action button to open the task composer — see [`src/components/Fab.tsx`](./src/components/Fab.tsx)
+- [x] Build bottom-sheet composer with title input — see [`src/components/TaskComposer.tsx`](./src/components/TaskComposer.tsx)
+- [ ] Add submit action and validation for creating a task
 - [ ] Add inline subtask row inside the composer
 - [ ] Add category picker trigger
 - [ ] Add date picker trigger
 - [ ] Add reminder trigger
 - [ ] Add repeat trigger
-- [ ] Add submit action and validation for creating a task
+
+### Phase 3: task list home
+
+- [ ] Build the main task list screen
+- [ ] Design the base task row with checkbox, title, metadata line, and pin/star action
+- [ ] Support task completion with immediate UI feedback
+- [ ] Support pinning or flagging important tasks
+- [ ] Add empty state and loading state for the task list
+- [ ] Add grouped sections such as Previous, Today, Upcoming, and No Date
+- [ ] Add top category pills: All, Work, Personal, Wishlist
 
 ### Phase 4: categories
 
@@ -124,6 +124,28 @@ Primary reference points from `inspiration/app/`:
 - [ ] Add analytics/events plan if required
 - [ ] Add Play Store screenshots, description, privacy policy, and release checklist
 
+### Phase 13: collaboration and accountability
+
+- [ ] Add account-backed sync as a prerequisite for collaboration
+- [ ] Add friend invite flow via email
+- [ ] Add incoming invite acceptance and rejection flow
+- [ ] Add friend list management
+- [ ] Add assign-to-friend support on tasks
+- [ ] Add received-task inbox or assigned-task section
+- [ ] Add task activity events for assignment, completion, and updates
+- [ ] Add streak comparison or accountability views between connected users
+- [ ] Add privacy and permission rules for personal vs assigned tasks
+- [ ] Add collaboration notifications for invites, assignments, and completions
+
+### Phase 14: backup, restore, and sync
+
+- [ ] Define canonical JSON export shape across all tables
+- [ ] Implement local JSON export with `expo-sharing`
+- [ ] Implement JSON import with conflict and version checks
+- [ ] Add backup/restore UI in the Profile tab
+- [ ] Define server contract for cloud sync
+- [ ] Implement cloud sync with last-write-wins or vector-clock strategy
+
 ## Current implementation status
 
 - [x] Expo app shell exists
@@ -134,6 +156,7 @@ Primary reference points from `inspiration/app/`:
 - [ ] Product task system is not built yet
 - [ ] Calendar experience is not built yet
 - [ ] Premium flow is not built yet
+- [ ] Collaboration features are intentionally deferred until the single-user product and sync are stable
 
 ## Public repo note
 

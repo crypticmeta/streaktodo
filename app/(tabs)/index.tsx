@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Fab } from '../../src/components/Fab';
+import { TaskComposer } from '../../src/components/TaskComposer';
 import { useTheme } from '../../src/theme';
 
 export default function TasksScreen() {
   const t = useTheme();
+  const [composerOpen, setComposerOpen] = useState(false);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.color.background }]} edges={['top']}>
@@ -15,7 +19,7 @@ export default function TasksScreen() {
           Tasks
         </Text>
         <Text style={[styles.subtitle, { color: t.color.textSecondary, fontSize: t.fontSize.base }]}>
-          The task list will live here. Phase 2 wires it up.
+          Tap the + button to add your first task.
         </Text>
 
         <View
@@ -35,10 +39,21 @@ export default function TasksScreen() {
             No tasks yet
           </Text>
           <Text style={[styles.placeholderBody, { color: t.color.textSecondary }]}>
-            You'll be able to add tasks from a floating button once Phase 3 ships.
+            The list will appear here once you create one.
           </Text>
         </View>
       </View>
+
+      <Fab
+        onPress={() => setComposerOpen(true)}
+        accessibilityLabel="Add task"
+        hint="Opens the task composer"
+      />
+
+      <TaskComposer
+        visible={composerOpen}
+        onClose={() => setComposerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
