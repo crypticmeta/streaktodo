@@ -77,16 +77,16 @@ Primary reference points from `inspiration/app/`:
 - [x] Add create-new-category flow — `+ Create New` row in the menu opens [`CreateCategoryDialog`](./src/components/CreateCategoryDialog.tsx) with name input + color swatches; persists via `categoriesRepo.createCategory`
 - [x] Add category-based task filtering on the home screen — Phase 3 pills wired through `useTasks({ categoryId })`
 - [x] Persist category colors — color swatch chosen at create time is stored on the row
-- [ ] Category management screen (rename / delete / reorder) — Phase 10
+- [x] Category management screen (rename / recolor / delete) — see Phase 10 entry; reorder still deferred
 
 ### Phase 5: scheduling (runtime semantics)
 
 UI for date / time selection lives in the Schedule sheet (Phase 2). This phase covers everything else.
 
-- [ ] Show scheduled date and time clearly in the task row metadata (rich row, Phase 3)
-- [ ] Handle overdue styling for past-due tasks
-- [ ] Group tasks into Previous / Today / Upcoming / No Date sections (Phase 3 list)
-- [ ] Day grouping helper in `src/lib/date.ts`
+- [x] Show scheduled date and time clearly in the task row metadata — `TaskRow` meta line renders date + time + reminder + repeat icons
+- [ ] Handle overdue styling for past-due tasks — pending row polish pass
+- [x] Group tasks into Previous / Today / Upcoming / No Date sections — see [`src/lib/taskGrouping.ts`](./src/lib/taskGrouping.ts)
+- [x] Day grouping helper in `src/lib/date.ts` — `startOfDay`, `addDays`, etc.
 
 ### Phase 6: reminders (runtime engine)
 
@@ -143,11 +143,11 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [x] Add category breakdown chart — `DonutChart` (SVG via `react-native-svg`) using `computeCategoryBreakdown`
 - [x] Migrate `SignInScreen` and `NotificationsScreen` off the deprecated `colors` shim onto `useTheme()` — both screens now follow light/dark via the theme provider
 - [x] Delete `src/theme/colors.ts` shim — done
-- [ ] Add task overview summary cards (totals — total / done / pending / overdue) — could fit alongside the streak counter
-- [ ] Add next 7 days summary block — distinct from the bar chart; would show upcoming due-counts
-- [ ] Add notification settings summary — relocate the existing test surface here as a dev-only block
-- [ ] Add category management screen (rename / recolor / delete)
-- [ ] Add theme/settings scaffold (force-light / force-dark / system toggle, stored in `expo-secure-store`)
+- [x] Add task overview summary cards (totals — total / done / pending / overdue) — `OverviewTotals` card above `StreakCounter` driven by `computeOverviewTotals`
+- [x] Add next 7 days summary block — `UpcomingWeek` strip; distinct from the retrospective `BarChart`
+- [x] Add notification settings summary — dev-only "Notification test" link on Profile (gated by `__DEV__`)
+- [x] Add category management screen (rename / recolor / delete) — `app/categories.tsx`, reached from "Manage categories" row on Profile
+- [x] Add theme/settings scaffold (force-light / force-dark / system toggle, stored in `expo-secure-store`) — `ThemeToggle` segmented control on Profile, persisted under key `theme_preference_v1`
 - [ ] Add data export/import placeholder if needed later
 
 ### Phase 11: premium groundwork

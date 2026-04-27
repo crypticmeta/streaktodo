@@ -9,12 +9,14 @@ import { Icon } from '../../src/components/Icon';
 import { OverviewTotals } from '../../src/components/OverviewTotals';
 import { StreakCounter } from '../../src/components/StreakCounter';
 import { ThemeToggle } from '../../src/components/ThemeToggle';
+import { UpcomingWeek } from '../../src/components/UpcomingWeek';
 import { useCategories, useTasks } from '../../src/db';
 import { useAuth } from '../../src/lib/auth';
 import {
   computeCategoryBreakdown,
   computeOverviewTotals,
   computeStreakStats,
+  computeUpcomingWeek,
   computeWeeklyCompletion,
 } from '../../src/lib/streakStats';
 import { useTheme } from '../../src/theme';
@@ -44,6 +46,7 @@ export default function ProfileScreen() {
   const totals = useMemo(() => computeOverviewTotals(tasks), [tasks]);
   const streak = useMemo(() => computeStreakStats(tasks), [tasks]);
   const weekly = useMemo(() => computeWeeklyCompletion(tasks), [tasks]);
+  const upcoming = useMemo(() => computeUpcomingWeek(tasks), [tasks]);
   const breakdown = useMemo(() => computeCategoryBreakdown(tasks), [tasks]);
 
   const donutSlices: DonutSlice[] = useMemo(
@@ -141,6 +144,8 @@ export default function ProfileScreen() {
           <BarChart bars={weekly} />
         </Section>
 
+        <UpcomingWeek days={upcoming} />
+
         <Section title="Categories">
           <DonutChart slices={donutSlices} />
         </Section>
@@ -173,6 +178,39 @@ export default function ProfileScreen() {
           </Text>
           <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>›</Text>
         </Pressable>
+
+        {__DEV__ ? (
+          <Pressable
+            onPress={() => router.push('/notifications')}
+            style={({ pressed }) => [
+              styles.manageRow,
+              {
+                backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
+                borderRadius: t.radius.xl,
+                padding: t.spacing.lg,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Notification test (dev only)"
+          >
+            <Icon name="reminder" size={18} color={t.color.textPrimary} />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  color: t.color.textPrimary,
+                  fontSize: t.fontSize.md,
+                  fontWeight: t.fontWeight.semibold,
+                }}
+              >
+                Notification test
+              </Text>
+              <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, marginTop: 2 }}>
+                Dev-only · trigger a local notification
+              </Text>
+            </View>
+            <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>›</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable
           onPress={signOut}

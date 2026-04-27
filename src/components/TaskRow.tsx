@@ -44,6 +44,11 @@ function TaskRowImpl({
     onTogglePin(task.id, !task.isPinned);
   };
 
+  // Pinned rows already shout via the accentSoft tint; layering a danger stripe
+  // on top would visually fight. Pinned-and-overdue is rare; if it happens we
+  // lean on the red date text + Overdue pill instead of the stripe.
+  const showOverdueStripe = overdue && !task.isPinned;
+
   return (
     <View
       style={[
@@ -55,9 +60,18 @@ function TaskRowImpl({
           borderRadius: t.radius.lg,
           paddingHorizontal: t.spacing.lg,
           paddingVertical: t.spacing.lg,
+          // Clip the overdue stripe to the rounded corners.
+          overflow: 'hidden',
         },
       ]}
     >
+      {showOverdueStripe ? (
+        <View
+          pointerEvents="none"
+          style={[styles.overdueStripe, { backgroundColor: t.color.danger }]}
+        />
+      ) : null}
+
       {/* Completion checkbox — selected state per design system:
           accent fill + 1.75px WHITE outline + check in textOnAccent.
           The white outline keeps the circle readable on both surfaceMuted
@@ -150,21 +164,13 @@ function Meta({
 
   const dateText = task.dueAt !== null ? formatRelativeShort(task.dueAt) : null;
   const timeText = task.dueTime !== null ? formatTimeFromMinutes(task.dueTime) : null;
-
-  // Build the right-side meta list. Date is rendered first because it carries
-  // its own color (overdue → danger). Everything else is muted.
-  const tail: string[] = [];
-  if (subtaskCounts && subtaskCounts.total > 0) {
-    tail.push(
-      `${subtaskCounts.done}/${subtaskCounts.total} subtask${subtaskCounts.total === 1 ? '' : 's'}`
-    );
-  }
-  if (category) tail.push(category.name);
+  const hasSubtasks = subtaskCounts !== undefined && subtaskCounts.total > 0;
 
   const showMeta =
+    overdue ||
     dateText !== null ||
     timeText !== null ||
-    tail.length > 0 ||
+    hasSubtasks ||
     hasReminder ||
     hasRepeat ||
     category !== null;
@@ -173,7 +179,32 @@ function Meta({
 
   return (
     <View style={styles.metaRow}>
-      {/* Category dot — always first when present, even before date */}
+      {/* Overdue pill — first so the eye lands on it before the date. The
+          colored dot still appears for category, but the badge is the
+          dominant signal. */}
+      {overdue ? (
+        <View
+          style={[
+            styles.metaChip,
+            { backgroundColor: t.color.dangerSoft, marginRight: 6 },
+          ]}
+        >
+          <Text
+            style={{
+              color: t.color.danger,
+              fontSize: t.fontSize.xs,
+              fontWeight: t.fontWeight.semibold,
+              letterSpacing: t.tracking.wide,
+              textTransform: 'uppercase',
+            }}
+          >
+            Overdue
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Category dot — encodes category by color; we drop the textual name
+          from the tail to keep meta line tight. */}
       {category ? (
         <View
           style={{
@@ -210,17 +241,27 @@ function Meta({
         </View>
       ) : null}
 
-      {tail.length > 0 ? (
-        <Text
-          style={{
-            color: t.color.textMuted,
-            fontSize: t.fontSize.xs,
-            marginLeft: dateText || hasReminder || hasRepeat ? 6 : 0,
-          }}
+      {hasSubtasks ? (
+        <View
+          style={[
+            styles.metaChip,
+            {
+              backgroundColor: t.color.accentSoft,
+              marginLeft: dateText || hasReminder || hasRepeat ? 6 : 0,
+            },
+          ]}
         >
-          {dateText || hasReminder || hasRepeat ? '· ' : ''}
-          {tail.join(' · ')}
-        </Text>
+          <Text
+            style={{
+              color: t.color.textPrimary,
+              fontSize: t.fontSize.xs,
+              fontWeight: t.fontWeight.semibold,
+              fontVariant: ['tabular-nums'],
+            }}
+          >
+            {subtaskCounts!.done}/{subtaskCounts!.total}
+          </Text>
+        </View>
       ) : null}
     </View>
   );
@@ -271,5 +312,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 2,
     marginTop: -2,
+  },
+  overdueStripe: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+  },
+  metaChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
 });

@@ -269,6 +269,64 @@ export function computeOverviewTotals(
   return { total, done, pending, overdue };
 }
 
+// ─── Upcoming 7 days (forward-looking) ─────────────────────────────────
+
+export type UpcomingDay = {
+  /** start-of-day epoch ms */
+  ts: number;
+  /** Mon / Tue / … weekday letter */
+  shortLabel: string;
+  /** "Tomorrow" / "Mon 5" / etc — caller's choice; we provide a default. */
+  longLabel: string;
+  /** Pending (non-done, non-deleted) tasks due that day. */
+  pending: number;
+  isTomorrow: boolean;
+};
+
+const WEEKDAY_LONG = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/**
+ * Forward-looking peek at the next 7 days starting from tomorrow. For each
+ * day, count of pending tasks whose dueAt falls on that day. Distinct from
+ * `computeWeeklyCompletion` which looks at the last 7 days retrospectively.
+ *
+ * Why pending only: a "next 7 days" view is about what's coming up, not what
+ * has already been done. A task already completed for a future date (rare,
+ * but possible via the editor) shouldn't appear as workload.
+ */
+export function computeUpcomingWeek(
+  tasks: ReadonlyArray<Task>,
+  nowTs: number = Date.now()
+): UpcomingDay[] {
+  const today = startOfDay(nowTs);
+  const counts = new Map<number, number>();
+
+  for (const t of tasks) {
+    if (t.deletedAt !== null) continue;
+    if (t.status !== 'pending') continue;
+    if (t.dueAt === null) continue;
+    const day = startOfDay(t.dueAt);
+    if (day <= today) continue; // strictly future
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+
+  const days: UpcomingDay[] = [];
+  for (let i = 1; i <= 7; i++) {
+    const day = addDays(today, i);
+    const d = new Date(day);
+    const weekday = d.getDay();
+    const dayOfMonth = d.getDate();
+    days.push({
+      ts: day,
+      shortLabel: WEEKDAY_LETTER[weekday]!,
+      longLabel: i === 1 ? 'Tomorrow' : `${WEEKDAY_LONG[weekday]} ${dayOfMonth}`,
+      pending: counts.get(day) ?? 0,
+      isTomorrow: i === 1,
+    });
+  }
+  return days;
+}
+
 // ─── Category breakdown ────────────────────────────────────────────────
 
 export type CategorySlice = {
