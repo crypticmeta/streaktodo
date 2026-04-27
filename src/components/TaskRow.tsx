@@ -1,5 +1,5 @@
-import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { memo, useEffect, useRef } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Task } from '../db';
 import { formatRelativeShort, formatTimeFromMinutes, isOverdue } from '../lib/date';
 import { useTheme } from '../theme';
@@ -35,6 +35,62 @@ function TaskRowImpl({
   const t = useTheme();
   const isDone = task.status === 'done';
   const overdue = !isDone && task.dueAt !== null && isOverdue(task.dueAt);
+
+  // Completion animations.
+  // - titleProgress: 0 = pending, 1 = done. Drives title opacity dim. Strike-
+  //   through stays static (textDecorationLine isn't animatable) but the
+  //   opacity dim carries most of the visual weight.
+  // - checkboxScale: pulse on toggle to done; smooth ease back to 1 on undone.
+  const titleProgress = useRef(new Animated.Value(isDone ? 1 : 0)).current;
+  const checkboxScale = useRef(new Animated.Value(1)).current;
+  // Skip the very first effect run so rows that mount in a "done" state
+  // don't pulse on scroll-in. The animation only fires on actual toggles.
+  const didMount = useRef(false);
+
+  useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true;
+      titleProgress.setValue(isDone ? 1 : 0);
+      return;
+    }
+
+    Animated.timing(titleProgress, {
+      toValue: isDone ? 1 : 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+
+    if (isDone) {
+      Animated.sequence([
+        Animated.timing(checkboxScale, {
+          toValue: 1.18,
+          duration: 110,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(checkboxScale, {
+          toValue: 1,
+          duration: 130,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Resetting: brief gentle settle without the overshoot.
+      Animated.timing(checkboxScale, {
+        toValue: 1,
+        duration: 120,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isDone, titleProgress, checkboxScale]);
+
+  const titleOpacity = titleProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.55],
+  });
 
   const handleToggleComplete = () => {
     onToggleComplete(task.id, isDone ? 'pending' : 'done');
@@ -89,23 +145,27 @@ function TaskRowImpl({
       {/* Completion checkbox — selected state per design system:
           accent fill + 1.75px WHITE outline + check in textOnAccent.
           The white outline keeps the circle readable on both surfaceMuted
-          rows AND the accentSoft fill of pinned rows. */}
-      <Pressable
-        onPress={handleToggleComplete}
-        hitSlop={10}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: isDone }}
-        accessibilityLabel={isDone ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
-        style={[
-          styles.checkbox,
-          {
-            borderColor: isDone ? '#ffffff' : t.color.borderStrong,
-            backgroundColor: isDone ? t.color.accent : 'transparent',
-          },
-        ]}
-      >
-        {isDone ? <Icon name="check" size={14} color={t.color.textOnAccent} /> : null}
-      </Pressable>
+          rows AND the accentSoft fill of pinned rows.
+          Wrapped in an Animated.View so toggling pulses the scale; the
+          Pressable handles input as before. */}
+      <Animated.View style={{ transform: [{ scale: checkboxScale }] }}>
+        <Pressable
+          onPress={handleToggleComplete}
+          hitSlop={10}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isDone }}
+          accessibilityLabel={isDone ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
+          style={[
+            styles.checkbox,
+            {
+              borderColor: isDone ? '#ffffff' : t.color.borderStrong,
+              backgroundColor: isDone ? t.color.accent : 'transparent',
+            },
+          ]}
+        >
+          {isDone ? <Icon name="check" size={14} color={t.color.textOnAccent} /> : null}
+        </Pressable>
+      </Animated.View>
 
       {/* Body: title + meta. Tappable when onPress is supplied — opens the editor. */}
       <Pressable
@@ -118,18 +178,21 @@ function TaskRowImpl({
         accessibilityLabel={onPress ? a11yLabel : undefined}
         accessibilityHint={onPress ? 'Opens the editor' : undefined}
       >
-        <Text
+        <Animated.Text
           numberOfLines={3}
           style={{
             color: t.color.textPrimary,
             fontSize: t.fontSize.md,
             fontWeight: t.fontWeight.medium,
+            // Strike-through is static — textDecorationLine isn't an
+            // animatable property — but the opacity dim carries most of the
+            // visual weight of the toggle.
             textDecorationLine: isDone ? 'line-through' : 'none',
-            opacity: isDone ? 0.55 : 1,
+            opacity: titleOpacity,
           }}
         >
           {task.title}
-        </Text>
+        </Animated.Text>
 
         <Meta
           task={task}

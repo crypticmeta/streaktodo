@@ -362,7 +362,13 @@ function ScheduleRow({
         {valueLabel}
       </Text>
       {onClear ? (
-        <Pressable onPress={onClear} hitSlop={8} style={{ marginLeft: 8 }}>
+        <Pressable
+          onPress={onClear}
+          hitSlop={8}
+          style={{ marginLeft: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Clear ${label.toLowerCase()}`}
+        >
           <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>×</Text>
         </Pressable>
       ) : null}

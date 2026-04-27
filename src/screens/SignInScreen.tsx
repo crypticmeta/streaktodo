@@ -134,6 +134,10 @@ export function SignInScreen() {
           ]}
           onPress={signIn}
           disabled={isLoading || isUnsupported}
+          accessibilityRole="button"
+          accessibilityLabel="Sign in with Google"
+          accessibilityState={{ disabled: isLoading || isUnsupported, busy: isLoading }}
+          accessibilityHint="Uses your Google account to sign in"
         >
           <Text style={{ color: t.color.textOnAccent, fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold }}>
             Sign in with Google

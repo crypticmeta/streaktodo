@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Dimensions,
+  Easing,
   Keyboard,
   Modal,
   Platform,
@@ -65,16 +67,18 @@ const newDraftId = () => `draft-${++nextDraftId}`;
 // React Native's KeyboardAvoidingView is unreliable inside a Modal — the modal
 // renders in a separate native window that doesn't share keyboard metrics with
 // the parent tree. Subscribing to Keyboard events directly works on both
-// platforms and inside Modals.
-function useKeyboardOffset(): number {
-  const [offset, setOffset] = useState(0);
+// platforms and inside Modals. We expose an Animated.Value so consumers can
+// compose it into a native-driven transform without re-rendering the whole
+// sheet on every keyboard frame.
+function useKeyboardOffset(): Animated.Value {
+  const offset = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-    const onShow = (e: KeyboardEvent) => setOffset(e.endCoordinates.height);
-    const onHide = () => setOffset(0);
+    const onShow = (e: KeyboardEvent) => offset.setValue(e.endCoordinates.height);
+    const onHide = () => offset.setValue(0);
 
     const showSub = Keyboard.addListener(showEvt, onShow);
     const hideSub = Keyboard.addListener(hideEvt, onHide);
@@ -82,7 +86,7 @@ function useKeyboardOffset(): number {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [offset]);
 
   return offset;
 }
@@ -103,6 +107,54 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
   const subtaskRefs = useRef<Map<string, RNTextInput | null>>(new Map());
   const keyboardOffset = useKeyboardOffset();
   const { categories, refresh: refreshCategories } = useCategories();
+
+  // Open progress: 0 = closed, 1 = open. Drives the scrim opacity and the
+  // sheet's translateY in parallel. We keep the Modal mounted while the close
+  // animation runs out, then unmount; this prevents the sheet from snapping
+  // to instant-hidden and avoids the platform's default "slide" behaviour
+  // (which slides the scrim too, which looks wrong).
+  const progress = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(visible);
+  // Captured on first sheet layout. Used to translate the sheet from below
+  // the screen on open. A generous default keeps the first open animated
+  // before measurement lands.
+  const sheetHeightRef = useRef<number>(Dimensions.get('window').height * 0.9);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 240,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    } else if (mounted) {
+      Animated.timing(progress, {
+        toValue: 0,
+        duration: 200,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setMounted(false);
+      });
+    }
+    // `mounted` deliberately omitted: we only want to react to `visible` flips.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  const handleSheetLayout = (e: LayoutChangeEvent) => {
+    sheetHeightRef.current = e.nativeEvent.layout.height;
+  };
+
+  const sheetOpenTranslateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [sheetHeightRef.current, 0],
+  });
+  // Compose open-animation lift with keyboard avoidance into a single
+  // native-driven value, so the transform array stays stable across renders.
+  const sheetTranslateY = Animated.subtract(sheetOpenTranslateY, keyboardOffset);
+  const scrimOpacity = progress;
 
   const selectedCategory = useMemo(
     () => (categoryId ? categories.find((c) => c.id === categoryId) ?? null : null),
@@ -231,8 +283,8 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
 
   return (
     <Modal
-      visible={visible}
-      animationType="slide"
+      visible={mounted}
+      animationType="none"
       transparent
       onRequestClose={handleClose}
       // Android-only: lets the modal share keyboard metrics with its host
@@ -241,13 +293,19 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
       statusBarTranslucent
     >
       <View style={styles.root}>
+        <Animated.View
+          style={[styles.scrim, { backgroundColor: t.color.scrim, opacity: scrimOpacity }]}
+          // Tap-through is suppressed via the Pressable below.
+          pointerEvents="none"
+        />
         <Pressable
-          style={[styles.scrim, { backgroundColor: t.color.scrim }]}
+          style={styles.scrim}
           onPress={handleClose}
           accessibilityRole="button"
           accessibilityLabel="Close composer"
         />
-        <View
+        <Animated.View
+          onLayout={handleSheetLayout}
           style={[
             styles.sheet,
             {
@@ -258,7 +316,7 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
               paddingHorizontal: t.spacing['2xl'],
               paddingTop: t.spacing.lg,
               paddingBottom: t.spacing['2xl'],
-              transform: [{ translateY: -keyboardOffset }],
+              transform: [{ translateY: sheetTranslateY }],
             },
           ]}
         >
@@ -530,7 +588,7 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
               <Icon name="send" size={22} color={t.color.textOnAccent} />
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
 
       <CategoryPickerMenu

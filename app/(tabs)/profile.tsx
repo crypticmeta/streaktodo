@@ -179,39 +179,6 @@ export default function ProfileScreen() {
           <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>›</Text>
         </Pressable>
 
-        {__DEV__ ? (
-          <Pressable
-            onPress={() => router.push('/notifications')}
-            style={({ pressed }) => [
-              styles.manageRow,
-              {
-                backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
-                borderRadius: t.radius.xl,
-                padding: t.spacing.lg,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Notification test (dev only)"
-          >
-            <Icon name="reminder" size={18} color={t.color.textPrimary} />
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  color: t.color.textPrimary,
-                  fontSize: t.fontSize.md,
-                  fontWeight: t.fontWeight.semibold,
-                }}
-              >
-                Notification test
-              </Text>
-              <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, marginTop: 2 }}>
-                Dev-only · trigger a local notification
-              </Text>
-            </View>
-            <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>›</Text>
-          </Pressable>
-        ) : null}
-
         <Pressable
           onPress={signOut}
           style={({ pressed }) => [

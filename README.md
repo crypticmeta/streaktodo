@@ -1,15 +1,13 @@
 # Streak Todo
 
-Simple todo + scheduler app with categories, reminders, repeat rules, subtasks, and an upgrade path for premium features.
+Simple todo + scheduler app with categories, reminders, repeat rules, subtasks, and a clean local-first workflow.
 
 ## Design system
 
-`design-system/` is a Claude Design bundle exported from claude.ai/design.
-The HTML/CSS/JSX prototypes inside are the visual source of truth — read
-`design-system/README.md` and `design-system/project/colors_and_type.css`
-before changing tokens or component styling. The chat transcript at
-`design-system/chats/chat1.md` records iteration decisions (e.g. the
-selected checkbox uses a 1.75px white outline).
+`design-system/` contains the visual source of truth for the mobile UI.
+Read `design-system/README.md` and
+`design-system/project/colors_and_type.css` before changing tokens or
+component styling.
 
 ## Product direction
 
@@ -58,7 +56,7 @@ Primary reference points from `inspiration/app/`:
   - [x] Cancel / Done footer commits to draft state, not DB
 - [x] Calendar-icon trigger in composer wired to the Schedule sheet
 - [x] Extend `tasksRepo` with a `createTaskFull` transaction (parent + subtasks + reminders + repeat rule)
-- [x] Premium matrix scaffold exists in code, but product scope for now is fully free with no visible upgrade surface
+- [x] Product scope remains fully free with no visible upgrade surface
 
 ### Phase 3: task list home
 
@@ -97,8 +95,8 @@ UI for reminder on/off + lead time + type lives in the Schedule sheet (Phase 2).
 - [x] Cancel or reschedule notifications when a task is completed, uncompleted, or deleted — wired into `handleToggleComplete`; soft-delete cancellation still pending until task editing/delete UI ships
 - [x] Re-arm notifications on app launch if the OS dropped them (boot-loss recovery) — `scheduler.reconcileAll()` in `_layout.tsx` after DB ready
 - [x] Persist `scheduled_notification_id` on `task_reminders` rows — done
-- [ ] **Premium-flagged (free for now):** Reminder Type options beyond plain notification — Alarm and Silent. Tag the dropdown options with a `premium: true` field; gate later.
-- [ ] **Premium-flagged (free for now):** ScreenLock Reminder — display the task on the lock screen / always-on display. Off by default; toggle in the Reminder popover.
+- [ ] Optional reminder types beyond plain notification — Alarm and Silent
+- [ ] ScreenLock reminder option — display the task on the lock screen / always-on display
 
 ### Phase 7: recurrence (runtime engine)
 
@@ -146,23 +144,23 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [x] Delete `src/theme/colors.ts` shim — done
 - [x] Add task overview summary cards (totals — total / done / pending / overdue) — `OverviewTotals` card above `StreakCounter` driven by `computeOverviewTotals`
 - [x] Add next 7 days summary block — `UpcomingWeek` strip; distinct from the retrospective `BarChart`
-- [x] Add notification settings summary — dev-only "Notification test" link on Profile (gated by `__DEV__`)
+- [x] ~~Add notification settings summary~~ — removed. The dev-only test surface and its Profile link have been deleted; the production reminders engine itself (`src/lib/notificationScheduler.ts`) still ships.
 - [x] Add category management screen (rename / recolor / delete) — `app/categories.tsx`, reached from "Manage categories" row on Profile
 - [x] Add theme/settings scaffold (force-light / force-dark / system toggle, stored in `expo-secure-store`) — `ThemeToggle` segmented control on Profile, persisted under key `theme_preference_v1`
 - [ ] Add data export/import placeholder if needed later
 
-### Phase 11: premium groundwork
+### Phase 11: free product guardrails
 
-Feature monetization is intentionally deferred. Current product direction is fully free.
+Current product direction is fully free.
 
-- [ ] Revisit monetization only after the core single-user product is strong
-- [ ] If revisited later, define which features stay free before adding any upgrade UI
+- [x] Keep the shipped product fully free
+- [ ] Revisit monetization only if the core product is strong and there is a clear reason to change scope
 
 ### Phase 12: polish and release readiness
 
 - [x] Add onboarding for first launch — see [`app/onboarding.tsx`](./app/onboarding.tsx) (3 swipeable slides, completion stored in `expo-secure-store` via [`src/lib/onboarding.ts`](./src/lib/onboarding.ts), gated in `_layout.tsx`)
-- [ ] Add animations for composer open/close and task completion
-- [ ] Improve accessibility for touch targets, labels, and contrast
+- [x] Add animations for composer open/close and task completion — `TaskComposer` now drives a synchronized scrim-fade + sheet-translate via `Animated` (replacing RN's default `slide`); keyboard avoidance composes through `Animated.subtract` so the transform array stays stable. `TaskRow` pulses the checkbox on toggle-to-done and dims the title via animated opacity (strike-through stays static — `textDecorationLine` isn't animatable). First-mount runs are skipped so completed rows don't pulse on scroll-in.
+- [x] Improve accessibility for touch targets and labels — focused pass: SignInScreen Google button gained `accessibilityRole`/`Label`/`State`/`Hint`; SchedulePickerSheet `×` clear glyphs labeled `Clear ${field}`; CalendarGrid day cells now read as `"Apr 28, today, has task"` with selected/disabled state. TaskRow already labels overdue/category/pin/due in an earlier pass. Skipped: adding redundant labels to controls whose visible text already reads correctly through TalkBack — those create maintenance debt without helping users. Color-contrast audit not yet performed.
 - [ ] Add offline-safe persistence migration plan
 - [ ] Add analytics/events plan if required
 - [ ] Add Play Store screenshots, description, privacy policy, and release checklist
@@ -196,11 +194,11 @@ Feature monetization is intentionally deferred. Current product direction is ful
 - [x] Expo app shell exists
 - [x] Android local dev build path exists
 - [x] Google sign-in wiring exists
-- [x] Local notification test surface exists
+- [x] Local reminders engine ships in production (`src/lib/notificationScheduler.ts`); the standalone dev test screen has been removed
 - [x] Streak Todo branding is in place
-- [ ] Product task system is not built yet
-- [ ] Calendar experience is not built yet
-- [ ] Profile dashboard is not built yet
+- [x] Product task system is built
+- [x] Calendar experience exists
+- [x] Profile dashboard exists
 - [ ] Collaboration features are intentionally deferred until the single-user product and sync are stable
 
 ## Public repo note

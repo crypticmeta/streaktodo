@@ -215,6 +215,19 @@ export function CalendarGrid({
           if (isSelected) textColor = t.color.textOnAccent;
           if (isToday && !isSelected) textColor = t.color.accent;
 
+          // Compose a verbose screen-reader label so users who can't see the
+          // marker dot, today-highlight, or past-day dim still get the same
+          // signal. Format: "April 28, today, has task". TalkBack reads
+          // selected/disabled state from accessibilityState automatically.
+          const cellDate = new Date(cell.ts);
+          const a11yParts = [
+            `${MONTH_SHORT[cellDate.getMonth()]} ${day}`,
+          ];
+          if (isToday) a11yParts.push('today');
+          if (isMarked) a11yParts.push('has task');
+          if (!cell.inMonth) a11yParts.push('outside current month');
+          const cellA11yLabel = a11yParts.join(', ');
+
           return (
             <Pressable
               key={cell.ts}
@@ -229,6 +242,7 @@ export function CalendarGrid({
                 },
               ]}
               accessibilityRole="button"
+              accessibilityLabel={cellA11yLabel}
               accessibilityState={{ selected: isSelected, disabled: isBlocked }}
             >
               <Text
