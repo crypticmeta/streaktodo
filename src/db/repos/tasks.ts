@@ -1,3 +1,4 @@
+import { nextOccurrence } from '../../lib/recurrence';
 import { getDb } from '../client';
 import { newId } from '../ids';
 import { now } from '../time';
@@ -259,3 +260,145 @@ export async function createTaskFull(input: CreateTaskFullInput): Promise<Task> 
   return created;
 }
 
+/**
+ * For a task that just completed, compute the next occurrence per its repeat
+ * rule and insert a new task carrying forward its subtasks, reminders, and
+ * the same repeat rule. Returns the new task or null if the recurrence has
+ * run out (no rule, or untilAt exceeded).
+ *
+ * Single transaction. Idempotency is the caller's responsibility — if you
+ * call this twice for the same source task you'll get two child tasks.
+ */
+export async function spawnNextOccurrence(sourceTaskId: string): Promise<Task | null> {
+  const db = await getDb();
+
+  const sourceTask = await db.getFirstAsync<{
+    id: string;
+    title: string;
+    notes: string | null;
+    category_id: string | null;
+    due_at: number | null;
+    due_time: number | null;
+    is_pinned: number;
+    sort_order: number;
+  }>(
+    `SELECT id, title, notes, category_id, due_at, due_time, is_pinned, sort_order
+       FROM tasks WHERE id = ? AND deleted_at IS NULL`,
+    [sourceTaskId]
+  );
+  if (!sourceTask) return null;
+
+  const rule = await db.getFirstAsync<{
+    freq: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+    interval_n: number;
+    by_weekday: string | null;
+    by_month_day: number | null;
+    by_month: number | null;
+    until_at: number | null;
+  }>(
+    `SELECT freq, interval_n, by_weekday, by_month_day, by_month, until_at
+       FROM task_repeat_rules
+      WHERE task_id = ? AND deleted_at IS NULL`,
+    [sourceTaskId]
+  );
+  if (!rule) return null;
+
+  // Compute the next occurrence using the source task's dueAt as the anchor.
+  // If the task didn't have a due date (defensive guard), there's nothing to
+  // bump forward.
+  if (sourceTask.due_at === null) return null;
+  const nextDueAt = nextOccurrence(
+    {
+      freq: rule.freq,
+      intervalN: rule.interval_n,
+      byWeekday: rule.by_weekday,
+      byMonthDay: rule.by_month_day,
+      byMonth: rule.by_month,
+      untilAt: rule.until_at,
+    },
+    sourceTask.due_at
+  );
+  if (nextDueAt === null) return null;
+
+  // Read subtasks and reminders to clone forward.
+  const subtaskRows = await db.getAllAsync<{ title: string; sort_order: number }>(
+    `SELECT title, sort_order FROM subtasks
+      WHERE task_id = ? AND deleted_at IS NULL
+      ORDER BY sort_order ASC, created_at ASC`,
+    [sourceTaskId]
+  );
+  const reminderRows = await db.getAllAsync<{
+    lead_minutes: number;
+    type: 'notification' | 'silent' | 'alarm';
+  }>(
+    `SELECT lead_minutes, type FROM task_reminders
+      WHERE task_id = ? AND deleted_at IS NULL`,
+    [sourceTaskId]
+  );
+
+  const newTaskId = newId();
+  const ts = now();
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `INSERT INTO tasks
+         (id, title, notes, category_id, due_at, due_time, status, is_pinned, completed_at, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, NULL, ?, ?, ?)`,
+      [
+        newTaskId,
+        sourceTask.title,
+        sourceTask.notes,
+        sourceTask.category_id,
+        nextDueAt,
+        sourceTask.due_time,
+        // Don't carry pinning forward — the new occurrence starts un-pinned.
+        0,
+        sourceTask.sort_order,
+        ts,
+        ts,
+      ]
+    );
+
+    for (const s of subtaskRows) {
+      // New subtasks always start in 'pending' status — completion of the
+      // previous occurrence's subtasks doesn't carry over.
+      await db.runAsync(
+        `INSERT INTO subtasks (id, task_id, title, status, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, 'pending', ?, ?, ?)`,
+        [newId(), newTaskId, s.title, s.sort_order, ts, ts]
+      );
+    }
+
+    for (const r of reminderRows) {
+      await db.runAsync(
+        `INSERT INTO task_reminders
+           (id, task_id, lead_minutes, type, scheduled_notification_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, NULL, ?, ?)`,
+        [newId(), newTaskId, r.lead_minutes, r.type, ts, ts]
+      );
+    }
+
+    // Carry the repeat rule forward unchanged so the chain continues.
+    await db.runAsync(
+      `INSERT INTO task_repeat_rules
+         (id, task_id, freq, interval_n, by_weekday, by_month_day, by_month, until_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newId(),
+        newTaskId,
+        rule.freq,
+        rule.interval_n,
+        rule.by_weekday,
+        rule.by_month_day,
+        rule.by_month,
+        rule.until_at,
+        ts,
+        ts,
+      ]
+    );
+  });
+
+  const created = await getTaskById(newTaskId);
+  if (!created) throw new Error('Spawn insert succeeded but row not found');
+  return created;
+}

@@ -86,11 +86,11 @@ UI for reminder on/off + lead time + type lives in the Schedule sheet (Phase 2).
 
 UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase computes next occurrences.
 
-- [ ] Generate next occurrence on task completion based on `task_repeat_rules`
-- [ ] Support daily / weekly / monthly / yearly recurrence math (helpers in `src/lib/date.ts`)
-- [ ] Show repeat status in task metadata (rich row, Phase 3)
-- [ ] Respect `until_at` (stop generating after that date)
-- [ ] **Premium-flagged (free for now):** Custom repeat rule (e.g. "every 3 weeks on Mon/Wed"). Implement now; mark the menu item as gateable later.
+- [x] Generate next occurrence on task completion based on `task_repeat_rules` — `tasksRepo.spawnNextOccurrence` clones the task + subtasks + reminders + repeat rule into the next slot
+- [x] Support daily / weekly / monthly / yearly recurrence math — see [`src/lib/recurrence.ts`](./src/lib/recurrence.ts) `nextOccurrence(rule, fromTs)`
+- [x] Show repeat status in task metadata — `🔁` indicator already wired in `TaskRow` via `taskIdsWithRepeat`
+- [x] Respect `until_at` — `nextOccurrence` returns `null` once exceeded, spawn becomes a no-op
+- [x] Custom repeat rule scaffolding — V0 maps `freq: 'custom'` onto the weekly path; full RRULE support deferred to a later pass
 
 ### Phase 8: task details and editing
 

@@ -144,6 +144,22 @@ export default function TasksScreen() {
             await tasksRepo.completeTask(id);
             // Completed tasks shouldn't keep buzzing the phone.
             void scheduler.cancelForTask(id);
+            // If the task carried a repeat rule, spawn its next occurrence and
+            // arm reminders for it. Errors are swallowed — the user already
+            // sees the original completion succeeding.
+            try {
+              const spawned = await tasksRepo.spawnNextOccurrence(id);
+              if (spawned && spawned.dueAt !== null) {
+                void scheduler.scheduleForTask({
+                  taskId: spawned.id,
+                  taskTitle: spawned.title,
+                  taskDueAt: spawned.dueAt,
+                  taskDueTime: spawned.dueTime,
+                });
+              }
+            } catch {
+              // best-effort
+            }
           } else {
             await tasksRepo.uncompleteTask(id);
             // Re-arm in case the user un-checks an old completion.
