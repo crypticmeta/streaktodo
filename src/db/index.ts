@@ -28,3 +28,5 @@ export * as tasksRepo from './repos/tasks';
 export * as subtasksRepo from './repos/subtasks';
 export * as remindersRepo from './repos/reminders';
 export * as repeatRulesRepo from './repos/repeatRules';
+
+export { useTasks } from './hooks';

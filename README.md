@@ -28,7 +28,7 @@ Primary reference points from `inspiration/app/`:
 
 - [x] Add floating action button to open the task composer — see [`src/components/Fab.tsx`](./src/components/Fab.tsx)
 - [x] Build bottom-sheet composer with title input — see [`src/components/TaskComposer.tsx`](./src/components/TaskComposer.tsx)
-- [ ] Add submit action and validation for creating a task
+- [x] Add submit action and validation for creating a task — composer persists via `tasksRepo.createTask`, inline error + length-hint surfacing
 - [ ] Add inline subtask row inside the composer
 - [ ] Add category picker trigger
 - [ ] Add date picker trigger

@@ -49,6 +49,7 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
   const t = useTheme();
   const [title, setTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
   const keyboardOffset = useKeyboardOffset();
 
@@ -57,6 +58,7 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
     if (!visible) return;
     setTitle('');
     setSubmitting(false);
+    setError(null);
     // Native autofocus is unreliable inside a Modal that just animated in.
     // A short delay after `visible` flips lets the modal mount before we ask
     // for focus.
@@ -66,6 +68,13 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
 
   const trimmed = title.trim();
   const canSave = trimmed.length > 0 && !submitting;
+  const remaining = TITLE_MAX_LENGTH - title.length;
+  const showLengthHint = remaining <= 20;
+
+  const handleTitleChange = (next: string) => {
+    setTitle(next);
+    if (error) setError(null);
+  };
 
   const handleClose = () => {
     Keyboard.dismiss();
@@ -75,14 +84,13 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
   const handleSave = async () => {
     if (!canSave) return;
     setSubmitting(true);
+    setError(null);
     try {
-      // Submit logic (DB persistence) lands in the next checkbox.
-      // For now we just accept an optional onSubmit so the wiring is ready.
       await onSubmit?.({ title: trimmed });
       handleClose();
-    } catch {
-      // Swallow for now — error UX is part of the submit/validation checkbox.
+    } catch (err) {
       setSubmitting(false);
+      setError(err instanceof Error ? err.message : 'Could not save the task. Try again.');
     }
   };
 
@@ -167,7 +175,7 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
           <TextInput
             ref={inputRef}
             value={title}
-            onChangeText={setTitle}
+            onChangeText={handleTitleChange}
             placeholder="What needs doing?"
             placeholderTextColor={t.color.textMuted}
             maxLength={TITLE_MAX_LENGTH}
@@ -187,6 +195,29 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
               },
             ]}
           />
+
+          <View style={styles.metaRow}>
+            <Text
+              style={{
+                color: error ? t.color.danger : t.color.textMuted,
+                fontSize: t.fontSize.xs,
+                flex: 1,
+              }}
+            >
+              {error ?? ' '}
+            </Text>
+            {showLengthHint ? (
+              <Text
+                style={{
+                  color: remaining <= 0 ? t.color.danger : t.color.textMuted,
+                  fontSize: t.fontSize.xs,
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
+                {remaining} left
+              </Text>
+            ) : null}
+          </View>
 
           {/*
             Trigger row (category / date / reminder / repeat / subtasks) lands in the
@@ -237,6 +268,13 @@ const styles = StyleSheet.create({
   input: {
     fontWeight: '600',
     minHeight: 36,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 16,
+    marginTop: 4,
   },
   triggersPlaceholder: {
     borderTopWidth: 1,
