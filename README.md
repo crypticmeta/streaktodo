@@ -104,6 +104,8 @@ Primary reference points from `inspiration/app/`:
 - [ ] Add notification settings summary
 - [ ] Add category management screen
 - [ ] Add theme/settings scaffold
+- [ ] Migrate `SignInScreen` and `NotificationsScreen` off the deprecated `colors` shim onto `useTheme()` (currently pinned to light theme)
+- [ ] Delete `src/theme/colors.ts` shim once the migration is done
 - [ ] Add data export/import placeholder if needed later
 
 ### Phase 11: premium groundwork
