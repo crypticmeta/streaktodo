@@ -1,0 +1,39 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 0; }
+  .wrap {
+    width: 700px; height: 220px;
+    background: var(--color-bg);
+    display: grid; grid-template-columns: 220px 1fr;
+    gap: 20px; padding: 20px;
+  }
+  .logo {
+    background: var(--color-surface);
+    border-radius: var(--radius-2xl);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo img { width: 140px; height: 140px; border-radius: 30px; }
+  .copy { padding: 4px 4px 4px 0; display: flex; flex-direction: column; gap: 12px; }
+  .name { font: var(--fw-bold) 28px / 1.1 var(--font-sans); letter-spacing: -0.4px; }
+  .name span { color: var(--color-accent-soft); }
+  .tag { font: var(--fw-medium) 14px / 1.5 var(--font-sans); color: var(--color-text-secondary); }
+  .meta { display: flex; gap: 18px; margin-top: auto; }
+  .meta div { display: flex; flex-direction: column; gap: 2px; }
+  .meta b { font: var(--fw-bold) 11px / 1 var(--font-sans); letter-spacing: 1.2px; text-transform: uppercase; color: var(--color-text-muted); }
+  .meta span { font: var(--fw-semibold) 13px / 1 var(--font-sans); color: var(--color-text-primary); }
+  .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+</style></head><body>
+<div class="wrap">
+  <div class="logo"><img src="../assets/app-icon.png" alt=""></div>
+  <div class="copy">
+    <div>
+      <div class="name">streak<span>·</span>todo</div>
+      <div class="tag">An honest discipline app for solo creators.<br>Mobile-first todo + scheduler that doesn't lie about missed days.</div>
+    </div>
+    <div class="meta">
+      <div><b>Charcoal</b><span><i class="swatch" style="background:#1F2328"></i>#1F2328</span></div>
+      <div><b>Cream</b><span><i class="swatch" style="background:#F4EFE6"></i>#F4EFE6</span></div>
+      <div><b>Streak amber</b><span><i class="swatch" style="background:#D9B178"></i>#D9B178</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

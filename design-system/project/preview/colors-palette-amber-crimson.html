@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 18px; display: grid; gap: 14px; }
+  .group { }
+  .scale { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+  .step { aspect-ratio: 1 / 0.85; border-radius: 10px; padding: 6px; display: flex; flex-direction: column; justify-content: space-between; }
+  .label { font: var(--fw-bold) 10px var(--font-sans); }
+  .hex { font: var(--fw-medium) 8px var(--font-mono); opacity: 0.7; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .head h3 { font: var(--fw-bold) 13px var(--font-sans); }
+  .head p { font: var(--fw-regular) 11px var(--font-sans); color: var(--color-text-muted); }
+</style></head><body>
+<div class="group">
+  <div class="head"><h3>amber</h3><p>warning + premium tint (👑)</p></div>
+  <div class="scale" id="a"></div>
+</div>
+<div class="group">
+  <div class="head"><h3>crimson</h3><p>destructive + overdue</p></div>
+  <div class="scale" id="c"></div>
+</div>
+<script>
+  const amber = [['50','#fdf6e6','#3a2a10'],['100','#f8eddc','#3a2a10'],['200','#f3dfbf','#3a2a10'],['300','#ead7b7','#3a2a10'],['400','#d9b178','#3a2a10'],['500','#b58a3d','#fff'],['600','#8a6526','#fff'],['700','#5e4319','#fff'],['800','#3a2a10','#f8eddc'],['900','#1f1607','#f8eddc']];
+  const crimson = [['50','#fdecec','#3a0a0a'],['100','#fbd5d5','#3a0a0a'],['200','#f3a8a8','#3a0a0a'],['300','#e87575','#3a0a0a'],['400','#d44a4a','#fff'],['500','#b62c2c','#fff'],['600','#8a1d1d','#fff'],['700','#5e1212','#fbd5d5'],['800','#3a0a0a','#fbd5d5'],['900','#1c0404','#fbd5d5']];
+  const html = arr => arr.map(([k,h,c]) => `<div class="step" style="background:${h};color:${c}"><div class="label">${k}</div><div class="hex">${h.slice(1)}</div></div>`).join('');
+  document.getElementById('a').innerHTML = html(amber);
+  document.getElementById('c').innerHTML = html(crimson);
+</script>
+</body></html>

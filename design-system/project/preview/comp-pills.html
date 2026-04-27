@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 22px 18px; }
+  h3 { font: 700 13px var(--font-sans); margin-bottom: 4px; }
+  p { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-bottom: 14px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .pill { font: 600 13px var(--font-sans); padding: 10px 16px; border-radius: 999px; }
+  .selected { background: var(--color-accent); color: var(--color-text-on-accent); font-weight: 700; }
+  .unselected { background: var(--color-surface-muted); color: var(--color-text-primary); }
+  .pressed { background: var(--color-accent-muted); color: var(--color-text-primary); }
+  .label { font: 700 10px var(--font-sans); letter-spacing: 1.2px; text-transform: uppercase; color: var(--color-text-muted); margin-top: 14px; }
+</style></head><body>
+<h3>category pills</h3>
+<p>selected = accent fill · unselected = surfaceMuted · no outline, no color dot</p>
+<div class="row">
+  <div class="pill selected">All</div>
+  <div class="pill unselected">Work</div>
+  <div class="pill unselected">Personal</div>
+  <div class="pill unselected">Errands</div>
+  <div class="pill unselected">Reading</div>
+</div>
+<div class="label">pressed (tap-down)</div>
+<div class="row">
+  <div class="pill unselected">All</div>
+  <div class="pill pressed">Work</div>
+  <div class="pill unselected">Personal</div>
+</div>
+</body></html>

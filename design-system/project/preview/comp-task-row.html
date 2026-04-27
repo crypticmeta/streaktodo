@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<style>
+  body { padding: 18px; }
+  h3 { font: 700 13px var(--font-sans); margin-bottom: 4px; }
+  p { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-bottom: 14px; }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 14px; background: var(--color-surface-muted); }
+  .row.pinned { background: var(--color-accent-soft); }
+  .check { width: 22px; height: 22px; border-radius: 11px; margin-top: 2px; display:inline-flex;align-items:center;justify-content:center;flex-shrink:0; }
+  .body { flex: 1; min-width: 0; }
+  .title { font: 500 15px/1.35 var(--font-sans); color: var(--color-text-primary); }
+  .title.done { text-decoration: line-through; opacity: .55; }
+  .meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; font: 400 11px var(--font-sans); color: var(--color-text-muted); }
+  .dot { width: 8px; height: 8px; border-radius: 4px; }
+  .meta.overdue { color: var(--color-danger); font-weight: 600; }
+  .star { color: var(--color-text-muted); }
+  .star.on { color: var(--color-accent); }
+  ion-icon { font-size: 12px; }
+  .star ion-icon { font-size: 20px; }
+  .check ion-icon { font-size: 14px; }
+</style>
+</head>
+<body>
+<h3>task row</h3>
+<p>filled card · checkbox · body · star. pinned = accentSoft fill (no border).</p>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel">
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "outlineColor": "#ffffff",
+    "outlineWidth": 1.75,
+    "fillStyle": "accent",
+    "showCheckmark": true
+  }/*EDITMODE-END*/;
+
+  function Check({ done, t }) {
+    const fillMap = {
+      accent: 'var(--color-accent)',
+      transparent: 'transparent',
+      surface: 'var(--color-surface)',
+    };
+    const baseStyle = {
+      width: 22, height: 22, borderRadius: 11, marginTop: 2,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      border: `${t.outlineWidth}px solid var(--color-border-strong)`,
+      background: 'transparent',
+    };
+    const doneStyle = {
+      ...baseStyle,
+      border: `${t.outlineWidth}px solid ${t.outlineColor}`,
+      background: fillMap[t.fillStyle],
+      color: 'var(--color-text-on-accent)',
+    };
+    return (
+      <div style={done ? doneStyle : baseStyle}>
+        {done && t.showCheckmark && <ion-icon name="checkmark"></ion-icon>}
+      </div>
+    );
+  }
+
+  function Row({ done, pinned, dotColor, title, meta, overdue, starOn, t }) {
+    return (
+      <div className={"row" + (pinned ? " pinned" : "")}>
+        <Check done={done} t={t} />
+        <div className="body">
+          <div className={"title" + (done ? " done" : "")}>{title}</div>
+          <div className={"meta" + (overdue ? " overdue" : "")}>
+            {dotColor && <div className="dot" style={{ background: dotColor }}></div>}
+            {meta}
+          </div>
+        </div>
+        <div className={"star" + (starOn ? " on" : "")}>
+          <ion-icon name={starOn ? "star" : "star-outline"}></ion-icon>
+        </div>
+      </div>
+    );
+  }
+
+  function App() {
+    const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+    return (
+      <>
+        <div className="stack">
+          <Row t={t} title="Plan content for next week" dotColor="#3f7e69" meta="tomorrow · 09:00 am · Work" />
+          <Row t={t} pinned starOn title="Renew passport" dotColor="#b58a3d" meta="in 5 days · Errands" />
+          <Row t={t} title="Submit invoice to client" overdue dotColor="rgba(63,126,105,.5)" meta="2 days overdue · Work" />
+          <Row t={t} done title="Morning pages" meta="today · 06:00 am · Personal" />
+          <Row t={t} done pinned title="Buy birthday gift" meta="yesterday · Personal" />
+        </div>
+        <TweaksPanel title="Task row tweaks">
+          <TweakSection title="Completed checkbox">
+            <TweakColor label="Outline color" value={t.outlineColor} onChange={v => setTweak('outlineColor', v)} />
+            <TweakSlider label="Outline width" min={0} max={3} step={0.25} value={t.outlineWidth} onChange={v => setTweak('outlineWidth', v)} suffix="px" />
+            <TweakRadio label="Fill" value={t.fillStyle} options={[
+              { value: 'accent', label: 'Accent' },
+              { value: 'surface', label: 'Surface' },
+              { value: 'transparent', label: 'None' },
+            ]} onChange={v => setTweak('fillStyle', v)} />
+            <TweakToggle label="Show checkmark" value={t.showCheckmark} onChange={v => setTweak('showCheckmark', v)} />
+          </TweakSection>
+        </TweaksPanel>
+      </>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

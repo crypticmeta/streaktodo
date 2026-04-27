@@ -1,0 +1,55 @@
+/* Scoped tokens for the Streak Todo UI kit. */
+@import url("../../colors_and_type.css");
+
+.st-app * { box-sizing: border-box; }
+.st-app {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+.st-app button { font-family: inherit; border: none; background: none; cursor: pointer; padding: 0; color: inherit; }
+
+/* utility */
+.st-row { display: flex; align-items: center; }
+.st-col { display: flex; flex-direction: column; }
+
+/* screen padding */
+.st-screen { padding: 0 var(--space-xl); }
+
+/* scrim */
+.st-scrim {
+  position: absolute; inset: 0;
+  background: var(--color-scrim);
+  z-index: 50;
+}
+
+/* sheet */
+.st-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: var(--color-surface);
+  border-top-left-radius: var(--radius-3xl);
+  border-top-right-radius: var(--radius-3xl);
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
+  z-index: 60;
+  animation: stSlideUp 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes stSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.st-sheet-handle {
+  width: 40px; height: 4px; border-radius: 999px;
+  background: var(--color-border-strong);
+  margin: 0 auto 12px;
+}
+
+/* press-state utility */
+.st-press { transition: transform 120ms ease, opacity 120ms ease; }
+.st-press:active { transform: scale(0.96); opacity: 0.85; }

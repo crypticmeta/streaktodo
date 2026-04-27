@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script><style>
+  body { padding: 18px; }
+  h3 { font: 700 13px var(--font-sans); margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .group { display: flex; flex-direction: column; gap: 8px; }
+  .label { font: 700 10px var(--font-sans); letter-spacing: 1.2px; text-transform: uppercase; color: var(--color-text-muted); }
+  button, .btn { font: 700 14px var(--font-sans); border: none; cursor: pointer; padding: 14px 18px; border-radius: 22px; display: inline-flex; align-items: center; gap: 8px; }
+  .primary { background: var(--color-accent); color: var(--color-text-on-accent); box-shadow: 0 8px 12px rgba(31,35,40,.18); }
+  .primary-pressed { background: var(--color-accent); color: var(--color-text-on-accent); opacity: .85; transform: scale(.96); box-shadow: 0 8px 12px rgba(31,35,40,.18); }
+  .ghost { background: var(--color-surface-muted); color: var(--color-text-primary); }
+  .danger { background: transparent; color: var(--color-danger); padding: 10px 14px; border-radius: 12px; }
+  .send { width: 48px; height: 48px; border-radius: 24px; background: var(--color-accent); color: var(--color-text-on-accent); display:inline-flex;align-items:center;justify-content:center; box-shadow: 0 8px 12px rgba(31,35,40,.18); }
+  .fab { width: 60px; height: 60px; border-radius: 30px; background: var(--color-accent); color: var(--color-text-on-accent); display:inline-flex;align-items:center;justify-content:center; font: 300 28px/1 var(--font-sans); box-shadow: 0 12px 20px rgba(31,35,40,.30); position: relative; }
+  .fab::before { content:''; position: absolute; inset: -8px; border-radius: 50%; background: var(--color-accent-soft); opacity: .55; z-index: -1; }
+  ion-icon { font-size: 18px; }
+</style></head><body>
+<h3>buttons</h3>
+<div class="grid">
+  <div class="group"><div class="label">primary · default</div><button class="primary">Sign in with Google</button></div>
+  <div class="group"><div class="label">primary · pressed</div><button class="primary-pressed">Sign in with Google</button></div>
+  <div class="group"><div class="label">ghost / muted</div><button class="ghost">Cancel</button></div>
+  <div class="group"><div class="label">destructive</div><button class="danger"><ion-icon name="trash-outline"></ion-icon> Delete task</button></div>
+  <div class="group"><div class="label">circular send · 48</div><div class="send"><ion-icon name="arrow-up" style="font-size:22px"></ion-icon></div></div>
+  <div class="group" style="position:relative"><div class="label">FAB · 60 + halo</div><div style="padding:8px 0 0 8px"><div class="fab">+</div></div></div>
+</div>
+</body></html>

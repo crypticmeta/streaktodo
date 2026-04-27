@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script><style>
+  body { padding: 22px 18px; }
+  h3 { font: 700 13px var(--font-sans); margin-bottom: 14px; }
+  .group { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+  .col { display: flex; flex-direction: column; gap: 10px; }
+  .label { font: 700 10px var(--font-sans); letter-spacing: 1.2px; text-transform: uppercase; color: var(--color-text-muted); }
+  .row { display: flex; align-items: center; gap: 18px; }
+  .check { width: 26px; height: 26px; border-radius: 13px; border: 2px solid var(--color-border-strong); display:inline-flex;align-items:center;justify-content:center; background: transparent; }
+  .check.done { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-text-on-accent); }
+  .check.subtask { width: 16px; height: 16px; border-radius: 8px; border-width: 1.5px; }
+  ion-icon { font-size: 26px; color: var(--color-text-muted); }
+  ion-icon.on { color: var(--color-accent); }
+  .check ion-icon { font-size: 16px; }
+  .desc { font: 500 13px var(--font-sans); color: var(--color-text-secondary); margin-left: auto; }
+</style></head><body>
+<h3>checkbox + star</h3>
+<div class="group">
+  <div class="col">
+    <div class="label">checkbox · 22dp</div>
+    <div class="row"><div class="check"></div><div class="desc">unchecked</div></div>
+    <div class="row"><div class="check done"><ion-icon name="checkmark"></ion-icon></div><div class="desc">done</div></div>
+    <div class="row"><div class="check subtask"></div><div class="desc">subtask · 14dp</div></div>
+  </div>
+  <div class="col">
+    <div class="label">pin star · 20dp</div>
+    <div class="row"><ion-icon name="star-outline"></ion-icon><div class="desc">unpinned</div></div>
+    <div class="row"><ion-icon name="star" class="on"></ion-icon><div class="desc">pinned</div></div>
+    <div class="row"><span style="font:400 22px var(--font-sans);color:var(--color-text-muted)">★ not 🚩</span></div>
+  </div>
+</div>
+</body></html>

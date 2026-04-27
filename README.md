@@ -2,6 +2,15 @@
 
 Simple todo + scheduler app with categories, reminders, repeat rules, subtasks, and an upgrade path for premium features.
 
+## Design system
+
+`design-system/` is a Claude Design bundle exported from claude.ai/design.
+The HTML/CSS/JSX prototypes inside are the visual source of truth — read
+`design-system/README.md` and `design-system/project/colors_and_type.css`
+before changing tokens or component styling. The chat transcript at
+`design-system/chats/chat1.md` records iteration decisions (e.g. the
+selected checkbox uses a 1.75px white outline).
+
 ## Product direction
 
 Primary reference points from `inspiration/app/`:
@@ -12,7 +21,16 @@ Primary reference points from `inspiration/app/`:
 - reminder settings with lead time and type
 - repeat rules including daily, weekly, monthly, yearly, and custom
 - subtask input inside the composer
-- premium upgrade screen for advanced reminders, widgets, templates, attachments, sync, and ad removal
+- calendar tab with a selected-day task list
+- profile dashboard with account summary and task stats
+- task edit/details screen with category, reminder, repeat, and notes rows
+
+## Scope guardrails
+
+- No attachment support for now
+- No premium gating for now
+- No upgrade banners or paywall flows for now
+- All implemented features remain free in the current product
 
 ## Build plan
 
@@ -40,7 +58,7 @@ Primary reference points from `inspiration/app/`:
   - [x] Cancel / Done footer commits to draft state, not DB
 - [x] Calendar-icon trigger in composer wired to the Schedule sheet
 - [x] Extend `tasksRepo` with a `createTaskFull` transaction (parent + subtasks + reminders + repeat rule)
-- [x] Premium matrix scaffold — see [`src/lib/premium.ts`](./src/lib/premium.ts) (Alarm/Silent reminder, ScreenLock, Custom repeat all FREE today, tagged for later gating)
+- [x] Premium matrix scaffold exists in code, but product scope for now is fully free with no visible upgrade surface
 
 ### Phase 3: task list home
 
@@ -100,6 +118,9 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [x] Delete task flow — trash icon in the composer's action row (edit mode only) with `Alert.alert` confirm; cancels reminders + soft-deletes
 - [ ] Duplicate task flow — deferred until there's a long-press menu on rows
 - [ ] Preserve completed-task history — already preserved (soft-delete + completed_at); a "Show done" toggle on the home is the missing UI
+- [ ] Add richer edit/details presentation inspired by `update_screen.jpeg` — top category chip, cleaner summary rows, and overflow actions
+- [ ] Add notes editing
+- [ ] Attachment support intentionally deferred out of scope
 
 ### Phase 9: calendar and views
 
@@ -109,11 +130,19 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [x] ~~Switch between list and calendar context without losing filters~~ — separate tabs intentionally; the Tasks tab keeps category filter, Calendar keeps day-pick. Cross-context state-sharing deferred unless usage shows it's needed.
 - [x] Add quick jump to Today — pill button in the header
 - [x] Editor reuse — both tabs share `useTaskEditor` (`src/lib/useTaskEditor.tsx`), so create/edit/delete paths stay in one place
+- [ ] Add collapse / expand affordance in the calendar header to match `calendar_screen.jpeg`
+- [ ] Add calendar overflow actions
+- [ ] Refine the selected-day task card styling to match the reference more closely
 
 ### Phase 10: profile and settings
 
-- [ ] Build Profile tab
-- [ ] Add account state, sign-in status, and sign-out
+- [ ] Build Profile tab as a dashboard surface
+- [ ] Add account state, sign-in status, streak summary, and sign-out
+- [ ] Add upgrade banner equivalent is intentionally out of scope for now
+- [ ] Add task overview summary cards
+- [ ] Add weekly completion chart
+- [ ] Add next 7 days summary block
+- [ ] Add category breakdown chart
 - [ ] Add notification settings summary
 - [ ] Add category management screen
 - [ ] Add theme/settings scaffold
@@ -123,20 +152,10 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 
 ### Phase 11: premium groundwork
 
-> **Stance: build features now, gate them later.** Anything we'd otherwise mark "premium" ships free in V0 and is tagged with a `premium: true` flag (or commented `// premium-future`) so the gating layer can find it later. This phase is purely about the gating + monetization scaffolding, not about restricting features.
+Feature monetization is intentionally deferred. Current product direction is fully free.
 
-Currently flagged as future-premium (already free in code):
-- Reminder Type options beyond plain notification (Alarm, Silent) — see Phase 6
-- ScreenLock Reminder toggle — see Phase 6
-- Custom repeat rules — see Phase 7
-
-To do in this phase:
-
-- [ ] Build Upgrade to Pro screen
-- [ ] Define the free vs pro matrix and ship it as `src/lib/premium.ts`
-- [ ] Wire each `premium: true` tag to the matrix so flipping a single flag gates the feature
-- [ ] Add placeholders for attachments, templates, widgets, and sync
-- [ ] Add restore purchases and billing flow later
+- [ ] Revisit monetization only after the core single-user product is strong
+- [ ] If revisited later, define which features stay free before adding any upgrade UI
 
 ### Phase 12: polish and release readiness
 
@@ -178,7 +197,7 @@ To do in this phase:
 - [x] Streak Todo branding is in place
 - [ ] Product task system is not built yet
 - [ ] Calendar experience is not built yet
-- [ ] Premium flow is not built yet
+- [ ] Profile dashboard is not built yet
 - [ ] Collaboration features are intentionally deferred until the single-user product and sync are stable
 
 ## Public repo note

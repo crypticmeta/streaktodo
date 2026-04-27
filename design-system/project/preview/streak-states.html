@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 18px; }
+  h3 { font: 700 13px var(--font-sans); margin-bottom: 4px; }
+  p { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .item { background: var(--color-surface); border-radius: 14px; padding: 14px 12px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .ring { width: 64px; height: 64px; border-radius: 32px; display: flex; align-items: center; justify-content: center; font: 700 26px/1 var(--font-sans); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+  .ring.filled { background: var(--color-accent); color: var(--color-text-on-accent); }
+  .ring.outlined { border: 2px solid var(--color-accent); color: var(--color-text-primary); background: transparent; }
+  .ring.broken { border: 2px solid var(--color-danger); color: var(--color-danger); background: transparent; position: relative; }
+  .ring.broken::after { content:''; position:absolute; left:8px; right:8px; top:50%; height:2px; background: var(--color-danger); transform: translateY(-50%) rotate(-12deg); border-radius:1px; }
+  .label { font: 600 11px var(--font-sans); color: var(--color-text-primary); text-align: center; }
+  .sub { font: 400 10px var(--font-sans); color: var(--color-text-muted); text-align: center; line-height: 1.4; }
+  .caption-row { display:flex; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px 14px; background: var(--color-surface); border-radius: 12px; font: 400 11px var(--font-sans); color: var(--color-text-muted); }
+  .caption-row b { color: var(--color-text-primary); font-weight: 600; }
+</style></head><body>
+<h3>streak states</h3>
+<p>honest, not motivational. no fire. accent for active, danger for misses.</p>
+<div class="grid">
+  <div class="item">
+    <div class="ring filled">12</div>
+    <div class="label">today completed</div>
+    <div class="sub">accent fill ring</div>
+  </div>
+  <div class="item">
+    <div class="ring outlined">12</div>
+    <div class="label">today pending</div>
+    <div class="sub">outlined ring</div>
+  </div>
+  <div class="item">
+    <div class="ring broken">0</div>
+    <div class="label">missed</div>
+    <div class="sub">danger ring + strike</div>
+  </div>
+  <div class="item">
+    <div class="ring outlined" style="border-color:var(--color-border-strong);color:var(--color-text-muted)">—</div>
+    <div class="label">no streak</div>
+    <div class="sub">no number, muted</div>
+  </div>
+</div>
+<div class="caption-row">
+  <span>current <b>12 days</b></span>
+  <span>best <b>34 days</b></span>
+  <span>missed this month <b style="color:var(--color-danger)">2</b></span>
+</div>
+</body></html>

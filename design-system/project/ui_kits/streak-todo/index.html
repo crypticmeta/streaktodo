@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Streak Todo · UI Kit</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #1f1914; min-height: 100vh; }
+  body { display: flex; align-items: center; justify-content: center; padding: 20px; font-family: var(--font-sans); }
+  .device {
+    width: 412px; height: 892px; border-radius: 36px;
+    background: #1d1b20; padding: 8px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+    display: flex; flex-direction: column;
+  }
+  .screen { flex: 1; border-radius: 30px; overflow: hidden; background: var(--color-bg); display: flex; flex-direction: column; }
+  .statusbar { height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: var(--color-bg); color: var(--color-text-primary); font-size: 13px; font-weight: 600; flex-shrink: 0; }
+  .navbar { height: 22px; display: flex; align-items: center; justify-content: center; background: var(--color-surface); flex-shrink: 0; }
+  .navbar-pill { width: 108px; height: 4px; border-radius: 2px; background: var(--color-text-primary); opacity: 0.4; }
+  #app { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+</style>
+</head>
+<body>
+<div class="device">
+  <div class="screen">
+    <div class="statusbar">
+      <span>9:41</span>
+      <span style="display:flex;gap:6px;align-items:center;font-size:11px">●●● 5G ▮▮</span>
+    </div>
+    <div id="app"></div>
+    <div class="navbar"><div class="navbar-pill"></div></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="primitives.jsx"></script>
+<script type="text/babel" src="SchedulePicker.jsx"></script>
+<script type="text/babel" src="Composer.jsx"></script>
+<script type="text/babel" src="TasksScreen.jsx"></script>
+<script type="text/babel" src="CalendarScreen.jsx"></script>
+<script type="text/babel" src="ProfileScreen.jsx"></script>
+<script type="text/babel" src="AppShell.jsx"></script>
+
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('app')).render(<AppShell />);
+</script>
+</body>
+</html>

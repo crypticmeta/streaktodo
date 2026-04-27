@@ -58,7 +58,10 @@ function TaskRowImpl({
         },
       ]}
     >
-      {/* Completion checkbox circle */}
+      {/* Completion checkbox — selected state per design system:
+          accent fill + 1.75px WHITE outline + check in textOnAccent.
+          The white outline keeps the circle readable on both surfaceMuted
+          rows AND the accentSoft fill of pinned rows. */}
       <Pressable
         onPress={handleToggleComplete}
         hitSlop={10}
@@ -68,7 +71,7 @@ function TaskRowImpl({
         style={[
           styles.checkbox,
           {
-            borderColor: isDone ? t.color.accent : t.color.borderStrong,
+            borderColor: isDone ? '#ffffff' : t.color.borderStrong,
             backgroundColor: isDone ? t.color.accent : 'transparent',
           },
         ]}

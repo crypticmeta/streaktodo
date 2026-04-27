@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 18px; }
+  h3 { font: 700 14px var(--font-sans); margin-bottom: 4px; }
+  p { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; align-items: end; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .box { width: 64px; height: 64px; background: var(--color-accent-muted); border: 1.5px solid var(--color-border-strong); }
+  .name { font: 700 10px var(--font-sans); letter-spacing: 1.2px; text-transform: uppercase; color: var(--color-text-muted); }
+  .px { font: 400 10px var(--font-mono); color: var(--color-text-muted); }
+</style></head><body>
+<h3>radii</h3>
+<p>cards lg→2xl · sheets 3xl on top corners · pills + circular buttons full</p>
+<div class="grid">
+  <div class="item"><div class="box" style="border-radius:6px"></div><div class="name">sm</div><div class="px">6</div></div>
+  <div class="item"><div class="box" style="border-radius:10px"></div><div class="name">md</div><div class="px">10</div></div>
+  <div class="item"><div class="box" style="border-radius:14px"></div><div class="name">lg</div><div class="px">14</div></div>
+  <div class="item"><div class="box" style="border-radius:18px"></div><div class="name">xl</div><div class="px">18</div></div>
+  <div class="item"><div class="box" style="border-radius:22px"></div><div class="name">2xl</div><div class="px">22</div></div>
+  <div class="item"><div class="box" style="border-radius:28px"></div><div class="name">3xl</div><div class="px">28</div></div>
+  <div class="item"><div class="box" style="border-radius:999px"></div><div class="name">pill</div><div class="px">∞</div></div>
+</div>
+</body></html>

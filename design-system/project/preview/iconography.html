@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script><script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script><style>
+  body { padding: 18px; }
+  h3 { font: 700 14px var(--font-sans); margin-bottom: 4px; }
+  p { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+  .icon { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; background: var(--color-surface-muted); border-radius: 12px; }
+  ion-icon { font-size: 22px; color: var(--color-text-secondary); }
+  .name { font: 600 9px var(--font-sans); color: var(--color-text-muted); text-align: center; }
+</style></head><body>
+<h3>iconography</h3>
+<p>@expo/vector-icons → Ionicons. Routed through src/components/Icon.tsx — single point of swap. Outline by default; filled variants are explicit.</p>
+<div class="grid">
+  <div class="icon"><ion-icon name="calendar-outline"></ion-icon><div class="name">calendar</div></div>
+  <div class="icon"><ion-icon name="list-outline"></ion-icon><div class="name">subtask</div></div>
+  <div class="icon"><ion-icon name="clipboard-outline"></ion-icon><div class="name">template</div></div>
+  <div class="icon"><ion-icon name="arrow-up"></ion-icon><div class="name">send</div></div>
+  <div class="icon"><ion-icon name="time-outline"></ion-icon><div class="name">time</div></div>
+  <div class="icon"><ion-icon name="notifications-outline"></ion-icon><div class="name">reminder</div></div>
+  <div class="icon"><ion-icon name="repeat"></ion-icon><div class="name">repeat</div></div>
+  <div class="icon"><ion-icon name="checkmark-circle-outline"></ion-icon><div class="name">tasks</div></div>
+  <div class="icon"><ion-icon name="person-circle-outline"></ion-icon><div class="name">profile</div></div>
+  <div class="icon"><ion-icon name="notifications" style="color:var(--color-accent)"></ion-icon><div class="name">reminder ●</div></div>
+  <div class="icon"><ion-icon name="star-outline"></ion-icon><div class="name">star</div></div>
+  <div class="icon"><ion-icon name="star" style="color:var(--color-accent)"></ion-icon><div class="name">star ●</div></div>
+  <div class="icon"><ion-icon name="checkmark"></ion-icon><div class="name">check</div></div>
+  <div class="icon"><ion-icon name="close"></ion-icon><div class="name">close</div></div>
+  <div class="icon"><ion-icon name="trash-outline" style="color:var(--color-danger)"></ion-icon><div class="name">trash</div></div>
+  <div class="icon" style="background:var(--color-amber-100,#f8eddc)"><div style="font-size:18px;line-height:22px">👑</div><div class="name">premium</div></div>
+</div>
+</body></html>

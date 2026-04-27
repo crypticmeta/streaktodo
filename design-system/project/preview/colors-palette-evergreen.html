@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 18px; }
+  .scale { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+  .step { aspect-ratio: 1 / 1.05; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; font: var(--fw-semibold) 10px var(--font-sans); }
+  .label { font: var(--fw-bold) 11px var(--font-sans); }
+  .hex { font: var(--fw-medium) 9px var(--font-mono); opacity: 0.7; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .head h3 { font: var(--fw-bold) 15px var(--font-sans); }
+  .head p { font: var(--fw-regular) 12px var(--font-sans); color: var(--color-text-muted); }
+</style></head><body>
+<div class="head"><h3>evergreen</h3><p>success role · brand undertone</p></div>
+<div class="scale" id="s"></div>
+<script>
+  const steps = [
+    {k:50,h:'#e6f0ec',d:'#0a1614'},{k:100,h:'#dcefe1',d:'#0a1614'},
+    {k:200,h:'#b6d6c4',d:'#0a1614'},{k:300,h:'#7fb59a',d:'#0a1614'},
+    {k:400,h:'#3f7e69',d:'#fff'},{k:500,h:'#1e3a34',d:'#fff'},
+    {k:600,h:'#172d29',d:'#dcefe1'},{k:700,h:'#0f201d',d:'#dcefe1'},
+    {k:800,h:'#0a1614',d:'#dcefe1'},{k:900,h:'#050b0a',d:'#dcefe1'},
+  ];
+  document.getElementById('s').innerHTML = steps.map(s =>
+    `<div class="step" style="background:${s.h};color:${s.d}"><div class="label">${s.k}</div><div class="hex">${s.h.slice(1)}</div></div>`
+  ).join('');
+</script>
+</body></html>

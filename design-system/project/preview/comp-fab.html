@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script><style>
+  body { padding: 18px; background: var(--color-bg); }
+  h3 { font: 700 13px var(--font-sans); margin-bottom: 4px; }
+  p { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-bottom: 24px; }
+  .stage { display: flex; gap: 50px; align-items: center; justify-content: center; padding: 10px 0; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .label { font: 700 10px var(--font-sans); letter-spacing: 1.2px; text-transform: uppercase; color: var(--color-text-muted); }
+  .fab-wrap { position: relative; padding: 8px; }
+  .fab-wrap::before { content:''; position: absolute; inset: 0; border-radius: 50%; background: var(--color-accent-soft); opacity: .55; }
+  .fab { width: 60px; height: 60px; border-radius: 30px; background: var(--color-accent); color: var(--color-text-on-accent); display:flex;align-items:center;justify-content:center; font: 300 28px/1 var(--font-sans); position: relative; box-shadow: 0 12px 20px rgba(31,35,40,.30); }
+  .pressed .fab { transform: scale(.96); opacity: .85; }
+  .disabled .fab { opacity: .4; }
+  .disabled.fab-wrap::before { opacity: .25; }
+</style></head><body>
+<h3>FAB · floating action button</h3>
+<p>60dp circle · accent fill · soft accent halo · accent-tinted shadow</p>
+<div class="stage">
+  <div class="item"><div class="fab-wrap"><div class="fab">+</div></div><div class="label">default</div></div>
+  <div class="item"><div class="fab-wrap pressed"><div class="fab">+</div></div><div class="label">pressed</div></div>
+  <div class="item"><div class="fab-wrap disabled"><div class="fab">+</div></div><div class="label">disabled</div></div>
+</div>
+</body></html>

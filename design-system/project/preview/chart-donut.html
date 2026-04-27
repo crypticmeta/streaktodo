@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 18px; }
+  h3 { font: 700 13px var(--font-sans); margin-bottom: 4px; }
+  p { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-bottom: 16px; }
+  .wrap { display: grid; grid-template-columns: 160px 1fr; gap: 18px; align-items: center; background: var(--color-surface); border-radius: 18px; padding: 18px; }
+  .legend { display: flex; flex-direction: column; gap: 8px; font: 400 12px var(--font-sans); color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+  .legend .row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .legend .name { display: inline-flex; align-items: center; gap: 8px; }
+  .swatch { width: 10px; height: 10px; border-radius: 5px; }
+  .pct { color: var(--color-text-muted); font-size: 11px; }
+  .center { text-align: center; }
+  .total { font: 700 28px/1 var(--font-sans); color: var(--color-text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+  .totallabel { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-top: 4px; }
+</style></head><body>
+<h3>donut · category breakdown</h3>
+<p>category colors from CreateCategoryDialog swatch palette. track = surfaceMuted.</p>
+<div class="wrap">
+  <svg viewBox="0 0 100 100" width="160" height="160">
+    <circle cx="50" cy="50" r="38" fill="none" stroke="var(--color-surface-muted)" stroke-width="14"/>
+    <!-- 38% work, 24% personal, 18% errands, 12% reading, 8% other -->
+    <circle cx="50" cy="50" r="38" fill="none" stroke="#3f7e69" stroke-width="14" stroke-dasharray="90.7 238.8" transform="rotate(-90 50 50)"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="#b58a3d" stroke-width="14" stroke-dasharray="57.3 272.2" stroke-dashoffset="-90.7" transform="rotate(-90 50 50)"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="#d44a4a" stroke-width="14" stroke-dasharray="43.0 286.5" stroke-dashoffset="-148.0" transform="rotate(-90 50 50)"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="#5b6c89" stroke-width="14" stroke-dasharray="28.6 300.9" stroke-dashoffset="-191.0" transform="rotate(-90 50 50)"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="#7a4c8a" stroke-width="14" stroke-dasharray="19.1 310.4" stroke-dashoffset="-219.6" transform="rotate(-90 50 50)"/>
+  </svg>
+  <div class="legend">
+    <div class="row"><span class="name"><i class="swatch" style="background:#3f7e69"></i>Work</span><span>38<span class="pct">%</span></span></div>
+    <div class="row"><span class="name"><i class="swatch" style="background:#b58a3d"></i>Personal</span><span>24<span class="pct">%</span></span></div>
+    <div class="row"><span class="name"><i class="swatch" style="background:#d44a4a"></i>Errands</span><span>18<span class="pct">%</span></span></div>
+    <div class="row"><span class="name"><i class="swatch" style="background:#5b6c89"></i>Reading</span><span>12<span class="pct">%</span></span></div>
+    <div class="row"><span class="name"><i class="swatch" style="background:#7a4c8a"></i>Misc</span><span>8<span class="pct">%</span></span></div>
+  </div>
+</div>
+</body></html>

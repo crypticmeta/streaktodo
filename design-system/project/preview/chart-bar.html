@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 18px; }
+  h3 { font: 700 13px var(--font-sans); margin-bottom: 4px; }
+  p { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-bottom: 16px; }
+  .chart { background: var(--color-surface); border-radius: 18px; padding: 18px 18px 14px; }
+  .bars { display: flex; align-items: flex-end; gap: 14px; height: 120px; }
+  .col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+  .bar { width: 100%; border-radius: 6px 6px 2px 2px; }
+  .bar.filled { background: var(--color-accent); }
+  .bar.today { background: var(--color-surface-muted); border: 1.5px dashed var(--color-accent); }
+  .bar.empty { background: var(--color-surface-muted); }
+  .axis { font: 400 11px var(--font-sans); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+  .axis.weak { opacity: .6; }
+  .legend { display: flex; gap: 16px; margin-top: 14px; font: 400 11px var(--font-sans); color: var(--color-text-muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; }
+</style></head><body>
+<h3>bar chart · weekly completion</h3>
+<p>accent bars on muted track. today = dashed outline. no gridlines.</p>
+<div class="chart">
+  <div class="bars">
+    <div class="col"><div class="bar-wrap"><div class="bar filled" style="height:60%"></div></div></div>
+    <div class="col"><div class="bar-wrap"><div class="bar filled" style="height:80%"></div></div></div>
+    <div class="col"><div class="bar-wrap"><div class="bar filled" style="height:45%"></div></div></div>
+    <div class="col"><div class="bar-wrap"><div class="bar filled" style="height:90%"></div></div></div>
+    <div class="col"><div class="bar-wrap"><div class="bar filled" style="height:70%"></div></div></div>
+    <div class="col"><div class="bar-wrap"><div class="bar today" style="height:35%"></div></div></div>
+    <div class="col"><div class="bar-wrap"><div class="bar empty" style="height:8%"></div></div></div>
+  </div>
+  <div style="display:flex; justify-content:space-between; margin-top:10px;">
+    <span class="axis">M</span><span class="axis">T</span><span class="axis">W</span>
+    <span class="axis">T</span><span class="axis">F</span><span class="axis" style="color:var(--color-accent);font-weight:600">S</span>
+    <span class="axis weak">S</span>
+  </div>
+</div>
+<div class="legend">
+  <span><i class="swatch" style="background:var(--color-accent)"></i>completed</span>
+  <span><i class="swatch" style="background:var(--color-surface-muted);border:1.5px dashed var(--color-accent)"></i>today</span>
+  <span><i class="swatch" style="background:var(--color-surface-muted)"></i>upcoming</span>
+</div>
+</body></html>

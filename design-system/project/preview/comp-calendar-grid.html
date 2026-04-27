@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 18px; }
+  h3 { font: 700 13px var(--font-sans); margin-bottom: 4px; }
+  p { font: 400 11px var(--font-sans); color: var(--color-text-muted); margin-bottom: 14px; }
+  .cal { background: var(--color-surface); border-radius: 18px; padding: 14px 12px; max-width: 360px; }
+  .head { display:flex; justify-content:space-between; align-items:center; padding: 0 8px 10px; }
+  .title { font: 600 12px var(--font-sans); letter-spacing: 1.2px; text-transform: uppercase; color: var(--color-text-primary); }
+  .nav { font: 400 16px var(--font-sans); color: var(--color-text-secondary); width: 24px; height: 24px; }
+  .dow { display:grid; grid-template-columns: repeat(7,1fr); padding-bottom: 4px; }
+  .dow > div { text-align:center; font: 700 10px var(--font-sans); color: var(--color-text-primary); }
+  .grid { display:grid; grid-template-columns: repeat(7,1fr); }
+  .cell { aspect-ratio: 1; display:flex; align-items:center; justify-content:center; position: relative; font: 400 13px var(--font-sans); color: var(--color-text-primary); border-radius: 50%; margin: 1px; font-variant-numeric: tabular-nums; }
+  .cell.dim { color: var(--color-text-muted); opacity: .5; }
+  .cell.today { color: var(--color-accent); font-weight: 700; }
+  .cell.selected { background: var(--color-accent); color: var(--color-text-on-accent); font-weight: 600; }
+  .cell .dot { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 2px; background: var(--color-accent); }
+  .cell.selected .dot { background: var(--color-text-on-accent); }
+  .cell.miss .dot { background: var(--color-danger); }
+  .legend { display:flex; gap: 16px; margin-top: 12px; padding: 0 8px; font: 400 10px var(--font-sans); color: var(--color-text-muted); }
+  .legend span { display:inline-flex; align-items:center; gap: 6px; }
+  .lswatch { display:inline-block; width:8px; height:8px; border-radius:4px; }
+</style></head><body>
+<h3>calendar grid</h3>
+<p>6×7 cells · today=accent text · selected=accent fill · marker dot=tasks · danger dot=miss · dimmed=other-month</p>
+<div class="cal">
+  <div class="head"><div class="nav">‹</div><div class="title">NOV 2026</div><div class="nav">›</div></div>
+  <div class="dow"><div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div></div>
+  <div class="grid">
+    <div class="cell dim">26</div><div class="cell dim">27</div><div class="cell dim">28</div><div class="cell dim">29</div><div class="cell dim">30</div><div class="cell dim">31</div><div class="cell">1<i class="dot"></i></div>
+    <div class="cell">2</div><div class="cell">3<i class="dot"></i></div><div class="cell miss">4<i class="dot"></i></div><div class="cell">5</div><div class="cell">6<i class="dot"></i></div><div class="cell">7</div><div class="cell">8</div>
+    <div class="cell">9<i class="dot"></i></div><div class="cell">10</div><div class="cell">11<i class="dot"></i></div><div class="cell miss">12<i class="dot"></i></div><div class="cell">13</div><div class="cell">14</div><div class="cell">15</div>
+    <div class="cell">16</div><div class="cell">17<i class="dot"></i></div><div class="cell">18</div><div class="cell">19</div><div class="cell">20<i class="dot"></i></div><div class="cell">21</div><div class="cell">22</div>
+    <div class="cell">23</div><div class="cell">24</div><div class="cell today">25<i class="dot"></i></div><div class="cell selected">26<i class="dot"></i></div><div class="cell">27<i class="dot"></i></div><div class="cell">28</div><div class="cell">29</div>
+    <div class="cell">30</div><div class="cell dim">1</div><div class="cell dim">2</div><div class="cell dim">3</div><div class="cell dim">4</div><div class="cell dim">5</div><div class="cell dim">6</div>
+  </div>
+  <div class="legend">
+    <span><i class="lswatch" style="background:var(--color-accent)"></i>has tasks</span>
+    <span><i class="lswatch" style="background:var(--color-danger)"></i>missed</span>
+    <span><i class="lswatch" style="background:transparent;border:1.5px solid var(--color-accent)"></i>today</span>
+  </div>
+</div>
+</body></html>

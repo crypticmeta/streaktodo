@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"><style>
+  body { padding: 18px; background: #1F2328; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .head h3 { font: var(--fw-bold) 14px var(--font-sans); color: #F4EFE6; }
+  .head p { font: var(--fw-regular) 11px var(--font-sans); color: #b1a89b; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tok { display: flex; flex-direction: column; gap: 6px; }
+  .sw { height: 50px; border-radius: 10px; }
+  .name { font: var(--fw-semibold) 11px var(--font-sans); color: #F4EFE6; }
+  .v { font: var(--fw-regular) 10px var(--font-mono); color: #b1a89b; letter-spacing: -0.2px; }
+  .demo { background: #2A2F35; border-radius: 14px; padding: 14px; margin-top: 14px; display: flex; gap: 10px; align-items: center; }
+  .row { background: #343A42; border-radius: 12px; padding: 10px 14px; flex: 1; font: var(--fw-medium) 13px var(--font-sans); color: #F4EFE6; }
+  .pill { background: #D2B48C; color: #1F2328; border-radius: 999px; padding: 8px 14px; font: var(--fw-bold) 12px var(--font-sans); }
+</style></head><body>
+<div class="head"><h3>semantic — dark</h3><p>tan accent on slate surfaces</p></div>
+<div class="grid" id="g"></div>
+<div class="demo">
+  <div class="row">filled task row · surfaceMuted</div>
+  <div class="pill">accent pill</div>
+</div>
+<script>
+  const tokens = [
+    ['background','#1F2328'],['surface','#2A2F35'],['surfaceMuted','#343A42'],['surfaceRaised','#31363D'],
+    ['textPrimary','#F4EFE6'],['textSecondary','#d5cdc1'],['textMuted','#b1a89b'],['textOnAccent','#1F2328'],
+    ['accent','#D2B48C'],['accentSoft','#4b3f33'],['accentMuted','#6e5b46'],['border','#444b54'],
+    ['success','#7fb59a'],['warn','#ead7b7'],['danger','#e87575'],['scrim','rgba(0,0,0,.6)'],
+  ];
+  document.getElementById('g').innerHTML = tokens.map(([n,v]) =>
+    `<div class="tok"><div class="sw" style="background:${v};box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)"></div><div class="name">${n}</div><div class="v">${v}</div></div>`
+  ).join('');
+</script>
+</body></html>

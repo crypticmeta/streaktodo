@@ -1,0 +1,265 @@
+/* ============================================================
+   Streak Todo — design tokens
+   Mirrors src/theme/tokens.ts and src/theme/theme.ts.
+   Use semantic vars (--color-bg, --color-accent, --text-h1)
+   in components; raw palette steps are escape hatches only.
+   ============================================================ */
+
+:root {
+  /* ── PALETTE ───────────────────────────────────────────── */
+  /* cream — warm base */
+  --cream-50:  #fffaf2;
+  --cream-100: #f8f3e8;
+  --cream-200: #f4efe6;
+  --cream-300: #f3eee7;
+  --cream-400: #eadfcd;
+  --cream-500: #e1d8cc;
+  --cream-600: #c8bba8;
+  --cream-700: #8a6a43;
+  --cream-800: #675641;
+  --cream-900: #1f1914;
+
+  /* evergreen — deep brand accent (used for success/icon) */
+  --evergreen-50:  #e6f0ec;
+  --evergreen-100: #dcefe1;
+  --evergreen-200: #b6d6c4;
+  --evergreen-300: #7fb59a;
+  --evergreen-400: #3f7e69;
+  --evergreen-500: #1e3a34;
+  --evergreen-600: #172d29;
+  --evergreen-700: #0f201d;
+  --evergreen-800: #0a1614;
+  --evergreen-900: #050b0a;
+
+  /* amber — warning + premium */
+  --amber-50:  #fdf6e6;
+  --amber-100: #f8eddc;
+  --amber-200: #f3dfbf;
+  --amber-300: #ead7b7;
+  --amber-400: #d9b178;
+  --amber-500: #b58a3d;
+  --amber-600: #8a6526;
+  --amber-700: #5e4319;
+  --amber-800: #3a2a10;
+  --amber-900: #1f1607;
+
+  /* crimson — destructive + overdue */
+  --crimson-50:  #fdecec;
+  --crimson-100: #fbd5d5;
+  --crimson-200: #f3a8a8;
+  --crimson-300: #e87575;
+  --crimson-400: #d44a4a;
+  --crimson-500: #b62c2c;
+  --crimson-600: #8a1d1d;
+  --crimson-700: #5e1212;
+  --crimson-800: #3a0a0a;
+  --crimson-900: #1c0404;
+
+  /* slate — dark mode neutrals */
+  --slate-50:  #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #080d1a;
+
+  /* ── SEMANTIC — LIGHT (default) ────────────────────────── */
+  --color-bg:              var(--cream-200);  /* page background */
+  --color-surface:         var(--cream-50);   /* cards, sheets */
+  --color-surface-muted:   var(--cream-300);  /* filled rows, pills */
+  --color-surface-raised:  #ffffff;           /* menus, popovers */
+
+  --color-border:          var(--cream-400);
+  --color-border-muted:    var(--cream-500);
+  --color-border-strong:   var(--cream-600);
+
+  --color-text-primary:    #1F2328;
+  --color-text-secondary:  #4b443d;
+  --color-text-muted:      #7a6e62;
+  --color-text-inverse:    #ffffff;
+  --color-text-on-accent:  #F4EFE6;
+  --color-text-on-accent-soft: #dcccb7;
+
+  /* Brand accent — note the app uses near-black charcoal as the primary
+     "accent" in light mode; evergreen plays the success/secondary role. */
+  --color-accent:          #1F2328;
+  --color-accent-soft:     #D2B48C;
+  --color-accent-muted:    #EAD7B7;
+
+  --color-success:         var(--evergreen-500);
+  --color-success-soft:    var(--evergreen-100);
+  --color-warn:            var(--amber-500);
+  --color-warn-soft:       var(--amber-200);
+  --color-danger:          var(--crimson-500);
+  --color-danger-soft:     var(--crimson-100);
+
+  --color-scrim:           rgba(31, 35, 40, 0.45);
+  --color-divider:         var(--cream-400);
+  --color-link:            #1F2328;
+  --color-focus-ring:      #D2B48C;
+
+  /* ── SPACING (4px base) ────────────────────────────────── */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  12px;
+  --space-lg:  16px;
+  --space-xl:  20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 40px;
+  --space-5xl: 56px;
+  --space-6xl: 72px;
+
+  /* ── RADII ─────────────────────────────────────────────── */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  18px;
+  --radius-2xl: 22px;
+  --radius-3xl: 28px;
+  --radius-pill: 999px;
+
+  /* ── TYPE — base ───────────────────────────────────────── */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+               "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco,
+               Consolas, "Liberation Mono", "Courier New", monospace;
+
+  --fs-xs:   11px;
+  --fs-sm:   13px;
+  --fs-base: 14px;
+  --fs-md:   15px;
+  --fs-lg:   17px;
+  --fs-xl:   20px;
+  --fs-2xl:  24px;
+  --fs-3xl:  28px;
+  --fs-4xl:  34px;
+  --fs-5xl:  42px;
+
+  --lh-tight:   1.2;
+  --lh-snug:    1.35;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.65;
+
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+  --fw-heavy:    800;
+
+  --tracking-tight:  -0.4px;
+  --tracking-normal: 0;
+  --tracking-wide:    0.4px;
+  --tracking-wider:   1.2px;
+
+  /* ── ELEVATION ─────────────────────────────────────────── */
+  --shadow-sm: 0 2px 6px rgba(31, 25, 20, 0.05);
+  --shadow-md: 0 8px 12px rgba(31, 25, 20, 0.08);
+  --shadow-lg: 0 12px 20px rgba(111, 78, 55, 0.08);
+  --shadow-accent: 0 8px 16px rgba(31, 35, 40, 0.18);
+
+  /* ── MOTION ────────────────────────────────────────────── */
+  --dur-fast:   120ms;
+  --dur-normal: 200ms;
+  --dur-slow:   320ms;
+  --ease-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+}
+
+/* Dark mode — flip semantics, leave palette untouched. */
+:root[data-theme="dark"], .dark {
+  --color-bg:              #1F2328;
+  --color-surface:         #2A2F35;
+  --color-surface-muted:   #343A42;
+  --color-surface-raised:  #31363D;
+
+  --color-border:          #444b54;
+  --color-border-muted:    #383f47;
+  --color-border-strong:   #59626d;
+
+  --color-text-primary:    #F4EFE6;
+  --color-text-secondary:  #d5cdc1;
+  --color-text-muted:      #b1a89b;
+  --color-text-inverse:    #1F2328;
+  --color-text-on-accent:  #1F2328;
+  --color-text-on-accent-soft: #4d4338;
+
+  --color-accent:          #D2B48C;
+  --color-accent-soft:     #4b3f33;
+  --color-accent-muted:    #6e5b46;
+
+  --color-success:         var(--evergreen-300);
+  --color-success-soft:    var(--evergreen-700);
+  --color-warn:            var(--amber-300);
+  --color-warn-soft:       var(--amber-700);
+  --color-danger:          var(--crimson-300);
+  --color-danger-soft:     var(--crimson-700);
+
+  --color-scrim:           rgba(0, 0, 0, 0.6);
+  --color-divider:         #444b54;
+  --color-link:            #D2B48C;
+}
+
+/* ============================================================
+   SEMANTIC TYPE STYLES
+   App copy is sentence-case, calm, lowercase-friendly.
+   These map type roles to the scale.
+   ============================================================ */
+
+.text-display {
+  font: var(--fw-bold) var(--fs-5xl) / var(--lh-tight) var(--font-sans);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text-primary);
+}
+
+.text-h1 {
+  font: var(--fw-bold) var(--fs-4xl) / var(--lh-tight) var(--font-sans);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text-primary);
+}
+
+.text-h2 {
+  font: var(--fw-bold) var(--fs-3xl) / var(--lh-snug) var(--font-sans);
+  color: var(--color-text-primary);
+}
+
+/* Section headers in lists: "Today", "Previous", "Upcoming" */
+.text-section {
+  font: var(--fw-bold) var(--fs-lg) / var(--lh-snug) var(--font-sans);
+  color: var(--color-text-primary);
+}
+
+.text-title {
+  font: var(--fw-semibold) var(--fs-xl) / var(--lh-snug) var(--font-sans);
+  color: var(--color-text-primary);
+}
+
+.text-body {
+  font: var(--fw-medium) var(--fs-md) / var(--lh-normal) var(--font-sans);
+  color: var(--color-text-primary);
+}
+
+.text-body-sm {
+  font: var(--fw-regular) var(--fs-sm) / var(--lh-normal) var(--font-sans);
+  color: var(--color-text-secondary);
+}
+
+.text-meta {
+  font: var(--fw-regular) var(--fs-xs) / var(--lh-snug) var(--font-sans);
+  color: var(--color-text-muted);
+}
+
+.text-eyebrow {
+  font: var(--fw-bold) var(--fs-xs) / var(--lh-tight) var(--font-sans);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Tabular nums for counters / time strings */
+.text-tabular { font-variant-numeric: tabular-nums; }
