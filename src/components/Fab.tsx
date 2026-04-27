@@ -10,27 +10,50 @@ type FabProps = {
 };
 
 const SIZE = 60;
-const HALO_PADDING = 8; // halo is SIZE + 2*HALO_PADDING wide
+const HALO_PADDING = 8; // halo extends this far past the button on every side
 
 // Standalone circular floating action button. Lives at bottom-right of any
 // screen that mounts it — caller is responsible for rendering it as a sibling
 // of the scrollable content (so it floats above the list).
+//
+// Structure mirrors the CSS pattern from design-system/preview/comp-fab.html:
+//   .fab-wrap (clear positioner, no opacity)
+//     .fab-wrap::before  (halo: accent-soft circle at 0.55 opacity)
+//     .fab               (button: full-opacity accent fill)
+//
+// In RN we can't use pseudo-elements, so we render the halo and the button
+// as siblings inside a positioner that itself has no opacity. This keeps the
+// halo soft without fading the charcoal center of the button.
 export function Fab({ onPress, glyph = '+', accessibilityLabel, hint, disabled }: FabProps) {
   const t = useTheme();
+  const wrapSize = SIZE + HALO_PADDING * 2;
 
   return (
-    // Halo: a slightly larger soft-accent circle sitting behind the button.
-    // Gives the FAB a glow without resorting to platform-specific shadow tricks.
     <View
       pointerEvents="box-none"
       style={[
-        styles.halo,
+        styles.wrap,
         {
-          backgroundColor: t.color.accentSoft,
-          opacity: 0.55,
+          width: wrapSize,
+          height: wrapSize,
+          borderRadius: wrapSize / 2,
         },
       ]}
     >
+      {/* Halo — soft accent circle behind the button. Owns its OWN opacity so
+          the button rendering above it stays at full strength. */}
+      <View
+        pointerEvents="none"
+        style={[
+          styles.halo,
+          {
+            backgroundColor: t.color.accentSoft,
+            opacity: disabled ? 0.25 : 0.55,
+            borderRadius: wrapSize / 2,
+          },
+        ]}
+      />
+
       <Pressable
         onPress={onPress}
         disabled={disabled}
@@ -66,15 +89,16 @@ export function Fab({ onPress, glyph = '+', accessibilityLabel, hint, disabled }
 }
 
 const styles = StyleSheet.create({
-  halo: {
+  wrap: {
     position: 'absolute',
     right: 20 - HALO_PADDING,
     bottom: 20 - HALO_PADDING,
-    width: SIZE + HALO_PADDING * 2,
-    height: SIZE + HALO_PADDING * 2,
-    borderRadius: (SIZE + HALO_PADDING * 2) / 2,
     alignItems: 'center',
     justifyContent: 'center',
+    // No opacity here — children manage their own.
+  },
+  halo: {
+    ...StyleSheet.absoluteFillObject,
   },
   button: {
     width: SIZE,
