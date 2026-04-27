@@ -31,9 +31,15 @@ Primary reference points from `inspiration/app/`:
 - [x] Add submit action and validation for creating a task — composer persists via `tasksRepo.createTask`, inline error + length-hint surfacing
 - [x] Add inline subtask row inside the composer — atomic insert via `tasksRepo.createTaskWithSubtasks`
 - [x] Add category picker trigger — chip in composer + `CategoryPickerSheet` + `useCategories` hook
-- [ ] Add date picker trigger
-- [ ] Add reminder trigger
-- [ ] Add repeat trigger
+- [ ] Build the rich Schedule sheet (date + time + reminder + repeat in one surface, matching `inspiration/app/click_on_calendar_icon.jpeg`)
+  - [ ] Calendar grid with month nav
+  - [ ] Quick shortcuts: Today / Tomorrow / 3 Days Later / This Sunday / No Date
+  - [ ] Time field (opens time picker; null = all-day)
+  - [ ] Reminder field (opens reminder popover with on/off + lead time)
+  - [ ] Repeat field (opens repeat popover with None / Daily / Weekly / Monthly / Yearly / Custom)
+  - [ ] Cancel / Done footer commits to draft state, not DB
+- [ ] Replace temporary `DatePickerSheet` with the Schedule sheet trigger (calendar icon button beside the category chip)
+- [ ] Extend `tasksRepo` with a `createTaskFull` transaction (parent + subtasks + reminders + repeat rule)
 
 ### Phase 3: task list home
 
@@ -47,38 +53,42 @@ Primary reference points from `inspiration/app/`:
 
 ### Phase 4: categories
 
-- [ ] Build category dropdown from the composer
-- [ ] Support default categories: Work, Personal, Wishlist
-- [ ] Add create-new-category flow
-- [ ] Add category-based task filtering on the home screen
-- [ ] Persist category colors or labels for future expansion
+- [x] ~~Build category dropdown from the composer~~ — covered by `CategoryPickerSheet` in Phase 2
+- [x] ~~Support default categories: Work, Personal, Wishlist~~ — seeded on first launch in Phase 1
+- [ ] Add create-new-category flow (composer + category management screen)
+- [ ] Add category-based task filtering on the home screen (driven by Phase 3 pills)
+- [ ] Persist category colors or labels for future expansion (already in schema; UI for picking color on create)
 
-### Phase 5: scheduling
+### Phase 5: scheduling (runtime semantics)
 
-- [ ] Build date picker modal with month navigation
-- [ ] Add quick date shortcuts: Today, Tomorrow, 3 Days Later, This Sunday, No Date
-- [ ] Support optional task time
-- [ ] Show scheduled date/time clearly in the task row metadata
+UI for date / time selection lives in the Schedule sheet (Phase 2). This phase covers everything else.
+
+- [ ] Show scheduled date and time clearly in the task row metadata (rich row, Phase 3)
 - [ ] Handle overdue styling for past-due tasks
+- [ ] Group tasks into Previous / Today / Upcoming / No Date sections (Phase 3 list)
+- [ ] Day grouping helper in `src/lib/date.ts`
 
-### Phase 6: reminders
+### Phase 6: reminders (runtime engine)
 
-- [ ] Enable local notification permissions flow
-- [ ] Add reminder on/off state in the composer
-- [ ] Add reminder lead time options such as at time, 5 minutes before, 15 minutes before, 1 hour before
-- [ ] Add reminder type options for the free tier baseline
-- [ ] Save reminder metadata on the task model
-- [ ] Schedule local notifications for dated tasks
-- [ ] Cancel or reschedule notifications when a task is edited or completed
+UI for reminder on/off + lead time + type lives in the Schedule sheet (Phase 2). This phase wires actual OS notifications.
 
-### Phase 7: recurrence
+- [ ] Enable local notification permissions flow on first reminder save
+- [ ] Schedule local notifications when a task with reminder(s) is saved
+- [ ] Cancel or reschedule notifications when a task is edited, completed, or deleted
+- [ ] Re-arm notifications on app launch if the OS dropped them (boot-loss recovery)
+- [ ] Persist `scheduled_notification_id` on `task_reminders` rows (already in schema)
+- [ ] **Premium-flagged (free for now):** Reminder Type options beyond plain notification — Alarm and Silent. Tag the dropdown options with a `premium: true` field; gate later.
+- [ ] **Premium-flagged (free for now):** ScreenLock Reminder — display the task on the lock screen / always-on display. Off by default; toggle in the Reminder popover.
 
-- [ ] Add repeat options: None, Every Day, Weekly, Monthly, Yearly, Custom
-- [ ] Support weekly repeat by weekday
-- [ ] Support monthly repeat by calendar day
-- [ ] Support yearly repeat by month and day
-- [ ] Define behavior for completing recurring tasks and generating the next occurrence
-- [ ] Show repeat status in task metadata
+### Phase 7: recurrence (runtime engine)
+
+UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase computes next occurrences.
+
+- [ ] Generate next occurrence on task completion based on `task_repeat_rules`
+- [ ] Support daily / weekly / monthly / yearly recurrence math (helpers in `src/lib/date.ts`)
+- [ ] Show repeat status in task metadata (rich row, Phase 3)
+- [ ] Respect `until_at` (stop generating after that date)
+- [ ] **Premium-flagged (free for now):** Custom repeat rule (e.g. "every 3 weeks on Mon/Wed"). Implement now; mark the menu item as gateable later.
 
 ### Phase 8: task details and editing
 
@@ -110,10 +120,18 @@ Primary reference points from `inspiration/app/`:
 
 ### Phase 11: premium groundwork
 
+> **Stance: build features now, gate them later.** Anything we'd otherwise mark "premium" ships free in V0 and is tagged with a `premium: true` flag (or commented `// premium-future`) so the gating layer can find it later. This phase is purely about the gating + monetization scaffolding, not about restricting features.
+
+Currently flagged as future-premium (already free in code):
+- Reminder Type options beyond plain notification (Alarm, Silent) — see Phase 6
+- ScreenLock Reminder toggle — see Phase 6
+- Custom repeat rules — see Phase 7
+
+To do in this phase:
+
 - [ ] Build Upgrade to Pro screen
-- [ ] Define free vs pro matrix based on the reference list
-- [ ] Gate advanced reminders behind premium
-- [ ] Gate advanced repeat/custom rules behind premium if needed
+- [ ] Define the free vs pro matrix and ship it as `src/lib/premium.ts`
+- [ ] Wire each `premium: true` tag to the matrix so flipping a single flag gates the feature
 - [ ] Add placeholders for attachments, templates, widgets, and sync
 - [ ] Add restore purchases and billing flow later
 
