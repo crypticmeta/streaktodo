@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '../src/components/Icon';
-import { setOnboardingCompleted } from '../src/lib/onboarding';
+import { useOnboarding } from '../src/lib/onboarding';
 import { useTheme } from '../src/theme';
 
 type Slide = {
@@ -52,6 +52,7 @@ const SLIDES: Slide[] = [
 export default function OnboardingScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { markCompleted } = useOnboarding();
   const listRef = useRef<FlatList<Slide>>(null);
   const [index, setIndex] = useState(0);
 
@@ -75,7 +76,7 @@ export default function OnboardingScreen() {
   };
 
   const complete = async () => {
-    await setOnboardingCompleted();
+    await markCompleted();
     router.replace('/(tabs)');
   };
 

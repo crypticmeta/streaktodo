@@ -227,6 +227,48 @@ export function computeWeeklyCompletion(
   return bars;
 }
 
+// ─── Overview totals ───────────────────────────────────────────────────
+
+export type OverviewTotals = {
+  /** All non-deleted tasks. */
+  total: number;
+  /** Status === 'done'. */
+  done: number;
+  /** Status === 'pending' (skipped is excluded — not actionable, not done). */
+  pending: number;
+  /** Pending tasks whose dueAt is before today's start-of-day. */
+  overdue: number;
+};
+
+/**
+ * Counts across the user's full task list. Used by the Profile dashboard's
+ * overview card. Excludes soft-deleted rows (caller is expected to pass
+ * non-deleted tasks via useTasks, but we filter defensively).
+ */
+export function computeOverviewTotals(
+  tasks: ReadonlyArray<Task>,
+  nowTs: number = Date.now()
+): OverviewTotals {
+  const today = startOfDay(nowTs);
+  let total = 0;
+  let done = 0;
+  let pending = 0;
+  let overdue = 0;
+
+  for (const t of tasks) {
+    if (t.deletedAt !== null) continue;
+    total += 1;
+    if (t.status === 'done') {
+      done += 1;
+    } else if (t.status === 'pending') {
+      pending += 1;
+      if (t.dueAt !== null && t.dueAt < today) overdue += 1;
+    }
+  }
+
+  return { total, done, pending, overdue };
+}
+
 // ─── Category breakdown ────────────────────────────────────────────────
 
 export type CategorySlice = {

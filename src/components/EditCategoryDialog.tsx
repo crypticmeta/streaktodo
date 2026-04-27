@@ -1,27 +1,30 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme } from '../theme';
-import { CATEGORY_COLORS as COLORS, CATEGORY_NAME_MAX_LENGTH as NAME_MAX_LENGTH } from './categoryColors';
+import { CATEGORY_COLORS, CATEGORY_NAME_MAX_LENGTH } from './categoryColors';
 
-type CreateCategoryDialogProps = {
+type EditCategoryDialogProps = {
   visible: boolean;
+  /** Pre-populated values when the dialog opens. */
+  initial: { name: string; color: string | null } | null;
   onCancel: () => void;
-  /** Called with the trimmed name + chosen color. */
-  onCreate: (input: { name: string; color: string }) => Promise<void> | void;
+  onSave: (input: { name: string; color: string }) => Promise<void> | void;
 };
 
-export function CreateCategoryDialog({ visible, onCancel, onCreate }: CreateCategoryDialogProps) {
+export function EditCategoryDialog({ visible, initial, onCancel, onSave }: EditCategoryDialogProps) {
   const t = useTheme();
   const [name, setName] = useState('');
-  const [color, setColor] = useState<string>(COLORS[0]!);
+  const [color, setColor] = useState<string>(CATEGORY_COLORS[0]!);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
-    setName('');
-    setColor(COLORS[0]!);
+    setName(initial?.name ?? '');
+    // Keep the existing color if it matches our palette; otherwise still
+    // show it as selected by adding to the rendered palette inline.
+    setColor(initial?.color ?? CATEGORY_COLORS[0]!);
     setSubmitting(false);
-  }, [visible]);
+  }, [visible, initial]);
 
   const trimmed = name.trim();
   const canSave = trimmed.length > 0 && !submitting;
@@ -30,11 +33,19 @@ export function CreateCategoryDialog({ visible, onCancel, onCreate }: CreateCate
     if (!canSave) return;
     setSubmitting(true);
     try {
-      await onCreate({ name: trimmed, color });
+      await onSave({ name: trimmed, color });
     } finally {
       setSubmitting(false);
     }
   };
+
+  // If the initial color isn't in our palette, prepend it so the user sees
+  // their existing color highlighted instead of getting silently re-mapped.
+  const palette = (() => {
+    if (!initial?.color) return CATEGORY_COLORS;
+    if (CATEGORY_COLORS.includes(initial.color)) return CATEGORY_COLORS;
+    return [initial.color, ...CATEGORY_COLORS];
+  })();
 
   return (
     <Modal
@@ -47,7 +58,7 @@ export function CreateCategoryDialog({ visible, onCancel, onCreate }: CreateCate
       <Pressable
         style={[styles.scrim, { backgroundColor: t.color.scrim }]}
         onPress={onCancel}
-        accessibilityLabel="Close create category"
+        accessibilityLabel="Close edit category"
       />
       <View style={styles.center} pointerEvents="box-none">
         <View
@@ -69,7 +80,7 @@ export function CreateCategoryDialog({ visible, onCancel, onCreate }: CreateCate
               marginBottom: t.spacing.lg,
             }}
           >
-            Create category
+            Edit category
           </Text>
 
           <TextInput
@@ -77,7 +88,7 @@ export function CreateCategoryDialog({ visible, onCancel, onCreate }: CreateCate
             onChangeText={setName}
             placeholder="Category name"
             placeholderTextColor={t.color.textMuted}
-            maxLength={NAME_MAX_LENGTH}
+            maxLength={CATEGORY_NAME_MAX_LENGTH}
             autoFocus
             returnKeyType="done"
             onSubmitEditing={handleSave}
@@ -109,7 +120,7 @@ export function CreateCategoryDialog({ visible, onCancel, onCreate }: CreateCate
             Color
           </Text>
           <View style={styles.swatches}>
-            {COLORS.map((c) => {
+            {palette.map((c) => {
               const selected = c === color;
               return (
                 <Pressable
@@ -142,12 +153,12 @@ export function CreateCategoryDialog({ visible, onCancel, onCreate }: CreateCate
               disabled={!canSave}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Create"
+              accessibilityLabel="Save"
               accessibilityState={{ disabled: !canSave }}
               style={{ marginLeft: 24, opacity: canSave ? 1 : 0.45 }}
             >
               <Text style={{ color: t.color.accent, fontSize: t.fontSize.md, fontWeight: t.fontWeight.bold }}>
-                {submitting ? 'CREATING…' : 'CREATE'}
+                {submitting ? 'SAVING…' : 'SAVE'}
               </Text>
             </Pressable>
           </View>

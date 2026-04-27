@@ -28,7 +28,14 @@ export type IconName =
   | 'star-filled'
   | 'check'
   | 'close'
-  | 'trash';
+  | 'trash'
+  // Theme toggle
+  | 'theme-system'
+  | 'theme-light'
+  | 'theme-dark'
+  // Category management
+  | 'edit'
+  | 'plus';
 
 const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   calendar: 'calendar-outline',
@@ -51,6 +58,11 @@ const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   check: 'checkmark',
   close: 'close',
   trash: 'trash-outline',
+  'theme-system': 'phone-portrait-outline',
+  'theme-light': 'sunny-outline',
+  'theme-dark': 'moon-outline',
+  edit: 'create-outline',
+  plus: 'add',
 };
 
 type IconProps = {

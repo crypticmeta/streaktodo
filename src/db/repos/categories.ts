@@ -94,6 +94,25 @@ export async function updateCategory(id: string, patch: UpdateCategoryInput): Pr
   emit('categories-changed');
 }
 
+/**
+ * Returns counts of non-deleted tasks per categoryId. Tasks with a null
+ * categoryId are NOT included — only mapped category IDs appear as keys.
+ * Used by the categories-management screen to surface "this will affect N
+ * tasks" before delete.
+ */
+export async function countTasksByCategory(): Promise<Map<string, number>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ category_id: string; n: number }>(
+    `SELECT category_id, COUNT(*) AS n
+     FROM tasks
+     WHERE deleted_at IS NULL AND category_id IS NOT NULL
+     GROUP BY category_id`
+  );
+  const out = new Map<string, number>();
+  for (const r of rows) out.set(r.category_id, r.n);
+  return out;
+}
+
 export async function softDeleteCategory(id: string): Promise<void> {
   const db = await getDb();
   const ts = now();

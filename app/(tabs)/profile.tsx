@@ -1,14 +1,19 @@
+import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { branding } from '../../branding';
 import { BarChart } from '../../src/components/charts/BarChart';
 import { DonutChart, type DonutSlice } from '../../src/components/charts/DonutChart';
+import { Icon } from '../../src/components/Icon';
+import { OverviewTotals } from '../../src/components/OverviewTotals';
 import { StreakCounter } from '../../src/components/StreakCounter';
+import { ThemeToggle } from '../../src/components/ThemeToggle';
 import { useCategories, useTasks } from '../../src/db';
 import { useAuth } from '../../src/lib/auth';
 import {
   computeCategoryBreakdown,
+  computeOverviewTotals,
   computeStreakStats,
   computeWeeklyCompletion,
 } from '../../src/lib/streakStats';
@@ -21,6 +26,7 @@ const UNCATEGORIZED_COLOR = '#9a8f81';
 
 export default function ProfileScreen() {
   const t = useTheme();
+  const router = useRouter();
   const { state, signOut } = useAuth();
   // We need the full task history to compute streaks + breakdowns, so
   // status: 'all' and no category filter.
@@ -35,6 +41,7 @@ export default function ProfileScreen() {
     return m;
   }, [categories]);
 
+  const totals = useMemo(() => computeOverviewTotals(tasks), [tasks]);
   const streak = useMemo(() => computeStreakStats(tasks), [tasks]);
   const weekly = useMemo(() => computeWeeklyCompletion(tasks), [tasks]);
   const breakdown = useMemo(() => computeCategoryBreakdown(tasks), [tasks]);
@@ -126,6 +133,8 @@ export default function ProfileScreen() {
           </View>
         ) : null}
 
+        <OverviewTotals totals={totals} />
+
         <StreakCounter stats={streak} />
 
         <Section title="This week">
@@ -135,6 +144,35 @@ export default function ProfileScreen() {
         <Section title="Categories">
           <DonutChart slices={donutSlices} />
         </Section>
+
+        <ThemeToggle />
+
+        <Pressable
+          onPress={() => router.push('/categories')}
+          style={({ pressed }) => [
+            styles.manageRow,
+            {
+              backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
+              borderRadius: t.radius.xl,
+              padding: t.spacing.lg,
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Manage categories"
+        >
+          <Icon name="edit" size={18} color={t.color.textPrimary} />
+          <Text
+            style={{
+              color: t.color.textPrimary,
+              fontSize: t.fontSize.md,
+              fontWeight: t.fontWeight.semibold,
+              flex: 1,
+            }}
+          >
+            Manage categories
+          </Text>
+          <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>›</Text>
+        </Pressable>
 
         <Pressable
           onPress={signOut}
@@ -215,5 +253,10 @@ const styles = StyleSheet.create({
   },
   signOut: {
     width: '100%',
+  },
+  manageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
 });

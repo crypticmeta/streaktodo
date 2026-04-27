@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../src/lib/auth';
 import { getDb } from '../src/db';
 import * as scheduler from '../src/lib/notificationScheduler';
-import { getOnboardingCompleted } from '../src/lib/onboarding';
+import { OnboardingProvider, useOnboarding } from '../src/lib/onboarding';
 import { ThemeProvider, useTheme } from '../src/theme';
 
 type DbState = { status: 'loading' } | { status: 'ready' } | { status: 'error'; message: string };
@@ -40,27 +40,10 @@ function useDbBootstrap(): DbState {
   return state;
 }
 
-type OnboardingState = 'loading' | 'pending' | 'completed';
-
-function useOnboardingState(): OnboardingState {
-  const [state, setState] = useState<OnboardingState>('loading');
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const done = await getOnboardingCompleted();
-      if (!cancelled) setState(done ? 'completed' : 'pending');
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  return state;
-}
-
 function AppGate() {
   const dbState = useDbBootstrap();
   const { state: authState } = useAuth();
-  const onboardingState = useOnboardingState();
+  const { state: onboardingState } = useOnboarding();
   const router = useRouter();
   const segments = useSegments();
   const theme = useTheme();
@@ -133,8 +116,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <AppGate />
-          <StatusBar style="auto" />
+          <OnboardingProvider>
+            <AppGate />
+            <StatusBar style="auto" />
+          </OnboardingProvider>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
