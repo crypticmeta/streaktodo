@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Fab } from '../../src/components/Fab';
 import { TaskComposer } from '../../src/components/TaskComposer';
 import { subtasksRepo, tasksRepo, useCategories, useTasks } from '../../src/db';
+import { formatRelativeShort, isOverdue } from '../../src/lib/date';
 import { useTheme } from '../../src/theme';
 
 // Phase 2 surface: persistence + composer subtasks work, but the polished
@@ -49,6 +50,8 @@ export default function TasksScreen() {
       subtasks: string[];
       categoryId: string | null;
     }) => {
+      // dueAt comes through as null until the Schedule sheet ships in the next
+      // phase; the home card already reads task.dueAt so render is forward-compatible.
       await tasksRepo.createTaskWithSubtasks({ title, categoryId }, subtasks);
       await refresh();
     },
@@ -112,6 +115,18 @@ export default function TasksScreen() {
               {tasks.map((task) => {
                 const counts = subtaskCounts[task.id];
                 const cat = task.categoryId ? categoriesById.get(task.categoryId) : null;
+                const overdue =
+                  task.dueAt !== null && task.status !== 'done' && isOverdue(task.dueAt);
+
+                const metaParts: string[] = [];
+                if (counts && counts.total > 0) {
+                  metaParts.push(
+                    `${counts.done}/${counts.total} subtask${counts.total === 1 ? '' : 's'}`
+                  );
+                }
+                if (cat) metaParts.push(cat.name);
+                // Date is rendered as its own colored span; we omit it from metaParts.
+
                 return (
                   <View
                     key={task.id}
@@ -150,7 +165,8 @@ export default function TasksScreen() {
                       >
                         {task.title}
                       </Text>
-                      {counts && counts.total > 0 ? (
+
+                      {task.dueAt !== null || metaParts.length > 0 ? (
                         <Text
                           style={{
                             color: t.color.textMuted,
@@ -158,18 +174,18 @@ export default function TasksScreen() {
                             marginTop: 4,
                           }}
                         >
-                          {counts.done}/{counts.total} subtask{counts.total === 1 ? '' : 's'}
-                          {cat ? ` · ${cat.name}` : ''}
-                        </Text>
-                      ) : cat ? (
-                        <Text
-                          style={{
-                            color: t.color.textMuted,
-                            fontSize: t.fontSize.xs,
-                            marginTop: 4,
-                          }}
-                        >
-                          {cat.name}
+                          {task.dueAt !== null ? (
+                            <Text
+                              style={{
+                                color: overdue ? t.color.danger : t.color.textMuted,
+                                fontWeight: overdue ? t.fontWeight.semibold : t.fontWeight.regular,
+                              }}
+                            >
+                              {formatRelativeShort(task.dueAt)}
+                            </Text>
+                          ) : null}
+                          {task.dueAt !== null && metaParts.length > 0 ? ' · ' : ''}
+                          {metaParts.join(' · ')}
                         </Text>
                       ) : null}
                     </View>
