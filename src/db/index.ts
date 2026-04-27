@@ -29,4 +29,4 @@ export * as subtasksRepo from './repos/subtasks';
 export * as remindersRepo from './repos/reminders';
 export * as repeatRulesRepo from './repos/repeatRules';
 
-export { useTasks, useCategories } from './hooks';
+export { useTasks, useCategories, useDbVersion } from './hooks';

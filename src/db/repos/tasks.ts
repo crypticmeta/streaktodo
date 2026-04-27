@@ -1,5 +1,6 @@
 import { nextOccurrence } from '../../lib/recurrence';
 import { getDb } from '../client';
+import { emit } from '../events';
 import { newId } from '../ids';
 import { now } from '../time';
 import { taskFromRow, type Task, type TaskStatus } from '../schema';
@@ -201,6 +202,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
   );
   const created = await getTaskById(id);
   if (!created) throw new Error('Task insert succeeded but row not found');
+  emit('tasks-changed');
   return created;
 }
 
@@ -227,6 +229,7 @@ export async function updateTask(id: string, patch: UpdateTaskInput): Promise<vo
     `UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`,
     args
   );
+  emit('tasks-changed');
 }
 
 // Convenience: complete a task and stamp completed_at atomically.
@@ -237,6 +240,7 @@ export async function completeTask(id: string): Promise<void> {
     `UPDATE tasks SET status = 'done', completed_at = ?, updated_at = ? WHERE id = ?`,
     [ts, ts, id]
   );
+  emit('tasks-changed');
 }
 
 export async function uncompleteTask(id: string): Promise<void> {
@@ -246,6 +250,7 @@ export async function uncompleteTask(id: string): Promise<void> {
     `UPDATE tasks SET status = 'pending', completed_at = NULL, updated_at = ? WHERE id = ?`,
     [ts, id]
   );
+  emit('tasks-changed');
 }
 
 // Pin / unpin without thinking about update payload shape at the call site.
@@ -256,6 +261,7 @@ export async function setPinned(id: string, pinned: boolean): Promise<void> {
     `UPDATE tasks SET is_pinned = ?, updated_at = ? WHERE id = ?`,
     [pinned ? 1 : 0, ts, id]
   );
+  emit('tasks-changed');
 }
 
 export async function softDeleteTask(id: string): Promise<void> {
@@ -265,6 +271,7 @@ export async function softDeleteTask(id: string): Promise<void> {
     `UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?`,
     [ts, ts, id]
   );
+  emit('tasks-changed');
 }
 
 // Composite create: parent task + N subtasks + N reminders + optional repeat
@@ -352,6 +359,7 @@ export async function createTaskFull(input: CreateTaskFullInput): Promise<Task> 
 
   const created = await getTaskById(taskId);
   if (!created) throw new Error('Task insert succeeded but row not found');
+  emit('tasks-changed');
   return created;
 }
 
@@ -453,6 +461,7 @@ export async function updateTaskFull(
 
   const updated = await getTaskById(sourceTaskId);
   if (!updated) throw new Error('Task update succeeded but row not found');
+  emit('tasks-changed');
   return updated;
 }
 
@@ -596,5 +605,6 @@ export async function spawnNextOccurrence(sourceTaskId: string): Promise<Task | 
 
   const created = await getTaskById(newTaskId);
   if (!created) throw new Error('Spawn insert succeeded but row not found');
+  emit('tasks-changed');
   return created;
 }

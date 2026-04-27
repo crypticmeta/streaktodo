@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '../client';
+import { emit } from '../events';
 import { newId } from '../ids';
 import { now } from '../time';
 import { categoryFromRow, type Category } from '../schema';
@@ -67,6 +68,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
   );
   const created = await getCategoryById(id);
   if (!created) throw new Error('Category insert succeeded but row not found');
+  emit('categories-changed');
   return created;
 }
 
@@ -89,6 +91,7 @@ export async function updateCategory(id: string, patch: UpdateCategoryInput): Pr
     `UPDATE categories SET ${sets.join(', ')} WHERE id = ?`,
     args
   );
+  emit('categories-changed');
 }
 
 export async function softDeleteCategory(id: string): Promise<void> {
@@ -98,6 +101,9 @@ export async function softDeleteCategory(id: string): Promise<void> {
     `UPDATE categories SET deleted_at = ?, updated_at = ? WHERE id = ?`,
     [ts, ts, id]
   );
+  // Categories changing also affects tasks (filter pills, row meta).
+  emit('categories-changed');
+  emit('tasks-changed');
 }
 
 // Idempotent. Called from getDb() on every app launch — safe to re-run.

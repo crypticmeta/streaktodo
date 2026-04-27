@@ -93,11 +93,6 @@ function initialFromGraph(graph: TaskGraph): ComposerInitial {
   };
 }
 
-type UseTaskEditorOptions = {
-  /** Called after any successful create/update/delete so the screen can re-query. */
-  onChanged: () => Promise<void> | void;
-};
-
 type UseTaskEditorReturn = {
   /** Spread onto <TaskComposer /> */
   composerProps: {
@@ -111,7 +106,12 @@ type UseTaskEditorReturn = {
   openEdit: (taskId: string) => Promise<void>;
 };
 
-export function useTaskEditor({ onChanged }: UseTaskEditorOptions): UseTaskEditorReturn {
+/**
+ * No `onChanged` callback needed — every repo write emits `tasks-changed`
+ * which fans out to every mounted `useTasks` and `useDbVersion` hook. Each
+ * screen's lists / markers / counts refresh themselves.
+ */
+export function useTaskEditor(): UseTaskEditorReturn {
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingInitial, setEditingInitial] = useState<ComposerInitial | null>(null);
@@ -173,9 +173,8 @@ export function useTaskEditor({ onChanged }: UseTaskEditorOptions): UseTaskEdito
           taskDueTime: savedTask.dueTime,
         });
       }
-      await onChanged();
     },
-    [editingTaskId, onChanged]
+    [editingTaskId]
   );
 
   const onDelete = useCallback(() => {
@@ -194,7 +193,6 @@ export function useTaskEditor({ onChanged }: UseTaskEditorOptions): UseTaskEdito
             try {
               await tasksRepo.softDeleteTask(id);
               onClose();
-              await onChanged();
             } catch {
               // best-effort
             }
@@ -202,7 +200,7 @@ export function useTaskEditor({ onChanged }: UseTaskEditorOptions): UseTaskEdito
         },
       ]
     );
-  }, [editingTaskId, onChanged, onClose]);
+  }, [editingTaskId, onClose]);
 
   return {
     composerProps: {

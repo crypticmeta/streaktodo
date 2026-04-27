@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { type DbEvent, subscribe } from './events';
 import { categoriesRepo, tasksRepo, type Category, type Task } from './index';
 import type { ListTasksFilter } from './repos/tasks';
 
@@ -18,8 +19,9 @@ type UseTasksReturn = UseTasksState & {
  * every render — so callers can pass an inline `{ status: 'all' }` object
  * without causing a fetch loop.
  *
- * We deliberately do NOT subscribe to DB change notifications yet; explicit
- * refresh keeps the data flow obvious while we're still small.
+ * Also subscribes to the `tasks-changed` event so any mutation in any screen
+ * causes every mounted `useTasks` instance to re-fetch — fixes the stale-list
+ * bug where deleting on the Calendar tab left the Tasks tab stale.
  */
 export function useTasks(filter?: ListTasksFilter): UseTasksReturn {
   const [state, setState] = useState<UseTasksState>({
@@ -53,6 +55,15 @@ export function useTasks(filter?: ListTasksFilter): UseTasksReturn {
     void refresh();
   }, [key, refresh]);
 
+  // Live updates: whenever any screen mutates a task, every useTasks instance
+  // re-runs its query.
+  useEffect(() => {
+    const unsubscribe = subscribe('tasks-changed', () => {
+      void refresh();
+    });
+    return unsubscribe;
+  }, [refresh]);
+
   return { ...state, refresh };
 }
 
@@ -84,7 +95,7 @@ type UseCategoriesReturn = UseCategoriesState & {
 /**
  * List of all (non-deleted) categories. The default three (Work / Personal /
  * Wishlist) are seeded on first DB open, so the list is never empty in
- * practice.
+ * practice. Subscribes to `categories-changed`.
  */
 export function useCategories(): UseCategoriesReturn {
   const [state, setState] = useState<UseCategoriesState>({
@@ -110,5 +121,29 @@ export function useCategories(): UseCategoriesReturn {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const unsubscribe = subscribe('categories-changed', () => {
+      void refresh();
+    });
+    return unsubscribe;
+  }, [refresh]);
+
   return { ...state, refresh };
+}
+
+/**
+ * Returns a counter that bumps every time `event` fires. Components can put
+ * the counter in a useEffect dep array to re-run derived queries (subtask
+ * counts, calendar markers, reminder/repeat presence sets) when the
+ * underlying data changes.
+ */
+export function useDbVersion(event: DbEvent): number {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    const unsubscribe = subscribe(event, () => {
+      setV((n) => n + 1);
+    });
+    return unsubscribe;
+  }, [event]);
+  return v;
 }

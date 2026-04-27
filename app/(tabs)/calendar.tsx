@@ -11,6 +11,7 @@ import {
   subtasksRepo,
   tasksRepo,
   useCategories,
+  useDbVersion,
   useTasks,
   type Task,
 } from '../../src/db';
@@ -49,17 +50,21 @@ export default function CalendarScreen() {
     return { from: trailingStart, to: end };
   }, [month]);
 
-  const reloadMarkers = useCallback(async () => {
-    const set = await tasksRepo.listDueDaysInRange({
-      fromTs: monthWindow.from,
-      toTs: monthWindow.to,
-    });
-    setMarkedDays(set);
-  }, [monthWindow.from, monthWindow.to]);
-
+  // Markers refresh when the visible month changes OR any mutation fires.
+  const dbVersion = useDbVersion('tasks-changed');
   useEffect(() => {
-    void reloadMarkers();
-  }, [reloadMarkers]);
+    let cancelled = false;
+    (async () => {
+      const set = await tasksRepo.listDueDaysInRange({
+        fromTs: monthWindow.from,
+        toTs: monthWindow.to,
+      });
+      if (!cancelled) setMarkedDays(set);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [monthWindow.from, monthWindow.to, dbVersion]);
 
   const { categories } = useCategories();
   const categoriesById = useMemo(() => {
@@ -68,7 +73,7 @@ export default function CalendarScreen() {
     return m;
   }, [categories]);
 
-  // Per-row meta queries.
+  // Per-row meta queries; refresh on dbVersion bump too.
   const taskIds = useMemo(() => tasks.map((task) => task.id), [tasks]);
   const [subtaskCounts, setSubtaskCounts] = useState<
     Record<string, { total: number; done: number }>
@@ -91,7 +96,7 @@ export default function CalendarScreen() {
     return () => {
       cancelled = true;
     };
-  }, [taskIds]);
+  }, [taskIds, dbVersion]);
 
   // Optimistic patches mirror the home screen so completing/pinning here
   // feels instant.
@@ -152,15 +157,15 @@ export default function CalendarScreen() {
               });
             }
           }
-          await refresh();
-          await reloadMarkers();
+          // Refresh happens automatically via the tasks-changed event
+          // emitted by completeTask / uncompleteTask / spawnNextOccurrence.
           setPatch(id, null);
         } catch {
           setPatch(id, null);
         }
       })();
     },
-    [refresh, reloadMarkers, setPatch]
+    [setPatch]
   );
 
   const handleTogglePin = useCallback(
@@ -169,25 +174,20 @@ export default function CalendarScreen() {
       (async () => {
         try {
           await tasksRepo.setPinned(id, nextPinned);
-          await refresh();
           setPatch(id, null);
         } catch {
           setPatch(id, null);
         }
       })();
     },
-    [refresh, setPatch]
+    [setPatch]
   );
 
   // Editor — create-on-day uses openCreate but we'd need to prefill; for V0
   // creating from the calendar lands a task with no date. Editing works as
-  // expected and refreshes both the day list and the markers.
-  const editor = useTaskEditor({
-    onChanged: async () => {
-      await refresh();
-      await reloadMarkers();
-    },
-  });
+  // expected; the dbVersion subscription above takes care of refreshing the
+  // markers + day list when the editor commits.
+  const editor = useTaskEditor();
 
   const dayLabel = useMemo(() => {
     if (isSameDay(selectedDay, today)) return 'Today';

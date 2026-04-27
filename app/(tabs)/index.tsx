@@ -11,6 +11,7 @@ import {
   subtasksRepo,
   tasksRepo,
   useCategories,
+  useDbVersion,
   useTasks,
   type Task,
 } from '../../src/db';
@@ -49,8 +50,9 @@ export default function TasksScreen() {
   }, [categories]);
 
   // Reload subtask counts + reminder/repeat presence whenever the task list
-  // changes. One query per relation, no N+1.
+  // changes OR any mutation hits the DB. One query per relation, no N+1.
   const taskIds = useMemo(() => tasks.map((task) => task.id), [tasks]);
+  const dbVersion = useDbVersion('tasks-changed');
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -67,7 +69,7 @@ export default function TasksScreen() {
     return () => {
       cancelled = true;
     };
-  }, [taskIds]);
+  }, [taskIds, dbVersion]);
 
   // Effective task list: pinned-first sort already happens in the repo; we
   // overlay optimistic patches on top so completion / pin taps feel instant.
@@ -136,14 +138,14 @@ export default function TasksScreen() {
               });
             }
           }
-          await refresh();
+          // Refresh happens automatically via the tasks-changed event.
           setPatch(id, null);
         } catch {
           setPatch(id, null);
         }
       })();
     },
-    [refresh, setPatch]
+    [setPatch]
   );
 
   const handleTogglePin = useCallback(
@@ -152,17 +154,16 @@ export default function TasksScreen() {
       (async () => {
         try {
           await tasksRepo.setPinned(id, nextPinned);
-          await refresh();
           setPatch(id, null);
         } catch {
           setPatch(id, null);
         }
       })();
     },
-    [refresh, setPatch]
+    [setPatch]
   );
 
-  const editor = useTaskEditor({ onChanged: refresh });
+  const editor = useTaskEditor();
 
   // FlatList renderers. Theme-driven separators between rows so we don't need
   // gaps in the row component itself.

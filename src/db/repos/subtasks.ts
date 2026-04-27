@@ -1,4 +1,5 @@
 import { getDb } from '../client';
+import { emit } from '../events';
 import { newId } from '../ids';
 import { now } from '../time';
 import { subtaskFromRow, type Subtask, type SubtaskStatus } from '../schema';
@@ -46,6 +47,7 @@ export async function createSubtask(input: CreateSubtaskInput): Promise<Subtask>
   );
   const created = await getSubtaskById(id);
   if (!created) throw new Error('Subtask insert succeeded but row not found');
+  emit('tasks-changed');
   return created;
 }
 
@@ -64,6 +66,7 @@ export async function updateSubtask(id: string, patch: UpdateSubtaskInput): Prom
   args.push(id);
 
   await db.runAsync(`UPDATE subtasks SET ${sets.join(', ')} WHERE id = ?`, args);
+  emit('tasks-changed');
 }
 
 export async function softDeleteSubtask(id: string): Promise<void> {
@@ -73,6 +76,7 @@ export async function softDeleteSubtask(id: string): Promise<void> {
     `UPDATE subtasks SET deleted_at = ?, updated_at = ? WHERE id = ?`,
     [ts, ts, id]
   );
+  emit('tasks-changed');
 }
 
 // Returns a map of taskId → { total, done } for active subtasks. One query

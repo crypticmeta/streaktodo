@@ -1,4 +1,5 @@
 import { getDb } from '../client';
+import { emit } from '../events';
 import { newId } from '../ids';
 import { now } from '../time';
 import { reminderFromRow, type Reminder, type ReminderType } from '../schema';
@@ -47,9 +48,15 @@ export async function createReminder(input: CreateReminderInput): Promise<Remind
   );
   const created = await getReminderById(id);
   if (!created) throw new Error('Reminder insert succeeded but row not found');
+  emit('tasks-changed');
   return created;
 }
 
+// NOTE: updateReminder intentionally does NOT emit. It's hit by the
+// notification scheduler whenever it persists a scheduled_notification_id,
+// and emitting from here would cause "schedule → emit → reconcile → schedule"
+// loops. Reminder content changes (lead_minutes, type) are exclusively driven
+// by updateTaskFull, which already emits at the task level.
 export async function updateReminder(id: string, patch: UpdateReminderInput): Promise<void> {
   const db = await getDb();
   const sets: string[] = [];
@@ -83,6 +90,7 @@ export async function softDeleteReminder(id: string): Promise<void> {
     `UPDATE task_reminders SET deleted_at = ?, updated_at = ? WHERE id = ?`,
     [ts, ts, id]
   );
+  emit('tasks-changed');
 }
 
 // Set of task ids that currently have at least one active reminder.

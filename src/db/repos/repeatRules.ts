@@ -1,4 +1,5 @@
 import { getDb } from '../client';
+import { emit } from '../events';
 import { newId } from '../ids';
 import { now } from '../time';
 import { repeatRuleFromRow, type RepeatRule, type RepeatFrequency } from '../schema';
@@ -48,6 +49,7 @@ export async function upsertRepeatRule(taskId: string, input: RepeatRuleInput): 
     );
     const updated = await getRepeatRuleByTask(taskId);
     if (!updated) throw new Error('Repeat rule update succeeded but row not found');
+    emit('tasks-changed');
     return updated;
   }
 
@@ -71,6 +73,7 @@ export async function upsertRepeatRule(taskId: string, input: RepeatRuleInput): 
   );
   const created = await getRepeatRuleByTask(taskId);
   if (!created) throw new Error('Repeat rule insert succeeded but row not found');
+  emit('tasks-changed');
   return created;
 }
 
@@ -81,6 +84,7 @@ export async function softDeleteRepeatRule(taskId: string): Promise<void> {
     `UPDATE task_repeat_rules SET deleted_at = ?, updated_at = ? WHERE task_id = ?`,
     [ts, ts, taskId]
   );
+  emit('tasks-changed');
 }
 
 // Set of task ids that currently have an active repeat rule.
