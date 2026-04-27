@@ -1,31 +1,74 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../src/lib/auth';
+import { getDb } from '../src/db';
 import { ThemeProvider, useTheme } from '../src/theme';
 
-function AuthGate() {
-  const { state } = useAuth();
+type DbState = { status: 'loading' } | { status: 'ready' } | { status: 'error'; message: string };
+
+function useDbBootstrap(): DbState {
+  const [state, setState] = useState<DbState>({ status: 'loading' });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await getDb();
+        if (!cancelled) setState({ status: 'ready' });
+      } catch (err) {
+        if (cancelled) return;
+        setState({
+          status: 'error',
+          message: err instanceof Error ? err.message : 'Database failed to open.',
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return state;
+}
+
+function AppGate() {
+  const dbState = useDbBootstrap();
+  const { state: authState } = useAuth();
   const router = useRouter();
   const segments = useSegments();
   const theme = useTheme();
 
   useEffect(() => {
-    if (state.status === 'loading') return;
+    if (dbState.status !== 'ready') return;
+    if (authState.status === 'loading') return;
 
     const inAuthGroup = segments[0] === 'sign-in';
-    const isSignedIn = state.status === 'signed-in';
+    const isSignedIn = authState.status === 'signed-in';
 
     if (!isSignedIn && !inAuthGroup) {
       router.replace('/sign-in');
     } else if (isSignedIn && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [state.status, segments, router]);
+  }, [dbState.status, authState.status, segments, router]);
 
-  if (state.status === 'loading') {
+  if (dbState.status === 'error') {
+    return (
+      <View style={[styles.loading, { backgroundColor: theme.color.background }]}>
+        <Text style={{ color: theme.color.danger, fontWeight: '700', marginBottom: 8 }}>
+          Database error
+        </Text>
+        <Text style={{ color: theme.color.textSecondary, textAlign: 'center', paddingHorizontal: 24 }}>
+          {dbState.message}
+        </Text>
+      </View>
+    );
+  }
+
+  if (dbState.status === 'loading' || authState.status === 'loading') {
     return (
       <View style={[styles.loading, { backgroundColor: theme.color.background }]}>
         <ActivityIndicator color={theme.color.accent} />
@@ -48,7 +91,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <AuthGate />
+          <AppGate />
           <StatusBar style="auto" />
         </AuthProvider>
       </ThemeProvider>

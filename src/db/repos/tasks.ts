@@ -1,0 +1,162 @@
+import { getDb } from '../client';
+import { newId } from '../ids';
+import { now } from '../time';
+import { taskFromRow, type Task, type TaskStatus } from '../schema';
+
+export type CreateTaskInput = {
+  title: string;
+  notes?: string | null;
+  categoryId?: string | null;
+  dueAt?: number | null;     // epoch ms, start of day
+  dueTime?: number | null;   // minutes since midnight
+  isPinned?: boolean;
+  sortOrder?: number;
+};
+
+export type UpdateTaskInput = {
+  title?: string;
+  notes?: string | null;
+  categoryId?: string | null;
+  dueAt?: number | null;
+  dueTime?: number | null;
+  status?: TaskStatus;
+  isPinned?: boolean;
+  sortOrder?: number;
+};
+
+export type ListTasksFilter = {
+  status?: TaskStatus | 'all';            // default 'pending'
+  categoryId?: string | null;             // null = no category, undefined = any
+  dueAtMin?: number;
+  dueAtMax?: number;
+  pinnedFirst?: boolean;                  // default true
+};
+
+export async function listTasks(filter: ListTasksFilter = {}): Promise<Task[]> {
+  const db = await getDb();
+
+  const where: string[] = ['deleted_at IS NULL'];
+  const args: (string | number | null)[] = [];
+
+  const status = filter.status ?? 'pending';
+  if (status !== 'all') {
+    where.push('status = ?');
+    args.push(status);
+  }
+
+  if (filter.categoryId !== undefined) {
+    if (filter.categoryId === null) {
+      where.push('category_id IS NULL');
+    } else {
+      where.push('category_id = ?');
+      args.push(filter.categoryId);
+    }
+  }
+
+  if (filter.dueAtMin !== undefined) {
+    where.push('due_at >= ?');
+    args.push(filter.dueAtMin);
+  }
+  if (filter.dueAtMax !== undefined) {
+    where.push('due_at <= ?');
+    args.push(filter.dueAtMax);
+  }
+
+  const orderBy = filter.pinnedFirst === false
+    ? 'due_at ASC NULLS LAST, due_time ASC NULLS LAST, sort_order ASC, created_at ASC'
+    : 'is_pinned DESC, due_at ASC NULLS LAST, due_time ASC NULLS LAST, sort_order ASC, created_at ASC';
+
+  const rows = await db.getAllAsync<unknown>(
+    `SELECT * FROM tasks WHERE ${where.join(' AND ')} ORDER BY ${orderBy}`,
+    args
+  );
+  return rows.map(taskFromRow);
+}
+
+export async function getTaskById(id: string): Promise<Task | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<unknown>(
+    `SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL`,
+    [id]
+  );
+  return row ? taskFromRow(row) : null;
+}
+
+export async function createTask(input: CreateTaskInput): Promise<Task> {
+  const db = await getDb();
+  const id = newId();
+  const ts = now();
+  await db.runAsync(
+    `INSERT INTO tasks
+       (id, title, notes, category_id, due_at, due_time, status, is_pinned, completed_at, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, NULL, ?, ?, ?)`,
+    [
+      id,
+      input.title,
+      input.notes ?? null,
+      input.categoryId ?? null,
+      input.dueAt ?? null,
+      input.dueTime ?? null,
+      input.isPinned ? 1 : 0,
+      input.sortOrder ?? 0,
+      ts,
+      ts,
+    ]
+  );
+  const created = await getTaskById(id);
+  if (!created) throw new Error('Task insert succeeded but row not found');
+  return created;
+}
+
+export async function updateTask(id: string, patch: UpdateTaskInput): Promise<void> {
+  const db = await getDb();
+  const sets: string[] = [];
+  const args: (string | number | null)[] = [];
+
+  if (patch.title !== undefined)      { sets.push('title = ?');       args.push(patch.title); }
+  if (patch.notes !== undefined)      { sets.push('notes = ?');       args.push(patch.notes); }
+  if (patch.categoryId !== undefined) { sets.push('category_id = ?'); args.push(patch.categoryId); }
+  if (patch.dueAt !== undefined)      { sets.push('due_at = ?');      args.push(patch.dueAt); }
+  if (patch.dueTime !== undefined)    { sets.push('due_time = ?');    args.push(patch.dueTime); }
+  if (patch.status !== undefined)     { sets.push('status = ?');      args.push(patch.status); }
+  if (patch.isPinned !== undefined)   { sets.push('is_pinned = ?');   args.push(patch.isPinned ? 1 : 0); }
+  if (patch.sortOrder !== undefined)  { sets.push('sort_order = ?');  args.push(patch.sortOrder); }
+
+  if (sets.length === 0) return;
+  sets.push('updated_at = ?');
+  args.push(now());
+  args.push(id);
+
+  await db.runAsync(
+    `UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`,
+    args
+  );
+}
+
+// Convenience: complete a task and stamp completed_at atomically.
+export async function completeTask(id: string): Promise<void> {
+  const db = await getDb();
+  const ts = now();
+  await db.runAsync(
+    `UPDATE tasks SET status = 'done', completed_at = ?, updated_at = ? WHERE id = ?`,
+    [ts, ts, id]
+  );
+}
+
+export async function uncompleteTask(id: string): Promise<void> {
+  const db = await getDb();
+  const ts = now();
+  await db.runAsync(
+    `UPDATE tasks SET status = 'pending', completed_at = NULL, updated_at = ? WHERE id = ?`,
+    [ts, id]
+  );
+}
+
+export async function softDeleteTask(id: string): Promise<void> {
+  const db = await getDb();
+  const ts = now();
+  await db.runAsync(
+    `UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?`,
+    [ts, ts, id]
+  );
+}
