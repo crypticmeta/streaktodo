@@ -160,3 +160,48 @@ export async function softDeleteTask(id: string): Promise<void> {
     [ts, ts, id]
   );
 }
+
+// Composite create: parent task + N subtasks in a single transaction.
+// All-or-nothing: a failed subtask insert rolls back the parent.
+export async function createTaskWithSubtasks(
+  input: CreateTaskInput,
+  subtaskTitles: string[]
+): Promise<Task> {
+  const db = await getDb();
+  const taskId = newId();
+  const ts = now();
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `INSERT INTO tasks
+         (id, title, notes, category_id, due_at, due_time, status, is_pinned, completed_at, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, NULL, ?, ?, ?)`,
+      [
+        taskId,
+        input.title,
+        input.notes ?? null,
+        input.categoryId ?? null,
+        input.dueAt ?? null,
+        input.dueTime ?? null,
+        input.isPinned ? 1 : 0,
+        input.sortOrder ?? 0,
+        ts,
+        ts,
+      ]
+    );
+
+    for (let i = 0; i < subtaskTitles.length; i++) {
+      const title = subtaskTitles[i]!.trim();
+      if (title.length === 0) continue;
+      await db.runAsync(
+        `INSERT INTO subtasks (id, task_id, title, status, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, 'pending', ?, ?, ?)`,
+        [newId(), taskId, title, i, ts, ts]
+      );
+    }
+  });
+
+  const created = await getTaskById(taskId);
+  if (!created) throw new Error('Task insert succeeded but row not found');
+  return created;
+}

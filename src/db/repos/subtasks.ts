@@ -74,3 +74,31 @@ export async function softDeleteSubtask(id: string): Promise<void> {
     [ts, ts, id]
   );
 }
+
+// Returns a map of taskId → { total, done } for active subtasks. One query
+// regardless of input size, so the UI can render counts without N+1 reads.
+export async function countsByTaskIds(
+  taskIds: string[]
+): Promise<Record<string, { total: number; done: number }>> {
+  if (taskIds.length === 0) return {};
+  const db = await getDb();
+  const placeholders = taskIds.map(() => '?').join(',');
+  const rows = await db.getAllAsync<{
+    task_id: string;
+    total: number;
+    done: number;
+  }>(
+    `SELECT task_id,
+            COUNT(*) AS total,
+            SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done
+       FROM subtasks
+      WHERE deleted_at IS NULL AND task_id IN (${placeholders})
+      GROUP BY task_id`,
+    taskIds
+  );
+  const out: Record<string, { total: number; done: number }> = {};
+  for (const r of rows) {
+    out[r.task_id] = { total: r.total, done: r.done };
+  }
+  return out;
+}

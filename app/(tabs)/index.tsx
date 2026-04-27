@@ -1,23 +1,39 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Fab } from '../../src/components/Fab';
 import { TaskComposer } from '../../src/components/TaskComposer';
-import { tasksRepo, useTasks } from '../../src/db';
+import { subtasksRepo, tasksRepo, useTasks } from '../../src/db';
 import { useTheme } from '../../src/theme';
 
-// Phase 2 checkbox 3 surface: persistence works, but the polished row UI
-// (checkbox in row, pin star, metadata line, day grouping) is the next
-// checkbox. Until then we render a minimal proof-of-life list so we can
-// actually see the data flow.
+// Phase 2 surface: persistence + composer subtasks work, but the polished
+// row UI (checkbox in row, pin star, metadata line, day grouping) is the
+// next checkbox. Until then we render a minimal proof-of-life list so we
+// can see the data flow.
 export default function TasksScreen() {
   const t = useTheme();
   const [composerOpen, setComposerOpen] = useState(false);
   const { tasks, loading, error, refresh } = useTasks({ status: 'all' });
+  const [subtaskCounts, setSubtaskCounts] = useState<
+    Record<string, { total: number; done: number }>
+  >({});
+
+  // Reload subtask counts whenever the task list changes.
+  const taskIds = useMemo(() => tasks.map((task) => task.id), [tasks]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const counts = await subtasksRepo.countsByTaskIds(taskIds);
+      if (!cancelled) setSubtaskCounts(counts);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [taskIds]);
 
   const handleSubmit = useCallback(
-    async ({ title }: { title: string }) => {
-      await tasksRepo.createTask({ title });
+    async ({ title, subtasks }: { title: string; subtasks: string[] }) => {
+      await tasksRepo.createTaskWithSubtasks({ title }, subtasks);
       await refresh();
     },
     [refresh]
@@ -77,31 +93,45 @@ export default function TasksScreen() {
             </Text>
 
             <View style={{ marginTop: t.spacing['2xl'], gap: t.spacing.sm }}>
-              {tasks.map((task) => (
-                <View
-                  key={task.id}
-                  style={{
-                    backgroundColor: t.color.surface,
-                    borderColor: t.color.border,
-                    borderWidth: 1,
-                    borderRadius: t.radius.lg,
-                    paddingHorizontal: t.spacing.lg,
-                    paddingVertical: t.spacing.md,
-                  }}
-                >
-                  <Text
+              {tasks.map((task) => {
+                const counts = subtaskCounts[task.id];
+                return (
+                  <View
+                    key={task.id}
                     style={{
-                      color: t.color.textPrimary,
-                      fontSize: t.fontSize.md,
-                      fontWeight: t.fontWeight.medium,
-                      textDecorationLine: task.status === 'done' ? 'line-through' : 'none',
-                      opacity: task.status === 'done' ? 0.55 : 1,
+                      backgroundColor: t.color.surface,
+                      borderColor: t.color.border,
+                      borderWidth: 1,
+                      borderRadius: t.radius.lg,
+                      paddingHorizontal: t.spacing.lg,
+                      paddingVertical: t.spacing.md,
                     }}
                   >
-                    {task.title}
-                  </Text>
-                </View>
-              ))}
+                    <Text
+                      style={{
+                        color: t.color.textPrimary,
+                        fontSize: t.fontSize.md,
+                        fontWeight: t.fontWeight.medium,
+                        textDecorationLine: task.status === 'done' ? 'line-through' : 'none',
+                        opacity: task.status === 'done' ? 0.55 : 1,
+                      }}
+                    >
+                      {task.title}
+                    </Text>
+                    {counts && counts.total > 0 ? (
+                      <Text
+                        style={{
+                          color: t.color.textMuted,
+                          fontSize: t.fontSize.xs,
+                          marginTop: 4,
+                        }}
+                      >
+                        {counts.done}/{counts.total} subtask{counts.total === 1 ? '' : 's'}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })}
             </View>
           </>
         )}
