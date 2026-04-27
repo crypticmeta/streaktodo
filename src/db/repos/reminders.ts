@@ -84,3 +84,16 @@ export async function softDeleteReminder(id: string): Promise<void> {
     [ts, ts, id]
   );
 }
+
+// Set of task ids that currently have at least one active reminder.
+export async function taskIdsWithReminders(taskIds: string[]): Promise<Set<string>> {
+  if (taskIds.length === 0) return new Set();
+  const db = await getDb();
+  const placeholders = taskIds.map(() => '?').join(',');
+  const rows = await db.getAllAsync<{ task_id: string }>(
+    `SELECT DISTINCT task_id FROM task_reminders
+      WHERE deleted_at IS NULL AND task_id IN (${placeholders})`,
+    taskIds
+  );
+  return new Set(rows.map((r) => r.task_id));
+}

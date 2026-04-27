@@ -44,11 +44,11 @@ Primary reference points from `inspiration/app/`:
 
 ### Phase 3: task list home
 
-- [ ] Build the main task list screen
-- [ ] Design the base task row with checkbox, title, metadata line, and pin/star action
-- [ ] Support task completion with immediate UI feedback
-- [ ] Support pinning or flagging important tasks
-- [ ] Add empty state and loading state for the task list
+- [x] Build the main task list screen — `FlatList` driven by `useTasks`
+- [x] Design the base task row with checkbox, title, metadata line, and pin/star action — see [`src/components/TaskRow.tsx`](./src/components/TaskRow.tsx)
+- [x] Support task completion with immediate UI feedback — optimistic patch overlay with rollback on failure
+- [x] Support pinning or flagging important tasks — `tasksRepo.setPinned` + accent border on pinned rows
+- [x] Add empty state and loading state for the task list — plus error state with retry
 - [ ] Add grouped sections such as Previous, Today, Upcoming, and No Date
 - [ ] Add top category pills: All, Work, Personal, Wishlist
 

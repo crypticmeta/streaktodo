@@ -152,6 +152,16 @@ export async function uncompleteTask(id: string): Promise<void> {
   );
 }
 
+// Pin / unpin without thinking about update payload shape at the call site.
+export async function setPinned(id: string, pinned: boolean): Promise<void> {
+  const db = await getDb();
+  const ts = now();
+  await db.runAsync(
+    `UPDATE tasks SET is_pinned = ?, updated_at = ? WHERE id = ?`,
+    [pinned ? 1 : 0, ts, id]
+  );
+}
+
 export async function softDeleteTask(id: string): Promise<void> {
   const db = await getDb();
   const ts = now();

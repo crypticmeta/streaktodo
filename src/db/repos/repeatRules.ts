@@ -82,3 +82,16 @@ export async function softDeleteRepeatRule(taskId: string): Promise<void> {
     [ts, ts, taskId]
   );
 }
+
+// Set of task ids that currently have an active repeat rule.
+export async function taskIdsWithRepeat(taskIds: string[]): Promise<Set<string>> {
+  if (taskIds.length === 0) return new Set();
+  const db = await getDb();
+  const placeholders = taskIds.map(() => '?').join(',');
+  const rows = await db.getAllAsync<{ task_id: string }>(
+    `SELECT task_id FROM task_repeat_rules
+      WHERE deleted_at IS NULL AND task_id IN (${placeholders})`,
+    taskIds
+  );
+  return new Set(rows.map((r) => r.task_id));
+}
