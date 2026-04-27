@@ -29,10 +29,24 @@ export type ComposerSubmitInput = {
   schedule: ScheduleDraft;
 };
 
+// Prefilled state used when opening the composer in edit mode. The caller
+// builds this from a TaskGraph (see tasksRepo.getTaskGraph) and the schedule
+// draft helpers in app/(tabs)/index.tsx.
+export type ComposerInitial = {
+  title: string;
+  subtasks: string[];
+  categoryId: string | null;
+  schedule: ScheduleDraft;
+};
+
 type TaskComposerProps = {
   visible: boolean;
   onClose: () => void;
+  /** Defined → edit mode; undefined → create mode. */
+  initial?: ComposerInitial;
   onSubmit?: (input: ComposerSubmitInput) => Promise<void> | void;
+  /** Only meaningful in edit mode. When set, a delete affordance renders. */
+  onDelete?: () => void;
 };
 
 const TITLE_MAX_LENGTH = 140;
@@ -73,7 +87,7 @@ function useKeyboardOffset(): number {
   return offset;
 }
 
-export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) {
+export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: TaskComposerProps) {
   const t = useTheme();
   const [title, setTitle] = useState('');
   const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
@@ -95,15 +109,18 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
     [categories, categoryId]
   );
 
-  // Reset content + focus the input every time the sheet opens.
+  // Reset content + focus the input every time the sheet opens. In edit mode
+  // we prefill from `initial`; in create mode we start from blanks.
   useEffect(() => {
     if (!visible) return;
-    setTitle('');
-    setSubtasks([]);
-    setCategoryId(null);
+    setTitle(initial?.title ?? '');
+    setSubtasks(
+      initial?.subtasks.map((title) => ({ draftId: newDraftId(), title })) ?? []
+    );
+    setCategoryId(initial?.categoryId ?? null);
     setPickerOpen(false);
     setCreateCategoryOpen(false);
-    setSchedule(EMPTY_SCHEDULE);
+    setSchedule(initial?.schedule ?? EMPTY_SCHEDULE);
     setScheduleOpen(false);
     setSubmitting(false);
     setError(null);
@@ -113,6 +130,9 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
     // for focus.
     const id = setTimeout(() => inputRef.current?.focus(), 80);
     return () => clearTimeout(id);
+    // We deliberately depend on `visible` only — re-running when `initial`
+    // changes would clobber in-progress edits if the parent re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const trimmed = title.trim();
@@ -462,6 +482,29 @@ export function TaskComposer({ visible, onClose, onSubmit }: TaskComposerProps) 
             </Pressable>
 
             <View style={{ flex: 1 }} />
+
+            {/* Delete (edit mode only). Lives next to the send button so the
+                most destructive action sits beside the most constructive one
+                — clearer than burying it in a menu, easier than duplicating
+                a separate detail screen for V0. */}
+            {onDelete ? (
+              <Pressable
+                onPress={onDelete}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Delete task"
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  {
+                    backgroundColor: pressed ? t.color.dangerSoft : 'transparent',
+                    borderRadius: t.radius.md,
+                    marginRight: t.spacing.xs,
+                  },
+                ]}
+              >
+                <Icon name="trash" size={20} color={t.color.danger} />
+              </Pressable>
+            ) : null}
 
             {/* Circular send button — replaces the text Save. Always rendered
                 with the accent fill so it stays visible behind a scrim; uses

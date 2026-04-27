@@ -83,6 +83,80 @@ export async function getTaskById(id: string): Promise<Task | null> {
   return row ? taskFromRow(row) : null;
 }
 
+// Full task graph for the editor: task row + active subtask titles + active
+// reminders (lead + type) + active repeat rule (raw fields). Returns null if
+// the task doesn't exist or is soft-deleted. Single transaction-free read —
+// the composer doesn't need atomic snapshotting at edit-open time.
+export type TaskGraph = {
+  task: Task;
+  subtaskTitles: string[];
+  reminders: Array<{ leadMinutes: number; type: 'notification' | 'silent' | 'alarm' }>;
+  repeatRule:
+    | {
+        freq: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+        intervalN: number;
+        byWeekday: string | null;
+        byMonthDay: number | null;
+        byMonth: number | null;
+        untilAt: number | null;
+      }
+    | null;
+};
+
+export async function getTaskGraph(id: string): Promise<TaskGraph | null> {
+  const task = await getTaskById(id);
+  if (!task) return null;
+  const db = await getDb();
+
+  const subtaskRows = await db.getAllAsync<{ title: string }>(
+    `SELECT title FROM subtasks
+      WHERE task_id = ? AND deleted_at IS NULL
+      ORDER BY sort_order ASC, created_at ASC`,
+    [id]
+  );
+  const reminderRows = await db.getAllAsync<{
+    lead_minutes: number;
+    type: 'notification' | 'silent' | 'alarm';
+  }>(
+    `SELECT lead_minutes, type FROM task_reminders
+      WHERE task_id = ? AND deleted_at IS NULL
+      ORDER BY lead_minutes DESC`,
+    [id]
+  );
+  const ruleRow = await db.getFirstAsync<{
+    freq: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+    interval_n: number;
+    by_weekday: string | null;
+    by_month_day: number | null;
+    by_month: number | null;
+    until_at: number | null;
+  }>(
+    `SELECT freq, interval_n, by_weekday, by_month_day, by_month, until_at
+       FROM task_repeat_rules
+      WHERE task_id = ? AND deleted_at IS NULL`,
+    [id]
+  );
+
+  return {
+    task,
+    subtaskTitles: subtaskRows.map((s) => s.title),
+    reminders: reminderRows.map((r) => ({
+      leadMinutes: r.lead_minutes,
+      type: r.type,
+    })),
+    repeatRule: ruleRow
+      ? {
+          freq: ruleRow.freq,
+          intervalN: ruleRow.interval_n,
+          byWeekday: ruleRow.by_weekday,
+          byMonthDay: ruleRow.by_month_day,
+          byMonth: ruleRow.by_month,
+          untilAt: ruleRow.until_at,
+        }
+      : null,
+  };
+}
+
 export async function createTask(input: CreateTaskInput): Promise<Task> {
   const db = await getDb();
   const id = newId();
@@ -258,6 +332,107 @@ export async function createTaskFull(input: CreateTaskFullInput): Promise<Task> 
   const created = await getTaskById(taskId);
   if (!created) throw new Error('Task insert succeeded but row not found');
   return created;
+}
+
+/**
+ * Composite UPDATE for a task plus all its child rows (subtasks, reminders,
+ * repeat rule). Mirror of `createTaskFull`.
+ *
+ * Strategy: replace, don't diff. Existing subtasks/reminders/repeat-rule rows
+ * are soft-deleted and fresh ones are inserted from the input. This is more
+ * generous to the schema (sync metadata stays intact) than a hard-delete or a
+ * line-by-line diff, and the implementation cost is much lower.
+ */
+export async function updateTaskFull(
+  sourceTaskId: string,
+  input: CreateTaskFullInput
+): Promise<Task> {
+  const db = await getDb();
+  const ts = now();
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE tasks
+          SET title = ?, notes = ?, category_id = ?, due_at = ?, due_time = ?,
+              is_pinned = ?, sort_order = ?, updated_at = ?
+        WHERE id = ?`,
+      [
+        input.task.title,
+        input.task.notes ?? null,
+        input.task.categoryId ?? null,
+        input.task.dueAt ?? null,
+        input.task.dueTime ?? null,
+        input.task.isPinned ? 1 : 0,
+        input.task.sortOrder ?? 0,
+        ts,
+        sourceTaskId,
+      ]
+    );
+
+    // Replace subtasks.
+    await db.runAsync(
+      `UPDATE subtasks SET deleted_at = ?, updated_at = ?
+        WHERE task_id = ? AND deleted_at IS NULL`,
+      [ts, ts, sourceTaskId]
+    );
+    for (let i = 0; i < input.subtaskTitles.length; i++) {
+      const title = input.subtaskTitles[i]!.trim();
+      if (title.length === 0) continue;
+      await db.runAsync(
+        `INSERT INTO subtasks (id, task_id, title, status, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, 'pending', ?, ?, ?)`,
+        [newId(), sourceTaskId, title, i, ts, ts]
+      );
+    }
+
+    // Replace reminders.
+    await db.runAsync(
+      `UPDATE task_reminders SET deleted_at = ?, updated_at = ?
+        WHERE task_id = ? AND deleted_at IS NULL`,
+      [ts, ts, sourceTaskId]
+    );
+    if (input.reminders && input.reminders.length > 0) {
+      for (const r of input.reminders) {
+        await db.runAsync(
+          `INSERT INTO task_reminders
+             (id, task_id, lead_minutes, type, scheduled_notification_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, NULL, ?, ?)`,
+          [newId(), sourceTaskId, r.leadMinutes, r.type ?? 'notification', ts, ts]
+        );
+      }
+    }
+
+    // Replace repeat rule (one-or-zero per task).
+    await db.runAsync(
+      `UPDATE task_repeat_rules SET deleted_at = ?, updated_at = ?
+        WHERE task_id = ? AND deleted_at IS NULL`,
+      [ts, ts, sourceTaskId]
+    );
+    if (input.repeatRule) {
+      const rr = input.repeatRule;
+      await db.runAsync(
+        `INSERT INTO task_repeat_rules
+           (id, task_id, freq, interval_n, by_weekday, by_month_day, by_month, until_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newId(),
+          sourceTaskId,
+          rr.freq,
+          rr.intervalN ?? 1,
+          rr.byWeekday ?? null,
+          rr.byMonthDay ?? null,
+          rr.byMonth ?? null,
+          rr.untilAt ?? null,
+          ts,
+          ts,
+        ]
+      );
+    }
+  });
+
+  const updated = await getTaskById(sourceTaskId);
+  if (!updated) throw new Error('Task update succeeded but row not found');
+  return updated;
 }
 
 /**

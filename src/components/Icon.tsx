@@ -24,7 +24,8 @@ export type IconName =
   | 'star'
   | 'star-filled'
   | 'check'
-  | 'close';
+  | 'close'
+  | 'trash';
 
 const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   calendar: 'calendar-outline',
@@ -43,6 +44,7 @@ const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   'star-filled': 'star',
   check: 'checkmark',
   close: 'close',
+  trash: 'trash-outline',
 };
 
 type IconProps = {

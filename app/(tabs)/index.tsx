@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CategoryPills } from '../../src/components/CategoryPills';
 import { Fab } from '../../src/components/Fab';
-import { TaskComposer } from '../../src/components/TaskComposer';
+import { TaskComposer, type ComposerInitial } from '../../src/components/TaskComposer';
 import { TaskRow } from '../../src/components/TaskRow';
-import type { ScheduleDraft } from '../../src/components/scheduleTypes';
+import { DEFAULT_REMINDER, EMPTY_SCHEDULE, type ScheduleDraft } from '../../src/components/scheduleTypes';
 import {
   remindersRepo,
   repeatRulesRepo,
@@ -15,7 +15,7 @@ import {
   useTasks,
   type Task,
 } from '../../src/db';
-import type { CreateTaskFullInput } from '../../src/db/repos/tasks';
+import type { CreateTaskFullInput, TaskGraph } from '../../src/db/repos/tasks';
 import * as scheduler from '../../src/lib/notificationScheduler';
 import { groupTasksIntoSections } from '../../src/lib/taskGrouping';
 import { useTheme } from '../../src/theme';
@@ -55,12 +55,60 @@ function remindersFromSchedule(s: ScheduleDraft): CreateTaskFullInput['reminders
   return [{ leadMinutes: s.reminder.leadMinutes, type: s.reminder.type }];
 }
 
+// Inverse of the two helpers above: takes a TaskGraph from the DB and produces
+// a ComposerInitial the editor can prefill with. The composer carries a
+// single-reminder convention (UI shows one row), so we only surface the first
+// active reminder when populating; additional reminders survive intact in the
+// DB until the user saves, at which point updateTaskFull replaces the set
+// with whatever the composer produced.
+function initialFromGraph(graph: TaskGraph): ComposerInitial {
+  const repeat = graph.repeatRule;
+  const schedule: ScheduleDraft = {
+    dueAt: graph.task.dueAt,
+    dueTime: graph.task.dueTime,
+    reminder: graph.reminders[0]
+      ? {
+          enabled: true,
+          leadMinutes: graph.reminders[0].leadMinutes,
+          type: graph.reminders[0].type,
+          screenLock: false,
+        }
+      : DEFAULT_REMINDER,
+    repeat: repeat
+      ? {
+          preset: repeat.freq,
+          custom:
+            repeat.freq === 'custom'
+              ? {
+                  freq: repeat.freq,
+                  intervalN: repeat.intervalN,
+                  byWeekday: repeat.byWeekday ?? undefined,
+                  byMonthDay: repeat.byMonthDay ?? undefined,
+                  byMonth: repeat.byMonth ?? undefined,
+                }
+              : undefined,
+        }
+      : EMPTY_SCHEDULE.repeat,
+  };
+
+  return {
+    title: graph.task.title,
+    subtasks: graph.subtaskTitles,
+    categoryId: graph.task.categoryId,
+    schedule,
+  };
+}
+
 // Local optimistic patch applied on top of a Task while a write is in flight.
 type Patch = Partial<Pick<Task, 'status' | 'isPinned' | 'completedAt'>>;
 
 export default function TasksScreen() {
   const t = useTheme();
   const [composerOpen, setComposerOpen] = useState(false);
+  // Edit mode: when set, the composer prefills from `editingInitial` and
+  // submits route through updateTaskFull instead of createTaskFull.
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingInitial, setEditingInitial] = useState<ComposerInitial | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   // useTasks filter: categoryId undefined = "All" (no filter); a string id =
   // tasks in that category. We never pass null here (which would mean "no
@@ -211,7 +259,7 @@ export default function TasksScreen() {
       categoryId: string | null;
       schedule: ScheduleDraft;
     }) => {
-      const created = await tasksRepo.createTaskFull({
+      const payload: CreateTaskFullInput = {
         task: {
           title,
           categoryId,
@@ -221,21 +269,78 @@ export default function TasksScreen() {
         subtaskTitles: subtasks,
         reminders: remindersFromSchedule(schedule),
         repeatRule: repeatRuleFromSchedule(schedule),
-      });
+      };
+
+      let savedTask: Task;
+      if (editingTaskId) {
+        // Edit mode: replace the task graph in place. We also cancel any prior
+        // OS notifications because updateTaskFull soft-deletes the existing
+        // reminder rows; the new ones get armed below.
+        void scheduler.cancelForTask(editingTaskId);
+        savedTask = await tasksRepo.updateTaskFull(editingTaskId, payload);
+      } else {
+        savedTask = await tasksRepo.createTaskFull(payload);
+      }
+
       // Fire-and-forget — the user shouldn't wait on the OS to arm a
       // notification. Failures don't block the save.
-      if (schedule.reminder.enabled && schedule.dueAt !== null) {
+      if (schedule.reminder.enabled && savedTask.dueAt !== null) {
         void scheduler.scheduleForTask({
-          taskId: created.id,
-          taskTitle: created.title,
-          taskDueAt: created.dueAt,
-          taskDueTime: created.dueTime,
+          taskId: savedTask.id,
+          taskTitle: savedTask.title,
+          taskDueAt: savedTask.dueAt,
+          taskDueTime: savedTask.dueTime,
         });
       }
       await refresh();
     },
-    [refresh]
+    [editingTaskId, refresh]
   );
+
+  const handleOpenRow = useCallback(async (taskId: string) => {
+    const graph = await tasksRepo.getTaskGraph(taskId);
+    if (!graph) return;
+    setEditingTaskId(taskId);
+    setEditingInitial(initialFromGraph(graph));
+    setComposerOpen(true);
+  }, []);
+
+  const handleCloseComposer = useCallback(() => {
+    setComposerOpen(false);
+    // Defer clearing edit state by a tick so the close animation reads the
+    // same `initial` it was using when it opened — otherwise the title input
+    // briefly shows the create-mode placeholder during the slide-down.
+    setTimeout(() => {
+      setEditingTaskId(null);
+      setEditingInitial(null);
+    }, 250);
+  }, []);
+
+  const handleDelete = useCallback(() => {
+    if (!editingTaskId) return;
+    const id = editingTaskId;
+    Alert.alert(
+      'Delete task?',
+      'This will remove the task and its reminders. You can’t undo this yet.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            void scheduler.cancelForTask(id);
+            try {
+              await tasksRepo.softDeleteTask(id);
+              handleCloseComposer();
+              await refresh();
+            } catch {
+              // best-effort
+            }
+          },
+        },
+      ]
+    );
+  }, [editingTaskId, handleCloseComposer, refresh]);
 
   // FlatList renderers. Theme-driven separators between rows so we don't need
   // gaps in the row component itself.
@@ -251,10 +356,11 @@ export default function TasksScreen() {
           hasRepeat={repeatIds.has(item.id)}
           onToggleComplete={handleToggleComplete}
           onTogglePin={handleTogglePin}
+          onPress={handleOpenRow}
         />
       );
     },
-    [categoriesById, subtaskCounts, reminderIds, repeatIds, handleToggleComplete, handleTogglePin]
+    [categoriesById, subtaskCounts, reminderIds, repeatIds, handleToggleComplete, handleTogglePin, handleOpenRow]
   );
 
   const keyExtractor = useCallback((task: Task) => task.id, []);
@@ -338,15 +444,23 @@ export default function TasksScreen() {
       />
 
       <Fab
-        onPress={() => setComposerOpen(true)}
+        onPress={() => {
+          // Tapping the FAB always opens in CREATE mode — clear any leftover
+          // edit state from a previous open.
+          setEditingTaskId(null);
+          setEditingInitial(null);
+          setComposerOpen(true);
+        }}
         accessibilityLabel="Add task"
         hint="Opens the task composer"
       />
 
       <TaskComposer
         visible={composerOpen}
-        onClose={() => setComposerOpen(false)}
+        onClose={handleCloseComposer}
+        initial={editingInitial ?? undefined}
         onSubmit={handleSubmit}
+        onDelete={editingTaskId ? handleDelete : undefined}
       />
     </SafeAreaView>
   );

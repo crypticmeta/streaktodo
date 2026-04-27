@@ -18,6 +18,8 @@ export type TaskRowProps = {
   hasRepeat?: boolean;
   onToggleComplete: (taskId: string, nextStatus: 'done' | 'pending') => void;
   onTogglePin: (taskId: string, nextPinned: boolean) => void;
+  /** Tap on the row body (NOT the checkbox or pin) opens the editor. */
+  onPress?: (taskId: string) => void;
 };
 
 function TaskRowImpl({
@@ -28,6 +30,7 @@ function TaskRowImpl({
   hasRepeat,
   onToggleComplete,
   onTogglePin,
+  onPress,
 }: TaskRowProps) {
   const t = useTheme();
   const isDone = task.status === 'done';
@@ -73,8 +76,16 @@ function TaskRowImpl({
         {isDone ? <Icon name="check" size={14} color={t.color.textOnAccent} /> : null}
       </Pressable>
 
-      {/* Body: title + meta */}
-      <View style={styles.body}>
+      {/* Body: title + meta. Tappable when onPress is supplied — opens the editor. */}
+      <Pressable
+        onPress={onPress ? () => onPress(task.id) : undefined}
+        // Disable the press visual when there's no editor wired so the row
+        // still looks the same on screens that don't pass onPress.
+        disabled={!onPress}
+        style={styles.body}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? `Edit ${task.title}` : undefined}
+      >
         <Text
           numberOfLines={3}
           style={{
@@ -96,7 +107,7 @@ function TaskRowImpl({
           hasRepeat={hasRepeat}
           overdue={overdue}
         />
-      </View>
+      </Pressable>
 
       {/* Pin action — star glyph; outlined when unpinned, filled when pinned. */}
       <Pressable

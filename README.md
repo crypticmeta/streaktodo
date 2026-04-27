@@ -94,12 +94,12 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 
 ### Phase 8: task details and editing
 
-- [ ] Add edit flow for existing tasks
-- [ ] Add task detail screen or expanded editor
-- [ ] Edit title, category, due date, time, reminder, repeat, and subtasks
-- [ ] Delete task flow
-- [ ] Duplicate task flow
-- [ ] Preserve completed-task history
+- [x] Add edit flow for existing tasks — tap a row's body opens the composer in edit mode (`tasksRepo.getTaskGraph` + `ComposerInitial`)
+- [x] ~~Add task detail screen or expanded editor~~ — collapsed into the composer's edit mode for V0 (one canvas for create + edit)
+- [x] Edit title, category, due date, time, reminder, repeat, and subtasks — all flow through `tasksRepo.updateTaskFull` (single transaction, replaces child rows)
+- [x] Delete task flow — trash icon in the composer's action row (edit mode only) with `Alert.alert` confirm; cancels reminders + soft-deletes
+- [ ] Duplicate task flow — deferred until there's a long-press menu on rows
+- [ ] Preserve completed-task history — already preserved (soft-delete + completed_at); a "Show done" toggle on the home is the missing UI
 
 ### Phase 9: calendar and views
 
