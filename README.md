@@ -136,18 +136,18 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 
 ### Phase 10: profile and settings
 
-- [ ] Build Profile tab as a dashboard surface
-- [ ] Add account state, sign-in status, streak summary, and sign-out
-- [ ] Add upgrade banner equivalent is intentionally out of scope for now
-- [ ] Add task overview summary cards
-- [ ] Add weekly completion chart
-- [ ] Add next 7 days summary block
-- [ ] Add category breakdown chart
-- [ ] Add notification settings summary
-- [ ] Add category management screen
-- [ ] Add theme/settings scaffold
+- [x] Build Profile tab as a dashboard surface — see [`app/(tabs)/profile.tsx`](./app/(tabs)/profile.tsx)
+- [x] Add account state, sign-in status, streak summary, and sign-out — user bar at top, `StreakCounter`, sign-out button at bottom
+- [x] ~~Add upgrade banner equivalent~~ — intentionally out of scope; product is fully free
+- [x] Add weekly completion chart — `BarChart` (Phase 10 design spec) using `computeWeeklyCompletion`
+- [x] Add category breakdown chart — `DonutChart` (SVG via `react-native-svg`) using `computeCategoryBreakdown`
 - [x] Migrate `SignInScreen` and `NotificationsScreen` off the deprecated `colors` shim onto `useTheme()` — both screens now follow light/dark via the theme provider
 - [x] Delete `src/theme/colors.ts` shim — done
+- [ ] Add task overview summary cards (totals — total / done / pending / overdue) — could fit alongside the streak counter
+- [ ] Add next 7 days summary block — distinct from the bar chart; would show upcoming due-counts
+- [ ] Add notification settings summary — relocate the existing test surface here as a dev-only block
+- [ ] Add category management screen (rename / recolor / delete)
+- [ ] Add theme/settings scaffold (force-light / force-dark / system toggle, stored in `expo-secure-store`)
 - [ ] Add data export/import placeholder if needed later
 
 ### Phase 11: premium groundwork
