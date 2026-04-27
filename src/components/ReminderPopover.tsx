@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import type { ReminderType } from '../db';
+import * as scheduler from '../lib/notificationScheduler';
 import { isPremiumFeatureEnabled, shouldShowPremiumBadge } from '../lib/premium';
 import { useTheme } from '../theme';
 import {
@@ -120,6 +121,17 @@ function InlineSelect<T extends string | number>({
 export function ReminderPopover({ visible, initial, onCancel, onConfirm }: ReminderPopoverProps) {
   const t = useTheme();
   const [draft, setDraft] = useState<ReminderDraft>(initial);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+
+  // When the user flips the reminder ON, ask for permission. We don't block
+  // saving the draft if denied — the row still persists, the scheduler just
+  // won't arm anything until the user grants permission later.
+  const handleToggle = async (enabled: boolean) => {
+    setDraft((d) => ({ ...d, enabled }));
+    if (!enabled) return;
+    const result = await scheduler.ensurePermission();
+    setPermissionDenied(result === 'denied');
+  };
 
   return (
     <Modal
@@ -163,11 +175,29 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
             </Text>
             <Switch
               value={draft.enabled}
-              onValueChange={(enabled) => setDraft((d) => ({ ...d, enabled }))}
+              onValueChange={handleToggle}
               trackColor={{ true: t.color.accent, false: t.color.border }}
               thumbColor={t.color.surface}
             />
           </View>
+
+          {permissionDenied && draft.enabled ? (
+            <View
+              style={{
+                marginTop: t.spacing.md,
+                padding: t.spacing.md,
+                borderRadius: t.radius.md,
+                backgroundColor: t.color.warnSoft,
+              }}
+            >
+              <Text style={{ color: t.color.textPrimary, fontSize: t.fontSize.sm, fontWeight: t.fontWeight.semibold }}>
+                Notifications are off
+              </Text>
+              <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.xs, marginTop: 4, lineHeight: 18 }}>
+                Your task will save, but no reminder will fire until you allow notifications in system settings.
+              </Text>
+            </View>
+          ) : null}
 
           {draft.enabled ? (
             <View style={{ gap: t.spacing.md, marginTop: t.spacing.lg }}>

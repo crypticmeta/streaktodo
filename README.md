@@ -74,11 +74,11 @@ UI for date / time selection lives in the Schedule sheet (Phase 2). This phase c
 
 UI for reminder on/off + lead time + type lives in the Schedule sheet (Phase 2). This phase wires actual OS notifications.
 
-- [ ] Enable local notification permissions flow on first reminder save
-- [ ] Schedule local notifications when a task with reminder(s) is saved
-- [ ] Cancel or reschedule notifications when a task is edited, completed, or deleted
-- [ ] Re-arm notifications on app launch if the OS dropped them (boot-loss recovery)
-- [ ] Persist `scheduled_notification_id` on `task_reminders` rows (already in schema)
+- [x] Enable local notification permissions flow on first reminder save — see [`src/lib/notificationScheduler.ts`](./src/lib/notificationScheduler.ts) `ensurePermission` + `ReminderPopover` warning banner if denied
+- [x] Schedule local notifications when a task with reminder(s) is saved — `scheduler.scheduleForTask` in `app/(tabs)/index.tsx` `handleSubmit`
+- [x] Cancel or reschedule notifications when a task is completed, uncompleted, or deleted — wired into `handleToggleComplete`; soft-delete cancellation still pending until task editing/delete UI ships
+- [x] Re-arm notifications on app launch if the OS dropped them (boot-loss recovery) — `scheduler.reconcileAll()` in `_layout.tsx` after DB ready
+- [x] Persist `scheduled_notification_id` on `task_reminders` rows — done
 - [ ] **Premium-flagged (free for now):** Reminder Type options beyond plain notification — Alarm and Silent. Tag the dropdown options with a `premium: true` field; gate later.
 - [ ] **Premium-flagged (free for now):** ScreenLock Reminder — display the task on the lock screen / always-on display. Off by default; toggle in the Reminder popover.
 

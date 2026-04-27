@@ -97,3 +97,51 @@ export async function taskIdsWithReminders(taskIds: string[]): Promise<Set<strin
   );
   return new Set(rows.map((r) => r.task_id));
 }
+
+// All active reminder rows across all (non-deleted, non-done) tasks. Used by
+// the scheduler's boot-reconcile pass to figure out what should be armed.
+// Joined so we get the task's dueAt + dueTime alongside each reminder.
+export async function listAllActiveRemindersWithTask(): Promise<
+  Array<{
+    reminderId: string;
+    taskId: string;
+    leadMinutes: number;
+    scheduledNotificationId: string | null;
+    taskTitle: string;
+    taskDueAt: number | null;
+    taskDueTime: number | null;
+  }>
+> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{
+    reminder_id: string;
+    task_id: string;
+    lead_minutes: number;
+    scheduled_notification_id: string | null;
+    title: string;
+    due_at: number | null;
+    due_time: number | null;
+  }>(
+    `SELECT r.id          AS reminder_id,
+            r.task_id     AS task_id,
+            r.lead_minutes AS lead_minutes,
+            r.scheduled_notification_id AS scheduled_notification_id,
+            t.title       AS title,
+            t.due_at      AS due_at,
+            t.due_time    AS due_time
+       FROM task_reminders r
+       JOIN tasks t ON t.id = r.task_id
+      WHERE r.deleted_at IS NULL
+        AND t.deleted_at IS NULL
+        AND t.status = 'pending'`
+  );
+  return rows.map((r) => ({
+    reminderId: r.reminder_id,
+    taskId: r.task_id,
+    leadMinutes: r.lead_minutes,
+    scheduledNotificationId: r.scheduled_notification_id,
+    taskTitle: r.title,
+    taskDueAt: r.due_at,
+    taskDueTime: r.due_time,
+  }));
+}

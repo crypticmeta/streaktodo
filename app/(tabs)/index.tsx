@@ -16,6 +16,7 @@ import {
   type Task,
 } from '../../src/db';
 import type { CreateTaskFullInput } from '../../src/db/repos/tasks';
+import * as scheduler from '../../src/lib/notificationScheduler';
 import { groupTasksIntoSections } from '../../src/lib/taskGrouping';
 import { useTheme } from '../../src/theme';
 
@@ -139,8 +140,23 @@ export default function TasksScreen() {
       });
       (async () => {
         try {
-          if (nextStatus === 'done') await tasksRepo.completeTask(id);
-          else await tasksRepo.uncompleteTask(id);
+          if (nextStatus === 'done') {
+            await tasksRepo.completeTask(id);
+            // Completed tasks shouldn't keep buzzing the phone.
+            void scheduler.cancelForTask(id);
+          } else {
+            await tasksRepo.uncompleteTask(id);
+            // Re-arm in case the user un-checks an old completion.
+            const t = await tasksRepo.getTaskById(id);
+            if (t && t.dueAt !== null) {
+              void scheduler.scheduleForTask({
+                taskId: t.id,
+                taskTitle: t.title,
+                taskDueAt: t.dueAt,
+                taskDueTime: t.dueTime,
+              });
+            }
+          }
           await refresh();
           setPatch(id, null);
         } catch {
@@ -179,7 +195,7 @@ export default function TasksScreen() {
       categoryId: string | null;
       schedule: ScheduleDraft;
     }) => {
-      await tasksRepo.createTaskFull({
+      const created = await tasksRepo.createTaskFull({
         task: {
           title,
           categoryId,
@@ -190,6 +206,16 @@ export default function TasksScreen() {
         reminders: remindersFromSchedule(schedule),
         repeatRule: repeatRuleFromSchedule(schedule),
       });
+      // Fire-and-forget — the user shouldn't wait on the OS to arm a
+      // notification. Failures don't block the save.
+      if (schedule.reminder.enabled && schedule.dueAt !== null) {
+        void scheduler.scheduleForTask({
+          taskId: created.id,
+          taskTitle: created.title,
+          taskDueAt: created.dueAt,
+          taskDueTime: created.dueTime,
+        });
+      }
       await refresh();
     },
     [refresh]

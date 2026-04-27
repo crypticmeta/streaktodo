@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../src/lib/auth';
 import { getDb } from '../src/db';
+import * as scheduler from '../src/lib/notificationScheduler';
 import { ThemeProvider, useTheme } from '../src/theme';
 
 type DbState = { status: 'loading' } | { status: 'ready' } | { status: 'error'; message: string };
@@ -18,6 +19,10 @@ function useDbBootstrap(): DbState {
       try {
         await getDb();
         if (!cancelled) setState({ status: 'ready' });
+        // Re-arm any reminders that the OS may have dropped (reboot,
+        // force-quit, OEM battery killer). Best-effort; failures don't
+        // block the app boot.
+        void scheduler.reconcileAll();
       } catch (err) {
         if (cancelled) return;
         setState({
