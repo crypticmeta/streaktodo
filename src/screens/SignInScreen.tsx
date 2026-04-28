@@ -5,7 +5,7 @@ import { useTheme } from '../theme';
 
 export function SignInScreen() {
   const t = useTheme();
-  const { state, signIn } = useAuth();
+  const { state, signIn, continueAsGuest } = useAuth();
 
   const isLoading = state.status === 'loading';
   const isUnsupported = state.status === 'unsupported';
@@ -56,7 +56,9 @@ export function SignInScreen() {
               marginTop: t.spacing.sm,
             }}
           >
-            Sign in to plan content, schedule tasks, and keep a streak.
+            Plan tasks, schedule reminders, and keep a streak. Sign in to
+            label your data with your Google account, or continue without
+            an account — the app is fully usable either way.
           </Text>
 
           {isUnsupported ? (
@@ -146,6 +148,42 @@ export function SignInScreen() {
             {isLoading ? 'Restoring session…' : 'Uses your Google account'}
           </Text>
         </Pressable>
+
+        {/* Guest mode: skip Google Sign-In and use the app locally. Available
+            even on unsupported runtimes (Expo Go, missing client ID) so the
+            app is at least demo-able. Disabled only while we're still
+            restoring an existing session. */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            {
+              borderRadius: t.radius['2xl'],
+              paddingHorizontal: t.spacing.lg,
+              paddingVertical: t.spacing.md,
+              borderColor: t.color.border,
+            },
+            isLoading && styles.buttonDisabled,
+            pressed && styles.buttonPressed,
+          ]}
+          onPress={() => {
+            void continueAsGuest();
+          }}
+          disabled={isLoading}
+          accessibilityRole="button"
+          accessibilityLabel="Continue without signing in"
+          accessibilityHint="Use the app without a Google account; data stays on this device"
+        >
+          <Text
+            style={{
+              color: t.color.textPrimary,
+              fontSize: t.fontSize.md,
+              fontWeight: t.fontWeight.semibold,
+              textAlign: 'center',
+            }}
+          >
+            Continue without signing in
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -171,6 +209,10 @@ const styles = StyleSheet.create({
   },
   button: {
     alignItems: 'flex-start',
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    backgroundColor: 'transparent',
   },
   buttonDisabled: {
     opacity: 0.45,

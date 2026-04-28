@@ -32,12 +32,23 @@ type AuthState =
   | { status: 'loading' }
   | { status: 'unsupported'; reason: string }
   | { status: 'signed-out'; error: string | null }
+  // Guest mode: the user explicitly chose "Continue without signing in" on
+  // the sign-in screen. The app is fully usable (it's local-first), but no
+  // Google profile is attached and analytics events run against an
+  // anonymous Mixpanel distinct_id. Mainly exists so Play Store reviewers
+  // (who can't sign into a third-party Google account) can review every
+  // screen of the app.
+  | { status: 'guest' }
   | { status: 'signed-in'; user: AuthUser; idToken: string | null };
+
+const GUEST_PREF_KEY = 'auth_guest_v1';
 
 type AuthContextValue = {
   state: AuthState;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Skip Google Sign-In and use the app as an anonymous local-only user. */
+  continueAsGuest: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -101,14 +112,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
       } catch {
-        // No saved credential — fall through to signed-out.
+        // No saved credential — fall through to guest-or-signed-out.
+      }
+
+      // No Google session, but check if the user previously opted into
+      // guest mode — if so, restore that instead of bouncing them back to
+      // the sign-in screen on every launch.
+      try {
+        const guest = await SecureStore.getItemAsync(GUEST_PREF_KEY);
+        if (guest === 'true') {
+          setState({ status: 'guest' });
+          return;
+        }
+      } catch {
+        // SecureStore unavailable; fall through.
       }
       setState({ status: 'signed-out', error: null });
     })();
   }, []);
 
   const signIn = useCallback(async () => {
-    if (state.status !== 'signed-out' && state.status !== 'signed-in') return;
+    // Allow sign-in from signed-out (the obvious path), signed-in (a no-op
+    // re-sign), or guest (the upgrade path: guest → identified user).
+    if (
+      state.status !== 'signed-out' &&
+      state.status !== 'signed-in' &&
+      state.status !== 'guest'
+    ) {
+      return;
+    }
     try {
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -127,6 +159,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (result.data.idToken) {
         await SecureStore.setItemAsync(ID_TOKEN_KEY, result.data.idToken);
       }
+      // Signing in supersedes any previous guest preference.
+      await SecureStore.deleteItemAsync(GUEST_PREF_KEY).catch(() => {});
       void analytics.identify(authUser);
       void analytics.track('app_opened', { source: 'sign_in' });
     } catch (err: unknown) {
@@ -155,11 +189,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ignore
     }
     await SecureStore.deleteItemAsync(ID_TOKEN_KEY);
+    // Sign-out drops the user back to the sign-in screen, NOT to guest. The
+    // user explicitly asked to leave; respect that and let them re-pick.
+    await SecureStore.deleteItemAsync(GUEST_PREF_KEY).catch(() => {});
     void analytics.reset();
     setState({ status: 'signed-out', error: null });
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => ({ state, signIn, signOut }), [state, signIn, signOut]);
+  const continueAsGuest = useCallback(async () => {
+    // Persist the choice so cold starts skip the sign-in screen. This
+    // matches the silent-restore path: signed-in users skip sign-in via a
+    // valid Google session, guest users skip via this flag.
+    await SecureStore.setItemAsync(GUEST_PREF_KEY, 'true').catch(() => {});
+    setState({ status: 'guest' });
+    void analytics.track('app_opened', { source: 'guest' });
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ state, signIn, signOut, continueAsGuest }),
+    [state, signIn, signOut, continueAsGuest]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -60,13 +60,18 @@ function AppGate() {
 
     const inAuthGroup = segments[0] === 'sign-in';
     const inOnboarding = segments[0] === 'onboarding';
-    const isSignedIn = authState.status === 'signed-in';
+    // Both signed-in and guest are "let through" — the app is local-first
+    // and fully usable in either mode. Guest mode exists so Play Store
+    // reviewers (and privacy-conscious users) can use the app without a
+    // Google account.
+    const isAuthenticated =
+      authState.status === 'signed-in' || authState.status === 'guest';
 
     // Routing precedence:
-    //   1. Not signed in → /sign-in
-    //   2. Signed in but onboarding pending → /onboarding
-    //   3. Signed in + onboarded → /(tabs)
-    if (!isSignedIn) {
+    //   1. Not authenticated → /sign-in
+    //   2. Authenticated but onboarding pending → /onboarding
+    //   3. Authenticated + onboarded → /(tabs)
+    if (!isAuthenticated) {
       if (!inAuthGroup) router.replace('/sign-in');
       return;
     }

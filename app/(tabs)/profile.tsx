@@ -392,31 +392,65 @@ export default function ProfileScreen() {
           <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>›</Text>
         </Pressable>
 
-        <Pressable
-          onPress={signOut}
-          style={({ pressed }) => [
-            styles.signOut,
-            {
-              backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
-              borderRadius: t.radius.xl,
-              padding: t.spacing.lg,
-              marginTop: t.spacing.md,
-            },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-        >
-          <Text
-            style={{
-              color: t.color.danger,
-              fontSize: t.fontSize.md,
-              fontWeight: t.fontWeight.semibold,
-              textAlign: 'center',
-            }}
+        {/* Sign-out is only meaningful for signed-in users. Guests upgrade
+            instead — they're shown a "Sign in" entry that routes back to
+            the sign-in screen, where the same Google button lives. The
+            Sign-In screen already handles the guest → signed-in upgrade
+            inside `signIn` so guest preference is cleared automatically. */}
+        {state.status === 'signed-in' ? (
+          <Pressable
+            onPress={signOut}
+            style={({ pressed }) => [
+              styles.signOut,
+              {
+                backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
+                borderRadius: t.radius.xl,
+                padding: t.spacing.lg,
+                marginTop: t.spacing.md,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
           >
-            Sign out
-          </Text>
-        </Pressable>
+            <Text
+              style={{
+                color: t.color.danger,
+                fontSize: t.fontSize.md,
+                fontWeight: t.fontWeight.semibold,
+                textAlign: 'center',
+              }}
+            >
+              Sign out
+            </Text>
+          </Pressable>
+        ) : state.status === 'guest' ? (
+          <Pressable
+            onPress={signOut}
+            style={({ pressed }) => [
+              styles.signOut,
+              {
+                backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
+                borderRadius: t.radius.xl,
+                padding: t.spacing.lg,
+                marginTop: t.spacing.md,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in to your account"
+            accessibilityHint="Returns to the sign-in screen so you can attach a Google account"
+          >
+            <Text
+              style={{
+                color: t.color.accent,
+                fontSize: t.fontSize.md,
+                fontWeight: t.fontWeight.semibold,
+                textAlign: 'center',
+              }}
+            >
+              Sign in to your account
+            </Text>
+          </Pressable>
+        ) : null}
 
         <Text
           style={{
