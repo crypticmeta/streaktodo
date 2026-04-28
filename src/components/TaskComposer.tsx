@@ -521,26 +521,6 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
               <Icon name="subtask" size={20} color={t.color.textSecondary} />
             </Pressable>
 
-            {/* Templates placeholder — premium-flagged, stub for Phase 11 */}
-            <Pressable
-              onPress={() => {
-                /* templates land in Phase 11 */
-              }}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Templates (coming soon)"
-              style={({ pressed }) => [
-                styles.iconButton,
-                {
-                  backgroundColor: pressed ? t.color.surfaceMuted : 'transparent',
-                  borderRadius: t.radius.md,
-                  opacity: 0.45,
-                },
-              ]}
-            >
-              <Icon name="template" size={20} color={t.color.textMuted} />
-            </Pressable>
-
             <View style={{ flex: 1 }} />
 
             {/* Delete (edit mode only). Lives next to the send button so the

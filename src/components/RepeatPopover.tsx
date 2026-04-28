@@ -4,7 +4,6 @@ import {
   MONTH_SHORT,
   WEEKDAY_LONG,
 } from '../lib/date';
-import { isPremiumFeatureEnabled, shouldShowPremiumBadge } from '../lib/premium';
 import { useTheme } from '../theme';
 import type { RepeatDraft, RepeatPreset } from './scheduleTypes';
 
@@ -20,8 +19,6 @@ type RepeatPopoverProps = {
 type PresetOption = {
   preset: RepeatPreset;
   label: string;
-  /** When set, the option is disabled (premium gate). */
-  premiumKey?: 'repeat_custom';
 };
 
 function buildOptions(anchorDate: number | null): PresetOption[] {
@@ -36,7 +33,6 @@ function buildOptions(anchorDate: number | null): PresetOption[] {
     { preset: 'weekly',  label: weekday   ? `Every week on ${weekday}`        : 'Every week' },
     { preset: 'monthly', label: dayOfMonth ? `Every month on the ${dayOfMonth}` : 'Every month' },
     { preset: 'yearly',  label: monthDay  ? `Every year on ${monthDay}`        : 'Every year' },
-    { preset: 'custom',  label: 'Custom', premiumKey: 'repeat_custom' },
   ];
 }
 
@@ -51,19 +47,6 @@ export function RepeatPopover({
   const options = buildOptions(anchorDate);
 
   const choose = (preset: RepeatPreset) => {
-    if (preset === 'custom') {
-      // Custom rules need an editor we haven't built yet — Phase 7 (recurrence
-      // engine) is when we'll add the inline editor and full rrule semantics.
-      // For now, accept the preset with a sane default rule and let the user
-      // refine it later via task editing (Phase 8).
-      const next: RepeatDraft = {
-        preset: 'custom',
-        custom: { freq: 'weekly', intervalN: 1 },
-      };
-      onSelect(next);
-      onClose();
-      return;
-    }
     onSelect({ preset });
     onClose();
   };
@@ -96,19 +79,17 @@ export function RepeatPopover({
         >
           {options.map((opt) => {
             const selected = opt.preset === current.preset;
-            const showCrown = opt.premiumKey ? shouldShowPremiumBadge(opt.premiumKey) : false;
-            const enabled = opt.premiumKey ? isPremiumFeatureEnabled(opt.premiumKey) : true;
             return (
               <Pressable
                 key={opt.preset}
-                onPress={() => enabled && choose(opt.preset)}
+                onPress={() => choose(opt.preset)}
                 hitSlop={4}
                 style={({ pressed }) => [
                   styles.row,
                   pressed && { backgroundColor: t.color.surfaceMuted },
                 ]}
                 accessibilityRole="button"
-                accessibilityState={{ selected, disabled: !enabled }}
+                accessibilityState={{ selected }}
               >
                 <Text
                   style={{
@@ -116,14 +97,10 @@ export function RepeatPopover({
                     color: selected ? t.color.accent : t.color.textPrimary,
                     fontSize: t.fontSize.md,
                     fontWeight: selected ? t.fontWeight.semibold : t.fontWeight.regular,
-                    opacity: enabled ? 1 : 0.4,
                   }}
                 >
                   {opt.label}
                 </Text>
-                {showCrown ? (
-                  <Text style={{ color: t.color.warn, fontSize: t.fontSize.sm, marginLeft: 6 }}>👑</Text>
-                ) : null}
               </Pressable>
             );
           })}

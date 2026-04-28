@@ -432,11 +432,12 @@ export async function updateTaskFull(
     }
 
     // Replace repeat rule (one-or-zero per task).
-    await db.runAsync(
-      `UPDATE task_repeat_rules SET deleted_at = ?, updated_at = ?
-        WHERE task_id = ? AND deleted_at IS NULL`,
-      [ts, ts, sourceTaskId]
-    );
+    // Unlike subtasks/reminders, this table enforces UNIQUE(task_id) at the
+    // table level. Soft-deleting the existing row is not enough because the
+    // unique constraint still sees the old task_id value. Until repeat rules
+    // get sync metadata that can coexist with a partial unique index, we
+    // physically replace the row here.
+    await db.runAsync(`DELETE FROM task_repeat_rules WHERE task_id = ?`, [sourceTaskId]);
     if (input.repeatRule) {
       const rr = input.repeatRule;
       await db.runAsync(

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import type { ReminderType } from '../db';
 import * as scheduler from '../lib/notificationScheduler';
-import { isPremiumFeatureEnabled, shouldShowPremiumBadge } from '../lib/premium';
 import { useTheme } from '../theme';
 import {
   REMINDER_LEAD_OPTIONS,
@@ -19,11 +18,8 @@ type ReminderPopoverProps = {
 const REMINDER_TYPE_OPTIONS: ReadonlyArray<{
   value: ReminderType;
   label: string;
-  premiumKey?: 'reminder_alarm_type' | 'reminder_silent_type';
 }> = [
   { value: 'notification', label: 'Notification' },
-  { value: 'silent',       label: 'Silent',     premiumKey: 'reminder_silent_type' },
-  { value: 'alarm',        label: 'Alarm',      premiumKey: 'reminder_alarm_type' },
 ];
 
 // Small in-place dropdown — renders the current value with a chevron, and on
@@ -34,13 +30,11 @@ function InlineSelect<T extends string | number>({
   value,
   options,
   onChange,
-  premiumBadge,
 }: {
   label: string;
   value: T;
-  options: ReadonlyArray<{ value: T; label: string; premiumKey?: 'reminder_alarm_type' | 'reminder_silent_type' }>;
+  options: ReadonlyArray<{ value: T; label: string }>;
   onChange: (next: T) => void;
-  premiumBadge?: boolean;
 }) {
   const t = useTheme();
   const [open, setOpen] = useState(false);
@@ -52,9 +46,6 @@ function InlineSelect<T extends string | number>({
         <Text style={{ color: t.color.textPrimary, fontSize: t.fontSize.md, fontWeight: t.fontWeight.semibold }}>
           {label}
         </Text>
-        {premiumBadge ? (
-          <Text style={{ color: t.color.warn, marginLeft: 6, fontSize: t.fontSize.md }}>👑</Text>
-        ) : null}
       </View>
       <View style={{ alignItems: 'flex-end', flex: 1 }}>
         <Pressable
@@ -78,13 +69,10 @@ function InlineSelect<T extends string | number>({
             ]}
           >
             {options.map((opt) => {
-              const showCrown = opt.premiumKey ? shouldShowPremiumBadge(opt.premiumKey) : false;
-              const enabled = opt.premiumKey ? isPremiumFeatureEnabled(opt.premiumKey) : true;
               return (
                 <Pressable
                   key={String(opt.value)}
                   onPress={() => {
-                    if (!enabled) return;
                     onChange(opt.value);
                     setOpen(false);
                   }}
@@ -93,21 +81,17 @@ function InlineSelect<T extends string | number>({
                     pressed && { backgroundColor: t.color.surfaceMuted },
                   ]}
                   accessibilityRole="button"
-                  accessibilityState={{ selected: opt.value === value, disabled: !enabled }}
+                  accessibilityState={{ selected: opt.value === value }}
                 >
                   <Text
                     style={{
                       color: opt.value === value ? t.color.accent : t.color.textPrimary,
                       fontWeight: opt.value === value ? t.fontWeight.semibold : t.fontWeight.regular,
-                      opacity: enabled ? 1 : 0.4,
                       fontSize: t.fontSize.md,
                     }}
                   >
                     {opt.label}
                   </Text>
-                  {showCrown ? (
-                    <Text style={{ color: t.color.warn, marginLeft: 6, fontSize: t.fontSize.sm }}>👑</Text>
-                  ) : null}
                 </Pressable>
               );
             })}
@@ -214,32 +198,6 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
                 options={REMINDER_TYPE_OPTIONS}
                 onChange={(type) => setDraft((d) => ({ ...d, type }))}
               />
-
-              <View style={styles.selectRow}>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.selectLabelWrap}>
-                    <Text style={{ color: t.color.textPrimary, fontSize: t.fontSize.md, fontWeight: t.fontWeight.semibold }}>
-                      ScreenLock Reminder
-                    </Text>
-                    {shouldShowPremiumBadge('reminder_screenlock') ? (
-                      <Text style={{ color: t.color.warn, marginLeft: 6, fontSize: t.fontSize.md }}>👑</Text>
-                    ) : null}
-                  </View>
-                  <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, marginTop: 2 }}>
-                    Show task reminder on phone unlock screen
-                  </Text>
-                </View>
-                <Switch
-                  value={draft.screenLock}
-                  onValueChange={(screenLock) =>
-                    isPremiumFeatureEnabled('reminder_screenlock')
-                      ? setDraft((d) => ({ ...d, screenLock }))
-                      : undefined
-                  }
-                  trackColor={{ true: t.color.accent, false: t.color.border }}
-                  thumbColor={t.color.surface}
-                />
-              </View>
             </View>
           ) : null}
 
@@ -315,4 +273,3 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
 });
-

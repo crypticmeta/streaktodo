@@ -97,6 +97,7 @@ UI for reminder on/off + lead time + type lives in the Schedule sheet (Phase 2).
 - [x] Persist `scheduled_notification_id` on `task_reminders` rows — done
 - [ ] Optional reminder types beyond plain notification — Alarm and Silent
 - [ ] ScreenLock reminder option — display the task on the lock screen / always-on display
+- [x] Hide unimplemented reminder UI from the current product surface
 
 ### Phase 7: recurrence (runtime engine)
 
@@ -107,6 +108,7 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [x] Show repeat status in task metadata — `🔁` indicator already wired in `TaskRow` via `taskIdsWithRepeat`
 - [x] Respect `until_at` — `nextOccurrence` returns `null` once exceeded, spawn becomes a no-op
 - [x] Custom repeat rule scaffolding — V0 maps `freq: 'custom'` onto the weekly path; full RRULE support deferred to a later pass
+- [x] Hide unimplemented custom-repeat UI from the current product surface
 
 ### Phase 8: task details and editing
 
@@ -119,6 +121,7 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [ ] Add richer edit/details presentation inspired by `update_screen.jpeg` — top category chip, cleaner summary rows, and overflow actions
 - [ ] Add notes editing
 - [ ] Attachment support intentionally deferred out of scope
+- [x] Hide unimplemented templates / attachment-related UI from the current product surface
 
 ### Phase 9: calendar and views
 
@@ -155,6 +158,10 @@ Current product direction is fully free.
 
 - [x] Keep the shipped product fully free
 - [ ] Revisit monetization only if the core product is strong and there is a clear reason to change scope
+- [ ] Re-introduce premium-flagged UI only when the underlying features actually exist
+- [ ] Re-introduce templates UI when task templates are implemented
+- [ ] Re-introduce custom repeat UI when the custom repeat editor exists
+- [ ] Re-introduce advanced reminder UI when silent/alarm/screen-lock reminders actually work
 
 ### Phase 12: polish and release readiness
 

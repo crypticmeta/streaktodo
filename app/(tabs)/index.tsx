@@ -13,6 +13,7 @@ import {
   useCategories,
   useDbVersion,
   useTasks,
+  type Subtask,
   type Task,
 } from '../../src/db';
 import * as analytics from '../../src/lib/analytics';
@@ -39,6 +40,7 @@ export default function TasksScreen() {
   const [subtaskCounts, setSubtaskCounts] = useState<
     Record<string, { total: number; done: number }>
   >({});
+  const [subtasksByTask, setSubtasksByTask] = useState<Record<string, Subtask[]>>({});
   const [reminderIds, setReminderIds] = useState<Set<string>>(() => new Set());
   const [repeatIds, setRepeatIds] = useState<Set<string>>(() => new Set());
   const [optimistic, setOptimistic] = useState<Record<string, Patch>>({});
@@ -57,13 +59,15 @@ export default function TasksScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [counts, reminders, repeats] = await Promise.all([
+      const [counts, subtasks, reminders, repeats] = await Promise.all([
         subtasksRepo.countsByTaskIds(taskIds),
+        subtasksRepo.listSubtasksByTaskIds(taskIds),
         remindersRepo.taskIdsWithReminders(taskIds),
         repeatRulesRepo.taskIdsWithRepeat(taskIds),
       ]);
       if (cancelled) return;
       setSubtaskCounts(counts);
+      setSubtasksByTask(subtasks);
       setReminderIds(reminders);
       setRepeatIds(repeats);
     })();
@@ -81,6 +85,12 @@ export default function TasksScreen() {
       return p ? { ...task, ...p } : task;
     });
   }, [tasks, optimistic]);
+
+  const tasksById = useMemo(() => {
+    const out = new Map<string, Task>();
+    for (const task of visibleTasks) out.set(task.id, task);
+    return out;
+  }, [visibleTasks]);
 
   // Bucket into Previous / Today / Upcoming / No Date for SectionList.
   const sections = useMemo(() => groupTasksIntoSections(visibleTasks), [visibleTasks]);
@@ -166,6 +176,85 @@ export default function TasksScreen() {
     [setPatch]
   );
 
+  const handleToggleSubtaskComplete = useCallback(
+    (subtaskId: string, nextStatus: 'done' | 'pending') => {
+      void (async () => {
+        let parentTaskId: string | null = null;
+        let total = 0;
+        let nextDoneCount = 0;
+
+        for (const [taskId, subtasks] of Object.entries(subtasksByTask)) {
+          const found = subtasks.find((subtask) => subtask.id === subtaskId);
+          if (!found) continue;
+          parentTaskId = taskId;
+          total = subtasks.length;
+          nextDoneCount = subtasks.reduce((count, subtask) => {
+            if (subtask.id === subtaskId) {
+              return count + (nextStatus === 'done' ? 1 : 0);
+            }
+            return count + (subtask.status === 'done' ? 1 : 0);
+          }, 0);
+          break;
+        }
+
+        await subtasksRepo.updateSubtask(subtaskId, { status: nextStatus });
+
+        if (!parentTaskId || total === 0) return;
+        const parent = tasksById.get(parentTaskId);
+        if (!parent) return;
+
+        if (nextDoneCount === total && parent.status !== 'done') {
+          setPatch(parentTaskId, {
+            status: 'done',
+            completedAt: Date.now(),
+          });
+          try {
+            await tasksRepo.completeTask(parentTaskId);
+            void analytics.track('task_completed');
+            void scheduler.cancelForTask(parentTaskId);
+            try {
+              const spawned = await tasksRepo.spawnNextOccurrence(parentTaskId);
+              if (spawned && spawned.dueAt !== null) {
+                void scheduler.scheduleForTask({
+                  taskId: spawned.id,
+                  taskTitle: spawned.title,
+                  taskDueAt: spawned.dueAt,
+                  taskDueTime: spawned.dueTime,
+                });
+              }
+            } catch {
+              // best-effort
+            }
+            setPatch(parentTaskId, null);
+          } catch {
+            setPatch(parentTaskId, null);
+          }
+        } else if (nextDoneCount < total && parent.status === 'done') {
+          setPatch(parentTaskId, {
+            status: 'pending',
+            completedAt: null,
+          });
+          try {
+            await tasksRepo.uncompleteTask(parentTaskId);
+            void analytics.track('task_uncompleted');
+            if (parent.dueAt !== null) {
+              void scheduler.scheduleForTask({
+                taskId: parent.id,
+                taskTitle: parent.title,
+                taskDueAt: parent.dueAt,
+                taskDueTime: parent.dueTime,
+              });
+            }
+            setPatch(parentTaskId, null);
+          } catch {
+            setPatch(parentTaskId, null);
+          }
+        }
+      })();
+    },
+    [subtasksByTask, tasksById, setPatch]
+  );
+
   const editor = useTaskEditor();
 
   // FlatList renderers. Theme-driven separators between rows so we don't need
@@ -177,16 +266,28 @@ export default function TasksScreen() {
         <TaskRow
           task={item}
           category={cat}
+          subtasks={subtasksByTask[item.id]}
           subtaskCounts={subtaskCounts[item.id]}
           hasReminder={reminderIds.has(item.id)}
           hasRepeat={repeatIds.has(item.id)}
           onToggleComplete={handleToggleComplete}
+          onToggleSubtaskComplete={handleToggleSubtaskComplete}
           onTogglePin={handleTogglePin}
           onPress={editor.openEdit}
         />
       );
     },
-    [categoriesById, subtaskCounts, reminderIds, repeatIds, handleToggleComplete, handleTogglePin, editor.openEdit]
+    [
+      categoriesById,
+      subtasksByTask,
+      subtaskCounts,
+      reminderIds,
+      repeatIds,
+      handleToggleComplete,
+      handleToggleSubtaskComplete,
+      handleTogglePin,
+      editor.openEdit,
+    ]
   );
 
   const keyExtractor = useCallback((task: Task) => task.id, []);

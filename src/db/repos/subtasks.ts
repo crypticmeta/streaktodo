@@ -27,6 +27,26 @@ export async function listSubtasksByTask(taskId: string): Promise<Subtask[]> {
   return rows.map(subtaskFromRow);
 }
 
+export async function listSubtasksByTaskIds(
+  taskIds: string[]
+): Promise<Record<string, Subtask[]>> {
+  if (taskIds.length === 0) return {};
+  const db = await getDb();
+  const placeholders = taskIds.map(() => '?').join(',');
+  const rows = await db.getAllAsync<unknown>(
+    `SELECT * FROM subtasks
+       WHERE deleted_at IS NULL AND task_id IN (${placeholders})
+       ORDER BY task_id ASC, sort_order ASC, created_at ASC`,
+    taskIds
+  );
+  const out: Record<string, Subtask[]> = {};
+  for (const raw of rows) {
+    const subtask = subtaskFromRow(raw);
+    (out[subtask.taskId] ??= []).push(subtask);
+  }
+  return out;
+}
+
 export async function getSubtaskById(id: string): Promise<Subtask | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<unknown>(

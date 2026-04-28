@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-import type { Task } from '../db';
+import type { Subtask, Task } from '../db';
 import { formatRelativeShort, formatTimeFromMinutes, isOverdue } from '../lib/date';
 import { useTheme } from '../theme';
 import { Icon } from './Icon';
@@ -13,10 +13,12 @@ export type TaskRowCategory = {
 export type TaskRowProps = {
   task: Task;
   category: TaskRowCategory | null;
+  subtasks?: Subtask[];
   subtaskCounts?: { total: number; done: number };
   hasReminder?: boolean;
   hasRepeat?: boolean;
   onToggleComplete: (taskId: string, nextStatus: 'done' | 'pending') => void;
+  onToggleSubtaskComplete?: (subtaskId: string, nextStatus: 'done' | 'pending') => void;
   onTogglePin: (taskId: string, nextPinned: boolean) => void;
   /** Tap on the row body (NOT the checkbox or pin) opens the editor. */
   onPress?: (taskId: string) => void;
@@ -25,10 +27,12 @@ export type TaskRowProps = {
 function TaskRowImpl({
   task,
   category,
+  subtasks,
   subtaskCounts,
   hasReminder,
   hasRepeat,
   onToggleComplete,
+  onToggleSubtaskComplete,
   onTogglePin,
   onPress,
 }: TaskRowProps) {
@@ -211,6 +215,60 @@ function TaskRowImpl({
           hasRepeat={hasRepeat}
           overdue={overdue}
         />
+
+        {subtasks && subtasks.length > 0 ? (
+          <View style={[styles.subtasksBlock, { borderTopColor: t.color.borderStrong }]}>
+            {subtasks.map((subtask) => {
+              const subtaskDone = subtask.status === 'done';
+              return (
+                <Pressable
+                  key={subtask.id}
+                  onPress={() =>
+                    onToggleSubtaskComplete?.(
+                      subtask.id,
+                      subtaskDone ? 'pending' : 'done'
+                    )
+                  }
+                  disabled={!onToggleSubtaskComplete}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: subtaskDone }}
+                  accessibilityLabel={
+                    subtaskDone
+                      ? `Mark subtask ${subtask.title} as not done`
+                      : `Mark subtask ${subtask.title} as done`
+                  }
+                  style={styles.subtaskRow}
+                >
+                  <View
+                    style={[
+                      styles.subtaskCheckbox,
+                      {
+                        borderColor: subtaskDone ? t.color.accent : t.color.borderStrong,
+                        backgroundColor: subtaskDone ? t.color.accent : 'transparent',
+                      },
+                    ]}
+                  >
+                    {subtaskDone ? (
+                      <Icon name="check" size={11} color={t.color.textOnAccent} />
+                    ) : null}
+                  </View>
+                  <Text
+                    numberOfLines={2}
+                    style={{
+                      flex: 1,
+                      color: t.color.textSecondary,
+                      fontSize: t.fontSize.sm,
+                      textDecorationLine: subtaskDone ? 'line-through' : 'none',
+                      opacity: subtaskDone ? 0.6 : 1,
+                    }}
+                  >
+                    {subtask.title}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
       </Pressable>
 
       {/* Pin action — star glyph; outlined when unpinned, filled when pinned. */}
@@ -361,6 +419,24 @@ export const TaskRow = memo(TaskRowImpl, (prev, next) => {
   if (prev.category !== next.category) return false;
   if (prev.hasReminder !== next.hasReminder) return false;
   if (prev.hasRepeat !== next.hasRepeat) return false;
+  const prevSubtasks = prev.subtasks;
+  const nextSubtasks = next.subtasks;
+  if ((prevSubtasks === undefined) !== (nextSubtasks === undefined)) return false;
+  if (prevSubtasks && nextSubtasks) {
+    if (prevSubtasks.length !== nextSubtasks.length) return false;
+    for (let i = 0; i < prevSubtasks.length; i += 1) {
+      const aSub = prevSubtasks[i]!;
+      const bSub = nextSubtasks[i]!;
+      if (
+        aSub.id !== bSub.id ||
+        aSub.title !== bSub.title ||
+        aSub.status !== bSub.status ||
+        aSub.sortOrder !== bSub.sortOrder
+      ) {
+        return false;
+      }
+    }
+  }
   const a = prev.subtaskCounts;
   const b = next.subtaskCounts;
   if ((a === undefined) !== (b === undefined)) return false;
@@ -411,5 +487,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+  },
+  subtasksBlock: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  subtaskRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  subtaskCheckbox: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
   },
 });
