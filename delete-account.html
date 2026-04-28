@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Streak Todo — Delete account and data</title>
+    <meta
+      name="description"
+      content="How to request deletion of your Streak Todo account, your local data, and any analytics records."
+    />
+    <meta name="robots" content="index, follow" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #14181f;
+        --panel: #1b212a;
+        --text: #f4efe6;
+        --muted: #b8afa3;
+        --accent: #e0b16c;
+        --border: #2a313c;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 48px 20px 72px;
+      }
+      .eyebrow {
+        display: inline-block;
+        margin-bottom: 16px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--accent);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1, h2 { line-height: 1.2; }
+      h1 { margin: 0 0 12px; font-size: clamp(28px, 5vw, 40px); }
+      h2 { margin-top: 36px; font-size: 20px; }
+      h3 { margin-top: 22px; font-size: 16px; color: var(--text); }
+      p, li { color: var(--muted); font-size: 16px; }
+      ul { padding-left: 20px; }
+      a { color: var(--accent); }
+      .card {
+        margin-top: 24px;
+        padding: 20px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+      }
+      code {
+        background: rgba(255,255,255,0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Streak Todo · Made by Coderixx</div>
+      <h1>Delete your account and data</h1>
+      <p>
+        Streak Todo is a local-first app. Almost all of your data lives on
+        your device, so most of it can be deleted without contacting us.
+        Account-linked analytics records that left your device require an
+        email request, which we honour within 30 days.
+      </p>
+
+      <h2>1. Delete the data on your device</h2>
+      <p>
+        Open the <strong>Profile</strong> tab. Under <strong>Data</strong>,
+        tap <strong>Reset local data</strong>. This permanently removes
+        every task, subtask, category, reminder, repeat rule, and note
+        stored on this device. Default categories are recreated so the app
+        is usable again afterwards.
+      </p>
+      <p>
+        Uninstalling the app also removes everything on-device, including
+        the saved Google sign-in token.
+      </p>
+
+      <h2>2. Sign out of your Google account in the app</h2>
+      <p>
+        On the same Profile tab, tap <strong>Sign out</strong>. This:
+      </p>
+      <ul>
+        <li>clears the saved Google sign-in token from secure device storage</li>
+        <li>resets the analytics identity so future events from this device are not attached to your Google account</li>
+      </ul>
+
+      <h2>3. Request deletion of analytics already collected</h2>
+      <p>
+        Sign-out and uninstall stop <em>future</em> events but they do not
+        retroactively remove events the app has already sent to our
+        analytics provider (Mixpanel, EU region). The app does not
+        currently include an in-app button to delete already-collected
+        analytics — those records have to be removed manually.
+      </p>
+      <p>
+        To request deletion, email
+        <a href="mailto:ankitpathakofficial@gmail.com">ankitpathakofficial@gmail.com</a>
+        with:
+      </p>
+      <ul>
+        <li>subject: <code>Delete my analytics data</code></li>
+        <li>the email address you signed in with (so we can find the right record)</li>
+      </ul>
+      <p>
+        We process the request via Mixpanel's GDPR data-deletion API and
+        confirm completion within 30 days, in line with applicable
+        data-protection law.
+      </p>
+
+      <h2>What is deleted vs. kept</h2>
+      <h3>Deleted (in-app or by email request)</h3>
+      <ul>
+        <li>All local tasks, subtasks, categories, reminders, repeat rules, and notes</li>
+        <li>Saved Google sign-in token on this device</li>
+        <li>The analytics profile and historical events linked to your Google account identifier</li>
+      </ul>
+      <h3>Kept</h3>
+      <ul>
+        <li>Backup files <em>you</em> exported using the in-app backup feature stay on your own device or wherever you saved them. The app never uploads them.</li>
+        <li>Aggregated, fully anonymised analytics counts that have been used in product reports may be retained, in a form that cannot be linked back to your account.</li>
+      </ul>
+
+      <div class="card">
+        <h2 style="margin-top: 0">Questions</h2>
+        <p>
+          Email <a href="mailto:ankitpathakofficial@gmail.com">ankitpathakofficial@gmail.com</a>.
+          See also our <a href="/privacy">privacy policy</a>.
+        </p>
+      </div>
+    </main>
+  </body>
+</html>
