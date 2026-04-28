@@ -17,6 +17,8 @@ import {
 import {
   DEFAULT_REMINDER,
   EMPTY_SCHEDULE,
+  type CustomRepeatBody,
+  type RepeatDraft,
   type ScheduleDraft,
 } from '../components/scheduleTypes';
 import { tasksRepo, type Task } from '../db';
@@ -29,25 +31,34 @@ const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
 function repeatRuleFromSchedule(s: ScheduleDraft): CreateTaskFullInput['repeatRule'] {
   if (s.repeat.preset === 'none' || s.dueAt === null) return null;
   const d = new Date(s.dueAt);
+  // untilAt is allowed on every preset, not just 'custom'. The editor
+  // surfaces an end-date picker in the custom sheet, but the persisted
+  // rule honours it regardless of which preset emitted the rule.
+  const untilAt = s.repeat.untilAt ?? null;
   switch (s.repeat.preset) {
     case 'daily':
-      return { freq: 'daily', intervalN: 1 };
+      return { freq: 'daily', intervalN: 1, untilAt };
     case 'weekly':
-      return { freq: 'weekly', intervalN: 1, byWeekday: WEEKDAY_CODES[d.getDay()] };
+      return { freq: 'weekly', intervalN: 1, byWeekday: WEEKDAY_CODES[d.getDay()], untilAt };
     case 'monthly':
-      return { freq: 'monthly', intervalN: 1, byMonthDay: d.getDate() };
+      return { freq: 'monthly', intervalN: 1, byMonthDay: d.getDate(), untilAt };
     case 'yearly':
-      return { freq: 'yearly', intervalN: 1, byMonth: d.getMonth() + 1, byMonthDay: d.getDate() };
+      return { freq: 'yearly', intervalN: 1, byMonth: d.getMonth() + 1, byMonthDay: d.getDate(), untilAt };
     case 'custom':
       return s.repeat.custom
         ? {
-            freq: s.repeat.custom.freq,
+            // Persist as 'custom' so we know the user customized something,
+            // even if the underlying frequency unit is one of the standard
+            // four. The runtime resolves the underlying unit from byWeekday
+            // / byMonthDay / byMonth presence.
+            freq: 'custom',
             intervalN: s.repeat.custom.intervalN,
             byWeekday: s.repeat.custom.byWeekday ?? null,
             byMonthDay: s.repeat.custom.byMonthDay ?? null,
             byMonth: s.repeat.custom.byMonth ?? null,
+            untilAt,
           }
-        : { freq: 'weekly', intervalN: 1 };
+        : { freq: 'weekly', intervalN: 1, untilAt };
   }
 }
 
@@ -58,6 +69,49 @@ function remindersFromSchedule(s: ScheduleDraft): CreateTaskFullInput['reminders
 
 function initialFromGraph(graph: TaskGraph): ComposerInitial {
   const repeat = graph.repeatRule;
+
+  // Round-trip rule:
+  //   - DB says `freq === 'custom'` → load as preset='custom' with the body.
+  //   - DB says one of the four units AND intervalN === 1 → load as that
+  //     preset (the popover will render the standard label).
+  //   - DB says one of the four units AND intervalN > 1 → user customized
+  //     it, surface as preset='custom' so the custom sheet round-trips.
+  const repeatDraft: RepeatDraft = (() => {
+    if (!repeat) return EMPTY_SCHEDULE.repeat;
+    const isPresetClean = repeat.freq !== 'custom' && repeat.intervalN === 1;
+    if (isPresetClean) {
+      return {
+        preset: repeat.freq,
+        untilAt: repeat.untilAt,
+      };
+    }
+    // Custom path. Underlying freq is the DB row's freq when it's a unit;
+    // when DB says 'custom' we infer the unit from the body in the same way
+    // recurrence.ts does at runtime, so the editor's frequency dropdown
+    // shows the right thing.
+    const inferredFreq: CustomRepeatBody['freq'] =
+      repeat.freq !== 'custom'
+        ? (repeat.freq as CustomRepeatBody['freq'])
+        : repeat.byWeekday
+          ? 'weekly'
+          : repeat.byMonth !== null
+            ? 'yearly'
+            : repeat.byMonthDay !== null
+              ? 'monthly'
+              : 'daily';
+    return {
+      preset: 'custom',
+      custom: {
+        freq: inferredFreq,
+        intervalN: repeat.intervalN,
+        byWeekday: repeat.byWeekday ?? undefined,
+        byMonthDay: repeat.byMonthDay ?? undefined,
+        byMonth: repeat.byMonth ?? undefined,
+      },
+      untilAt: repeat.untilAt,
+    };
+  })();
+
   const schedule: ScheduleDraft = {
     dueAt: graph.task.dueAt,
     dueTime: graph.task.dueTime,
@@ -69,25 +123,12 @@ function initialFromGraph(graph: TaskGraph): ComposerInitial {
           screenLock: false,
         }
       : DEFAULT_REMINDER,
-    repeat: repeat
-      ? {
-          preset: repeat.freq,
-          custom:
-            repeat.freq === 'custom'
-              ? {
-                  freq: repeat.freq,
-                  intervalN: repeat.intervalN,
-                  byWeekday: repeat.byWeekday ?? undefined,
-                  byMonthDay: repeat.byMonthDay ?? undefined,
-                  byMonth: repeat.byMonth ?? undefined,
-                }
-              : undefined,
-        }
-      : EMPTY_SCHEDULE.repeat,
+    repeat: repeatDraft,
   };
 
   return {
     title: graph.task.title,
+    notes: graph.task.notes,
     subtasks: graph.subtaskTitles,
     categoryId: graph.task.categoryId,
     schedule,
@@ -143,10 +184,11 @@ export function useTaskEditor(): UseTaskEditorReturn {
   }, []);
 
   const onSubmit = useCallback(
-    async ({ title, subtasks, categoryId, schedule }: ComposerSubmitInput) => {
+    async ({ title, notes, subtasks, categoryId, schedule }: ComposerSubmitInput) => {
       const payload: CreateTaskFullInput = {
         task: {
           title,
+          notes,
           categoryId,
           dueAt: schedule.dueAt,
           dueTime: schedule.dueTime,
@@ -182,6 +224,7 @@ export function useTaskEditor(): UseTaskEditorReturn {
         void analytics.track('task_created', {
           has_due_date: savedTask.dueAt !== null,
           has_time: savedTask.dueTime !== null,
+          has_notes: notes !== null && notes.length > 0,
           has_subtasks: subtasks.length > 0,
           has_category: categoryId !== null,
           has_reminder: schedule.reminder.enabled,

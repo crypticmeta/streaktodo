@@ -120,11 +120,22 @@ export function nextOccurrence(
       break;
     }
 
-    case 'custom':
-      // V0 semantics: behave like weekly with the supplied byWeekday + interval.
-      // Phase 11 will expand custom rules; for now we map onto the existing
-      // weekly path so the runtime always produces something valid.
-      return nextOccurrence({ ...rule, freq: 'weekly' }, fromTs);
+    case 'custom': {
+      // A custom rule still rides one of the four standard frequency units
+      // underneath. The editor ensures byWeekday / byMonthDay / byMonth are
+      // populated correctly for the chosen unit. We default to weekly when
+      // we somehow lost that information so the runtime always produces
+      // something valid (matches the legacy V0 behaviour).
+      const byWeekdays = parseWeekdays(rule.byWeekday);
+      const underlying: RepeatFreqInput = byWeekdays.length > 0
+        ? 'weekly'
+        : rule.byMonth !== null
+          ? 'yearly'
+          : rule.byMonthDay !== null
+            ? 'monthly'
+            : 'daily';
+      return nextOccurrence({ ...rule, freq: underlying }, fromTs);
+    }
   }
 
   if (rule.untilAt !== null && next > rule.untilAt) return null;

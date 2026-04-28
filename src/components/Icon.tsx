@@ -38,7 +38,9 @@ export type IconName =
   | 'plus'
   // Disclosure
   | 'chevron-up'
-  | 'chevron-down';
+  | 'chevron-down'
+  // Row meta — notes indicator
+  | 'note';
 
 const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   calendar: 'calendar-outline',
@@ -68,6 +70,7 @@ const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   plus: 'add',
   'chevron-up': 'chevron-up',
   'chevron-down': 'chevron-down',
+  note: 'document-text-outline',
 };
 
 type IconProps = {

@@ -19,6 +19,7 @@ import {
 } from '../lib/date';
 import { useTheme } from '../theme';
 import { CalendarGrid } from './CalendarGrid';
+import { CustomRepeatSheet } from './CustomRepeatSheet';
 import { Icon, type IconName } from './Icon';
 import { ReminderPopover } from './ReminderPopover';
 import { RepeatPopover } from './RepeatPopover';
@@ -90,6 +91,7 @@ export function SchedulePickerSheet({
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
+  const [customRepeatOpen, setCustomRepeatOpen] = useState(false);
 
   // Reset on every open so opening with a different `initial` is honoured.
   useEffect(() => {
@@ -299,6 +301,18 @@ export function SchedulePickerSheet({
         current={draft.repeat}
         onClose={() => setRepeatOpen(false)}
         onSelect={(repeat) => setDraft((d) => ({ ...d, repeat }))}
+        onPickCustom={() => setCustomRepeatOpen(true)}
+      />
+
+      <CustomRepeatSheet
+        visible={customRepeatOpen}
+        anchorDate={draft.dueAt}
+        current={draft.repeat}
+        onCancel={() => setCustomRepeatOpen(false)}
+        onConfirm={(repeat) => {
+          setDraft((d) => ({ ...d, repeat }));
+          setCustomRepeatOpen(false);
+        }}
       />
     </Modal>
   );

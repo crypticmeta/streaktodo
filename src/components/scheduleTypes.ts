@@ -30,19 +30,32 @@ export const DEFAULT_REMINDER: ReminderDraft = {
 
 // ─── Repeat draft ───────────────────────────────────────────────────────
 
-/** Repeat preset choices. 'none' = no repeat. 'custom' is premium-flagged. */
+/** Repeat preset choices. 'none' = no repeat. 'custom' = user opened the
+ *  custom-rule sheet and configured a non-preset rule. */
 export type RepeatPreset = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+
+/** Body of a custom rule. The underlying frequency unit can still be one of
+ *  the standard four — the difference vs. a preset is that the user has
+ *  customized at least one of intervalN / weekday set / day-of-month / until. */
+export type CustomRepeatBody = {
+  freq: Exclude<RepeatFrequency, 'custom'>;
+  /** every N units; clamped >= 1 at the runtime layer */
+  intervalN: number;
+  /** CSV like "MO,WE,FR"; relevant for weekly */
+  byWeekday?: string;
+  /** 1..31; relevant for monthly/yearly */
+  byMonthDay?: number;
+  /** 1..12; relevant for yearly */
+  byMonth?: number;
+};
 
 export type RepeatDraft = {
   preset: RepeatPreset;
   /** For 'custom': underlying repeat fields. Ignored for other presets. */
-  custom?: {
-    freq: RepeatFrequency;
-    intervalN: number;          // every N units, default 1
-    byWeekday?: string;         // CSV like "MO,WE,FR"
-    byMonthDay?: number;
-    byMonth?: number;
-  };
+  custom?: CustomRepeatBody;
+  /** Optional end date (start-of-day epoch ms). Applies to ANY preset, not
+   *  only custom. The runtime stops spawning occurrences once this passes. */
+  untilAt?: number | null;
 };
 
 export const DEFAULT_REPEAT: RepeatDraft = { preset: 'none' };

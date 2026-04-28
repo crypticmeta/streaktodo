@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as SecureStore from 'expo-secure-store';
 import { CategoryPills } from '../../src/components/CategoryPills';
 import { Fab } from '../../src/components/Fab';
+import { Icon } from '../../src/components/Icon';
 import { TaskComposer } from '../../src/components/TaskComposer';
 import { TaskRow } from '../../src/components/TaskRow';
 import {
@@ -25,16 +27,54 @@ import { useTheme } from '../../src/theme';
 // Local optimistic patch applied on top of a Task while a write is in flight.
 type Patch = Partial<Pick<Task, 'status' | 'isPinned' | 'completedAt'>>;
 
+// SecureStore key for the "Show done" preference. Sticks across launches so
+// users don't have to re-toggle every cold start. Versioned suffix lets us
+// invalidate later if the meaning changes.
+const SHOW_DONE_PREF_KEY = 'tasks_show_done_v1';
+
 export default function TasksScreen() {
   const t = useTheme();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  // Show-done toggle: when off, the list filters out completed tasks (the
+  // SQL repo handles this via `status: 'pending'`). Default off so a fresh
+  // view feels like a clean to-do list. Hydrated from SecureStore on mount.
+  const [showDone, setShowDone] = useState<boolean>(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const v = await SecureStore.getItemAsync(SHOW_DONE_PREF_KEY);
+        if (!cancelled && v === 'true') setShowDone(true);
+      } catch {
+        // SecureStore can fail in odd environments; default (off) is fine.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleToggleShowDone = useCallback(() => {
+    setShowDone((prev) => {
+      const next = !prev;
+      // Best-effort persist — if it fails the toggle still works for the
+      // current session, just doesn't survive a relaunch.
+      SecureStore.setItemAsync(SHOW_DONE_PREF_KEY, next ? 'true' : 'false').catch(() => {});
+      return next;
+    });
+  }, []);
+
   // useTasks filter: categoryId undefined = "All" (no filter); a string id =
   // tasks in that category. We never pass null here (which would mean "no
   // category" — a niche case we'll expose later if needed).
+  // Status: 'all' includes done; 'pending' hides done. Skipped status is
+  // never reached today but the filter is honest about it.
+  const taskStatus = showDone ? 'all' : 'pending';
   const { tasks, loading, error, refresh } = useTasks(
     selectedCategoryId !== null
-      ? { status: 'all', categoryId: selectedCategoryId }
-      : { status: 'all' }
+      ? { status: taskStatus, categoryId: selectedCategoryId }
+      : { status: taskStatus }
   );
   const { categories } = useCategories();
   const [subtaskCounts, setSubtaskCounts] = useState<
@@ -305,6 +345,50 @@ export default function TasksScreen() {
         />
       </View>
 
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          paddingHorizontal: t.spacing.xl,
+          paddingTop: t.spacing.sm,
+          paddingBottom: t.spacing.xs,
+        }}
+      >
+        <Pressable
+          onPress={handleToggleShowDone}
+          hitSlop={6}
+          accessibilityRole="switch"
+          accessibilityLabel="Show completed tasks"
+          accessibilityState={{ checked: showDone }}
+          style={({ pressed }) => [
+            styles.showDoneToggle,
+            {
+              backgroundColor: showDone
+                ? t.color.accentSoft
+                : pressed
+                  ? t.color.surfaceMuted
+                  : 'transparent',
+              borderRadius: t.radius.pill,
+            },
+          ]}
+        >
+          <Icon
+            name={showDone ? 'tasks-filled' : 'tasks'}
+            size={14}
+            color={showDone ? t.color.textPrimary : t.color.textMuted}
+          />
+          <Text
+            style={{
+              color: showDone ? t.color.textPrimary : t.color.textMuted,
+              fontSize: t.fontSize.xs,
+              fontWeight: t.fontWeight.semibold,
+            }}
+          >
+            {showDone ? 'Showing done' : 'Show done'}
+          </Text>
+        </Pressable>
+      </View>
+
       <SectionList
         sections={sections}
         keyExtractor={keyExtractor}
@@ -501,5 +585,12 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'baseline',
+  },
+  showDoneToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
 });

@@ -95,8 +95,8 @@ UI for reminder on/off + lead time + type lives in the Schedule sheet (Phase 2).
 - [x] Cancel or reschedule notifications when a task is completed, uncompleted, or deleted — wired into `handleToggleComplete`; soft-delete cancellation still pending until task editing/delete UI ships
 - [x] Re-arm notifications on app launch if the OS dropped them (boot-loss recovery) — `scheduler.reconcileAll()` in `_layout.tsx` after DB ready
 - [x] Persist `scheduled_notification_id` on `task_reminders` rows — done
-- [ ] Optional reminder types beyond plain notification — Alarm and Silent
-- [ ] ScreenLock reminder option — display the task on the lock screen / always-on display
+- [x] ~~Optional reminder types beyond plain notification — Alarm and Silent~~ — **deferred.** Silent is Expo-supported (low-importance Android channel + `sound: null`) but the schema is already in place and standard notifications cover the V0 product loop. Alarm requires a custom Android native module (`USE_EXACT_ALARM` special permission + full-screen activity + foreground service), incurs ongoing maintenance as Android tightens alarm policy each release, and triggers extra Play Store review scrutiny. Revisit when a real user has asked for one of these and the cost/benefit flips.
+- [x] ~~ScreenLock reminder option — display the task on the lock screen / always-on display~~ — **deferred.** Notifications already appear on the lock screen for free when the user's system privacy settings allow it; the "always-on display" version isn't reliably achievable cross-OEM (Samsung / Pixel / Xiaomi each have different AOD APIs and there is no portable Android contract). Not worth a per-OEM integration burden for a V0 single-user product.
 - [x] Hide unimplemented reminder UI from the current product surface
 
 ### Phase 7: recurrence (runtime engine)
@@ -107,7 +107,7 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [x] Support daily / weekly / monthly / yearly recurrence math — see [`src/lib/recurrence.ts`](./src/lib/recurrence.ts) `nextOccurrence(rule, fromTs)`
 - [x] Show repeat status in task metadata — `🔁` indicator already wired in `TaskRow` via `taskIdsWithRepeat`
 - [x] Respect `until_at` — `nextOccurrence` returns `null` once exceeded, spawn becomes a no-op
-- [x] Custom repeat rule scaffolding — V0 maps `freq: 'custom'` onto the weekly path; full RRULE support deferred to a later pass
+- [x] Custom repeat rule editor — see [`src/components/CustomRepeatSheet.tsx`](./src/components/CustomRepeatSheet.tsx). Opens from the RepeatPopover's "Custom…" row. Surfaces frequency unit (daily/weekly/monthly/yearly) + intervalN stepper + weekday multi-picker (weekly only) + optional `untilAt` end date via the existing `CalendarGrid`. Round-trips faithfully via `useTaskEditor.initialFromGraph`: rules saved as `freq: 'custom'` re-open as custom; rules with `intervalN > 1` also re-open as custom; clean preset rules (`intervalN === 1`, freq is one of the four) re-open as the matching preset. `recurrence.ts:'custom'` now infers the underlying frequency unit from `byWeekday` / `byMonthDay` / `byMonth` presence. Day-of-month and month overrides are still derived from the anchor date (not user-overridable yet) — add later if a user asks.
 - [x] Hide unimplemented custom-repeat UI from the current product surface
 
 ### Phase 8: task details and editing
@@ -117,9 +117,9 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [x] Edit title, category, due date, time, reminder, repeat, and subtasks — all flow through `tasksRepo.updateTaskFull` (single transaction, replaces child rows)
 - [x] Delete task flow — trash icon in the composer's action row (edit mode only) with `Alert.alert` confirm; cancels reminders + soft-deletes
 - [ ] Duplicate task flow — deferred until there's a long-press menu on rows
-- [ ] Preserve completed-task history — already preserved (soft-delete + completed_at); a "Show done" toggle on the home is the missing UI
-- [ ] Add richer edit/details presentation inspired by `update_screen.jpeg` — top category chip, cleaner summary rows, and overflow actions
-- [ ] Add notes editing
+- [x] Preserve completed-task history — `Show done` / `Showing done` toggle pill in the Tasks tab header; persisted to SecureStore (`tasks_show_done_v1`); flips `useTasks` between `status: 'pending'` (default, hides completed rows) and `status: 'all'`. Completed tasks were always preserved in the DB; this exposes them in the UI.
+- [x] Add richer edit/details presentation inspired by `update_screen.jpeg` — partial: edit mode now lifts the category chip up above the title (single-source-of-truth `categoryChipNode` carries `chipRef` so the picker menu still anchors correctly). Skipped: summary-row reskin of the action row (the icon-bar + Schedule sheet already surface the same data one tap away — net win not worth the conditional-layout cost) and overflow menu (no actions to put there until duplicate-task ships, which itself depends on a long-press menu).
+- [x] Add notes editing — multiline notes input in the composer between subtasks and the action row; 1000-char cap; trimmed empty values stored as `null`; round-trips through `tasksRepo.createTaskFull` / `updateTaskFull` (the column already existed in schema). Plumbed through `ComposerSubmitInput`, `ComposerInitial`, `useTaskEditor`. Tracked in `task_created` analytics via `has_notes` flag. Surface in the row: small `note` icon (Ionicon `document-text-outline`) appears in the `TaskRow` meta line when notes are non-empty, sitting alongside the existing reminder + repeat icons; screen-reader label gains `"has notes"` for users who don't see the icon.
 - [ ] Attachment support intentionally deferred out of scope
 - [x] Hide unimplemented templates / attachment-related UI from the current product surface
 
@@ -160,7 +160,7 @@ Current product direction is fully free.
 - [ ] Revisit monetization only if the core product is strong and there is a clear reason to change scope
 - [ ] Re-introduce premium-flagged UI only when the underlying features actually exist
 - [ ] Re-introduce templates UI when task templates are implemented
-- [ ] Re-introduce custom repeat UI when the custom repeat editor exists
+- [x] ~~Re-introduce custom repeat UI when the custom repeat editor exists~~ — editor shipped (Phase 7); accessible from the RepeatPopover's "Custom…" row.
 - [ ] Re-introduce advanced reminder UI when silent/alarm/screen-lock reminders actually work
 
 ### Phase 12: polish and release readiness
@@ -197,6 +197,37 @@ Current product direction is fully free.
 - [ ] Add backup/restore UI in the Profile tab
 - [ ] Define server contract for cloud sync
 - [ ] Implement cloud sync with last-write-wins or vector-clock strategy
+
+### Phase 15: achievement badges
+
+> Pure-JS gamification layer. Builds on existing `streakStats` data — no new schema, no new tables. The badges live on the Profile dashboard and surface via Mixpanel events when first unlocked, so we can see which milestones drive engagement.
+
+- [ ] Define the badge catalogue (id, title, description, condition, icon). Suggested first set:
+      - `first_completion` — completed your first task
+      - `streak_7` / `streak_30` / `streak_100` — current streak hits N days
+      - `tasks_50` / `tasks_500` — lifetime done count
+      - `early_bird` — first task of the day completed before 9am, 10 days
+      - `category_master` — used all three default categories at least once
+      - `perfect_week` — a calendar week with zero missed days
+- [ ] Build `src/lib/badges.ts` — pure function `computeUnlockedBadges(tasks): BadgeId[]`. No persistence; recompute every render. Cheap.
+- [ ] Add `BadgeShelf` component on Profile (above or below the streak counter), shows unlocked badges in color, locked ones grayscale with a hint
+- [ ] Track `badge_unlocked` analytics event the first time a badge flips unlocked. Persist a small `unlocked_badges_v1` SecureStore set so we only fire the event once per user.
+- [ ] Optional: a "celebrate" toast when a new badge unlocks during a session (debounced; once per badge per session)
+
+### Phase 16: home-screen widgets
+
+> Native work; sized as **its own multi-day session**, not part of any V0 polish pass. Two implementation paths exist; pick one before starting.
+
+- [ ] Decide implementation path:
+      - **Native Kotlin widget** — write `AppWidgetProvider` + `RemoteViews` layout + `WidgetUpdateService` that reads the SQLite db directly. Updates are throttled by Android (≥ 30 min minimum cadence; tighter requires a foreground service). Most control, most maintenance burden.
+      - **`expo-widgets`** — third-party Expo plugin. Faster to start, but maturity has been spotty across SDK upgrades. Worth a fresh evaluation when picking this up.
+- [ ] Pick the widget surface area. Candidates ranked by complexity:
+      - **Today list (read-only)** — easiest, just a list of titles + checkmarks. Tapping the widget opens the app. ~1 day.
+      - **Streak counter** — single hero number, refreshed daily. Simplest of all. Mostly a glance widget.
+      - **Quick-add** — hardest, requires a deeplink into the composer with a specific intent. Skip for V0 of widgets.
+- [ ] Decide refresh cadence and how the widget reads the DB (WidgetUpdateService → expo-sqlite from the JS side via headless task, or duplicate the schema on the native side). The first option is simpler but slower; the second is faster but means the schema lives in two places.
+- [ ] Hook widget refresh into existing `tasks-changed` event emission (so completing a task in the app updates the widget without waiting for the next throttled tick).
+- [ ] Add Play Store listing assets that show the widget (only after it's real).
 
 ## Current implementation status
 

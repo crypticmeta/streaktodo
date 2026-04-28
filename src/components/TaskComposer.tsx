@@ -27,6 +27,7 @@ import { EMPTY_SCHEDULE, type ScheduleDraft } from './scheduleTypes';
 
 export type ComposerSubmitInput = {
   title: string;
+  notes: string | null;
   subtasks: string[];
   categoryId: string | null;
   schedule: ScheduleDraft;
@@ -37,6 +38,7 @@ export type ComposerSubmitInput = {
 // draft helpers in app/(tabs)/index.tsx.
 export type ComposerInitial = {
   title: string;
+  notes: string | null;
   subtasks: string[];
   categoryId: string | null;
   schedule: ScheduleDraft;
@@ -54,6 +56,7 @@ type TaskComposerProps = {
 
 const TITLE_MAX_LENGTH = 140;
 const SUBTASK_MAX_LENGTH = 120;
+const NOTES_MAX_LENGTH = 1000;
 
 type SubtaskDraft = {
   // Stable client-side id used as React key while drafting. Real DB id is
@@ -95,6 +98,7 @@ function useKeyboardOffset(): Animated.Value {
 export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: TaskComposerProps) {
   const t = useTheme();
   const [title, setTitle] = useState('');
+  const [notes, setNotes] = useState('');
   const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -167,6 +171,7 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
   useEffect(() => {
     if (!visible) return;
     setTitle(initial?.title ?? '');
+    setNotes(initial?.notes ?? '');
     setSubtasks(
       initial?.subtasks.map((title) => ({ draftId: newDraftId(), title })) ?? []
     );
@@ -193,6 +198,10 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
   const canSave = trimmed.length > 0 && !submitting;
   const remaining = TITLE_MAX_LENGTH - title.length;
   const showLengthHint = remaining <= 20;
+  // `onDelete` is only passed when the parent opened the composer in edit
+  // mode (see useTaskEditor). We use it as the canonical create-vs-edit
+  // discriminator for layout decisions, not just the delete affordance.
+  const isEditMode = Boolean(onDelete);
 
   const handleTitleChange = (next: string) => {
     setTitle(next);
@@ -239,7 +248,14 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmit?.({ title: trimmed, subtasks: cleanedSubtasks, categoryId, schedule });
+      const trimmedNotes = notes.trim();
+      await onSubmit?.({
+        title: trimmed,
+        notes: trimmedNotes.length > 0 ? trimmedNotes : null,
+        subtasks: cleanedSubtasks,
+        categoryId,
+        schedule,
+      });
       handleClose();
     } catch (err) {
       setSubmitting(false);
@@ -274,6 +290,59 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
     Keyboard.dismiss();
     setScheduleOpen(true);
   };
+
+  // Single source-of-truth for the category chip. Rendered above the title
+  // in edit mode (so the user sees what bucket the task is in at a glance,
+  // per the inspiration's `update_screen.jpeg` brief) and inside the action
+  // row in create mode (the existing layout). Wrapped in a View that holds
+  // chipRef so the picker menu can anchor to wherever the chip currently
+  // lives.
+  const categoryChipNode = (
+    <View ref={chipRef} onLayout={handleChipLayout} collapsable={false} style={styles.chipWrap}>
+      <Pressable
+        onPress={handleOpenPicker}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={
+          selectedCategory ? `Category: ${selectedCategory.name}` : 'Pick category'
+        }
+        accessibilityHint="Opens the category menu"
+        style={({ pressed }) => [
+          styles.chip,
+          {
+            backgroundColor: selectedCategory
+              ? t.color.accentSoft
+              : pressed
+                ? t.color.accentMuted
+                : t.color.surfaceMuted,
+            paddingHorizontal: t.spacing.md,
+            paddingVertical: t.spacing.sm,
+            borderRadius: t.radius.pill,
+          },
+        ]}
+      >
+        {selectedCategory ? (
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: selectedCategory.color ?? t.color.accent,
+            }}
+          />
+        ) : null}
+        <Text
+          style={{
+            color: t.color.textPrimary,
+            fontSize: t.fontSize.sm,
+            fontWeight: t.fontWeight.semibold,
+          }}
+        >
+          {selectedCategory ? selectedCategory.name : 'No Category'}
+        </Text>
+      </Pressable>
+    </View>
+  );
 
   const handleCreateCategory = async ({ name, color }: { name: string; color: string }) => {
     const created = await categoriesRepo.createCategory({ name, color });
@@ -323,6 +392,15 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
           ]}
         >
           <View style={[styles.handle, { backgroundColor: t.color.borderStrong, borderRadius: t.radius.pill }]} />
+
+          {/* Edit-mode header: lift the category chip up here so the user
+              sees what bucket the task lives in before scanning the body.
+              In create mode the chip stays in the action row at the bottom. */}
+          {isEditMode ? (
+            <View style={[styles.editHeaderRow, { marginTop: t.spacing.sm, marginBottom: t.spacing.xs }]}>
+              {categoryChipNode}
+            </View>
+          ) : null}
 
           {/* Title input — large; matches the inspiration's "Input new task here" */}
           <View
@@ -419,57 +497,41 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
             </View>
           ) : null}
 
-          {/* Action row: [chip] [📅] [🔗 subtasks] [📋 templates 👑] · spacer · [● send] */}
+          {/* Notes — optional, multiline. Quieter visual weight than the title
+              field so it doesn't compete; only the placeholder is muted, the
+              actual text matches body weight. */}
+          <View
+            style={{
+              backgroundColor: t.color.surfaceMuted,
+              borderRadius: t.radius.lg,
+              paddingHorizontal: t.spacing.lg,
+              paddingVertical: t.spacing.sm,
+              marginTop: t.spacing.md,
+            }}
+          >
+            <TextInput
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Notes (optional)"
+              placeholderTextColor={t.color.textMuted}
+              maxLength={NOTES_MAX_LENGTH}
+              multiline
+              scrollEnabled={false}
+              style={{
+                color: t.color.textPrimary,
+                fontSize: t.fontSize.sm,
+                lineHeight: t.fontSize.sm * t.lineHeight.normal,
+                minHeight: 32,
+                padding: 0,
+              }}
+            />
+          </View>
+
+          {/* Action row: [chip] [📅] [🔗 subtasks] [📋 templates 👑] · spacer · [● send]
+              In edit mode the chip lives above the title block instead, so we
+              skip it here to avoid duplication. */}
           <View style={[styles.actionRow, { marginTop: t.spacing.lg }]}>
-            <View
-              ref={chipRef}
-              onLayout={handleChipLayout}
-              collapsable={false}
-              style={styles.chipWrap}
-            >
-              <Pressable
-                onPress={handleOpenPicker}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  selectedCategory ? `Category: ${selectedCategory.name}` : 'Pick category'
-                }
-                accessibilityHint="Opens the category menu"
-                style={({ pressed }) => [
-                  styles.chip,
-                  {
-                    backgroundColor: selectedCategory
-                      ? t.color.accentSoft
-                      : pressed
-                        ? t.color.accentMuted
-                        : t.color.surfaceMuted,
-                    paddingHorizontal: t.spacing.md,
-                    paddingVertical: t.spacing.sm,
-                    borderRadius: t.radius.pill,
-                  },
-                ]}
-              >
-                {selectedCategory ? (
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: selectedCategory.color ?? t.color.accent,
-                    }}
-                  />
-                ) : null}
-                <Text
-                  style={{
-                    color: t.color.textPrimary,
-                    fontSize: t.fontSize.sm,
-                    fontWeight: t.fontWeight.semibold,
-                  }}
-                >
-                  {selectedCategory ? selectedCategory.name : 'No Category'}
-                </Text>
-              </Pressable>
-            </View>
+            {!isEditMode ? categoryChipNode : null}
 
             {/* Calendar trigger */}
             <Pressable
@@ -652,6 +714,10 @@ const styles = StyleSheet.create({
   chipWrap: {
     // Wrapper exists so we can measureInWindow on the chip without disturbing
     // its own pressed/hover state.
+  },
+  editHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   chip: {
     flexDirection: 'row',

@@ -114,6 +114,7 @@ function TaskRowImpl({
     if (category) parts.push(category.name);
     if (task.dueAt !== null) parts.push(`due ${formatRelativeShort(task.dueAt)}`);
     if (task.dueTime !== null) parts.push(`at ${formatTimeFromMinutes(task.dueTime)}`);
+    if (task.notes !== null && task.notes.trim().length > 0) parts.push('has notes');
     if (task.isPinned) parts.push('pinned');
     return parts.join(', ');
   })();
@@ -310,6 +311,7 @@ function Meta({
   const dateText = task.dueAt !== null ? formatRelativeShort(task.dueAt) : null;
   const timeText = task.dueTime !== null ? formatTimeFromMinutes(task.dueTime) : null;
   const hasSubtasks = subtaskCounts !== undefined && subtaskCounts.total > 0;
+  const hasNotes = task.notes !== null && task.notes.trim().length > 0;
 
   const showMeta =
     overdue ||
@@ -318,6 +320,7 @@ function Meta({
     hasSubtasks ||
     hasReminder ||
     hasRepeat ||
+    hasNotes ||
     category !== null;
 
   if (!showMeta) return null;
@@ -383,6 +386,11 @@ function Meta({
       {hasRepeat ? (
         <View style={{ marginLeft: 4 }}>
           <Icon name="repeat-filled" size={12} color={t.color.textMuted} />
+        </View>
+      ) : null}
+      {hasNotes ? (
+        <View style={{ marginLeft: 4 }}>
+          <Icon name="note" size={12} color={t.color.textMuted} />
         </View>
       ) : null}
 
