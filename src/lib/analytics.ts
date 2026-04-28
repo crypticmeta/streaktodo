@@ -32,6 +32,25 @@ async function getMixpanel(): Promise<Mixpanel | null> {
       // more reliably than we would in JS.
       const mp = new Mixpanel(branding.mixpanelToken, true);
       await mp.init();
+      // Honour data-residency override. Mixpanel projects in EU or India
+      // need a non-default server URL or events are silently dropped.
+      // Set EXPO_PUBLIC_MIXPANEL_REGION to 'eu' or 'in' if the project lives
+      // outside US.
+      const region = (process.env.EXPO_PUBLIC_MIXPANEL_REGION ?? '').toLowerCase();
+      if (region === 'eu') {
+        mp.setServerURL('https://api-eu.mixpanel.com');
+      } else if (region === 'in') {
+        mp.setServerURL('https://api-in.mixpanel.com');
+      }
+      if (__DEV__) {
+        // Surface SDK internals (network, queueing) in Metro so we can see
+        // why events would be silently dropped.
+        mp.setLoggingEnabled(true);
+      }
+      console.log(
+        '[analytics] mixpanel init ok, token suffix:',
+        branding.mixpanelToken.slice(-6)
+      );
       instance = mp;
       return mp;
     } catch (err) {
@@ -62,9 +81,18 @@ type Props = Record<string, Primitive | Primitive[]>;
 
 export async function track(event: EventName, props?: Props): Promise<void> {
   const mp = await getMixpanel();
-  if (!mp) return;
+  if (!mp) {
+    if (__DEV__) console.log('[analytics] track skipped (no mp instance):', event);
+    return;
+  }
   try {
     mp.track(event, props);
+    if (__DEV__) {
+      console.log('[analytics] track:', event, props ?? '');
+      // In dev, push the queue out the door immediately so we don't wait
+      // for the SDK's batch timer (default ~60s).
+      mp.flush();
+    }
   } catch (err) {
     console.warn('[analytics] track failed', event, err);
   }
@@ -95,6 +123,10 @@ export async function identify(user: AuthUser): Promise<void> {
     people.set(profile);
     // Capture first-seen-at on insert only.
     people.setOnce({ first_seen_at: new Date().toISOString() });
+    if (__DEV__) {
+      console.log('[analytics] identify ok, distinct_id:', user.id);
+      mp.flush();
+    }
   } catch (err) {
     console.warn('[analytics] identify failed', err);
   }
