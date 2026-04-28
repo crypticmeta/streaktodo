@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../src/lib/auth';
 import { getDb } from '../src/db';
+import * as analytics from '../src/lib/analytics';
 import * as scheduler from '../src/lib/notificationScheduler';
 import { OnboardingProvider, useOnboarding } from '../src/lib/onboarding';
 import { ThemeProvider, useTheme } from '../src/theme';
@@ -24,6 +25,10 @@ function useDbBootstrap(): DbState {
         // force-quit, OEM battery killer). Best-effort; failures don't
         // block the app boot.
         void scheduler.reconcileAll();
+        // Cold-start session marker. Mixpanel auto-tracks `App Open` already
+        // when trackAutomaticEvents is on, but we emit our own so the event
+        // schema is fully owned + consistent across versions.
+        void analytics.track('app_opened', { source: 'cold_start' });
       } catch (err) {
         if (cancelled) return;
         setState({

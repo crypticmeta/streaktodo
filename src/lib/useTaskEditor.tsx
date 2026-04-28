@@ -21,6 +21,7 @@ import {
 } from '../components/scheduleTypes';
 import { tasksRepo, type Task } from '../db';
 import type { CreateTaskFullInput, TaskGraph } from '../db/repos/tasks';
+import * as analytics from './analytics';
 import * as scheduler from './notificationScheduler';
 
 const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
@@ -156,6 +157,7 @@ export function useTaskEditor(): UseTaskEditorReturn {
       };
 
       let savedTask: Task;
+      const isEdit = Boolean(editingTaskId);
       if (editingTaskId) {
         // updateTaskFull soft-deletes existing reminder rows, so any prior
         // OS notifications must be cancelled before the new ones are armed.
@@ -171,6 +173,19 @@ export function useTaskEditor(): UseTaskEditorReturn {
           taskTitle: savedTask.title,
           taskDueAt: savedTask.dueAt,
           taskDueTime: savedTask.dueTime,
+        });
+        void analytics.track('notification_scheduled', {
+          lead_minutes: schedule.reminder.leadMinutes,
+        });
+      }
+      if (!isEdit) {
+        void analytics.track('task_created', {
+          has_due_date: savedTask.dueAt !== null,
+          has_time: savedTask.dueTime !== null,
+          has_subtasks: subtasks.length > 0,
+          has_category: categoryId !== null,
+          has_reminder: schedule.reminder.enabled,
+          has_repeat: schedule.repeat.preset !== 'none',
         });
       }
     },
@@ -192,6 +207,7 @@ export function useTaskEditor(): UseTaskEditorReturn {
             void scheduler.cancelForTask(id);
             try {
               await tasksRepo.softDeleteTask(id);
+              void analytics.track('task_deleted');
               onClose();
             } catch {
               // best-effort

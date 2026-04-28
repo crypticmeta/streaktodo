@@ -7,6 +7,7 @@ import { EditCategoryDialog } from '../src/components/EditCategoryDialog';
 import { Icon } from '../src/components/Icon';
 import { categoriesRepo, useCategories, type Category } from '../src/db';
 import { subscribe } from '../src/db/events';
+import * as analytics from '../src/lib/analytics';
 import { useTheme } from '../src/theme';
 
 const UNCATEGORIZED_FALLBACK = '#9a8f81';
@@ -42,6 +43,7 @@ export default function CategoriesScreen() {
 
   const handleCreate = async ({ name, color }: { name: string; color: string }) => {
     await categoriesRepo.createCategory({ name, color, sortOrder: categories.length });
+    void analytics.track('category_created');
     setCreating(false);
   };
 
@@ -65,6 +67,7 @@ export default function CategoriesScreen() {
         onPress: () => {
           // Fire-and-forget — repo emits events that refresh the list.
           void categoriesRepo.softDeleteCategory(cat.id);
+          void analytics.track('category_deleted', { affected_tasks: taskCount });
         },
       },
     ]);

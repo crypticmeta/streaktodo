@@ -16,6 +16,7 @@ import {
   type TextInput as RNTextInput,
 } from 'react-native';
 import { categoriesRepo, useCategories } from '../db';
+import * as analytics from '../lib/analytics';
 import { MONTH_SHORT } from '../lib/date';
 import { useTheme } from '../theme';
 import { CategoryPickerMenu } from './CategoryPickerMenu';
@@ -276,6 +277,7 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
 
   const handleCreateCategory = async ({ name, color }: { name: string; color: string }) => {
     const created = await categoriesRepo.createCategory({ name, color });
+    void analytics.track('category_created');
     await refreshCategories();
     setCategoryId(created.id);
     setCreateCategoryOpen(false);

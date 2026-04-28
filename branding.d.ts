@@ -15,4 +15,5 @@ export declare const branding: {
   readonly twitter: string;
   readonly instagram: string;
   readonly googleIosUrlScheme: string;
+  readonly mixpanelToken: string;
 };

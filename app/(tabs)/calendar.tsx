@@ -16,6 +16,7 @@ import {
   useTasks,
   type Task,
 } from '../../src/db';
+import * as analytics from '../../src/lib/analytics';
 import { addMonths, addDays, isSameDay, startOfDay, startOfMonth } from '../../src/lib/date';
 import * as scheduler from '../../src/lib/notificationScheduler';
 import { useTaskEditor } from '../../src/lib/useTaskEditor';
@@ -133,6 +134,7 @@ export default function CalendarScreen() {
         try {
           if (nextStatus === 'done') {
             await tasksRepo.completeTask(id);
+            void analytics.track('task_completed');
             void scheduler.cancelForTask(id);
             try {
               const spawned = await tasksRepo.spawnNextOccurrence(id);
@@ -149,6 +151,7 @@ export default function CalendarScreen() {
             }
           } else {
             await tasksRepo.uncompleteTask(id);
+            void analytics.track('task_uncompleted');
             const tk = await tasksRepo.getTaskById(id);
             if (tk && tk.dueAt !== null) {
               void scheduler.scheduleForTask({

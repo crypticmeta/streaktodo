@@ -39,6 +39,14 @@ const branding = {
   googleIosUrlScheme:
     process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME ||
     'com.googleusercontent.apps.placeholder-set-before-ios-build',
+
+  // Mixpanel project token. Public-by-design (it identifies the destination
+  // project; it does NOT grant write access beyond ingest). Override via env
+  // for staging/test projects:
+  //   EXPO_PUBLIC_MIXPANEL_TOKEN=<your-token>
+  mixpanelToken:
+    process.env.EXPO_PUBLIC_MIXPANEL_TOKEN ||
+    'fbdf4b658ace1e0d297d30b78121dcf3',
 };
 
 module.exports = { branding };

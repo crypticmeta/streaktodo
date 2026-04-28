@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon, type IconName } from './Icon';
+import * as analytics from '../lib/analytics';
 import { useTheme, useThemePreference, type ColorSchemePreference } from '../theme';
 
 const OPTIONS: ReadonlyArray<{
@@ -55,7 +56,10 @@ export function ThemeToggle() {
           return (
             <Pressable
               key={opt.key}
-              onPress={() => setPreference(opt.key)}
+              onPress={() => {
+                setPreference(opt.key);
+                void analytics.track('theme_changed', { preference: opt.key });
+              }}
               style={[
                 styles.segment,
                 {

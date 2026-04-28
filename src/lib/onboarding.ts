@@ -9,6 +9,7 @@
 
 import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import * as analytics from './analytics';
 
 const KEY = 'onboarding_completed_v1';
 
@@ -71,6 +72,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     // SecureStore write resolves.
     setState('completed');
     await writeOnboardingCompleted();
+    void analytics.track('onboarding_completed');
   };
 
   return createElement(OnboardingContext.Provider, { value: { state, markCompleted } }, children);

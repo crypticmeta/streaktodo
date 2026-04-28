@@ -15,6 +15,7 @@ import {
   useTasks,
   type Task,
 } from '../../src/db';
+import * as analytics from '../../src/lib/analytics';
 import * as scheduler from '../../src/lib/notificationScheduler';
 import { groupTasksIntoSections } from '../../src/lib/taskGrouping';
 import { useTaskEditor } from '../../src/lib/useTaskEditor';
@@ -107,6 +108,7 @@ export default function TasksScreen() {
         try {
           if (nextStatus === 'done') {
             await tasksRepo.completeTask(id);
+            void analytics.track('task_completed');
             // Completed tasks shouldn't keep buzzing the phone.
             void scheduler.cancelForTask(id);
             // If the task carried a repeat rule, spawn its next occurrence and
@@ -127,6 +129,7 @@ export default function TasksScreen() {
             }
           } else {
             await tasksRepo.uncompleteTask(id);
+            void analytics.track('task_uncompleted');
             // Re-arm in case the user un-checks an old completion.
             const t = await tasksRepo.getTaskById(id);
             if (t && t.dueAt !== null) {

@@ -7,6 +7,7 @@ import {
   statusCodes,
   type User,
 } from '@react-native-google-signin/google-signin';
+import * as analytics from './analytics';
 
 const ID_TOKEN_KEY = 'google_id_token';
 
@@ -22,6 +23,8 @@ export type AuthUser = {
   id: string;
   email: string;
   name: string | null;
+  givenName: string | null;
+  familyName: string | null;
   photo: string | null;
 };
 
@@ -46,6 +49,8 @@ function toAuthUser(u: User): AuthUser {
     id: u.user.id,
     email: u.user.email,
     name: u.user.name,
+    givenName: u.user.givenName,
+    familyName: u.user.familyName,
     photo: u.user.photo,
   };
 }
@@ -83,14 +88,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const result = await GoogleSignin.signInSilently();
         if (result.type === 'success') {
+          const authUser = toAuthUser(result.data);
           setState({
             status: 'signed-in',
-            user: toAuthUser(result.data),
+            user: authUser,
             idToken: result.data.idToken,
           });
           if (result.data.idToken) {
             await SecureStore.setItemAsync(ID_TOKEN_KEY, result.data.idToken);
           }
+          void analytics.identify(authUser);
           return;
         }
       } catch {
@@ -111,14 +118,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState({ status: 'signed-out', error: null });
         return;
       }
+      const authUser = toAuthUser(result.data);
       setState({
         status: 'signed-in',
-        user: toAuthUser(result.data),
+        user: authUser,
         idToken: result.data.idToken,
       });
       if (result.data.idToken) {
         await SecureStore.setItemAsync(ID_TOKEN_KEY, result.data.idToken);
       }
+      void analytics.identify(authUser);
+      void analytics.track('app_opened', { source: 'sign_in' });
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string; name?: string; userInfo?: unknown };
       console.warn('[GoogleSignIn] error', JSON.stringify(e, Object.getOwnPropertyNames(e)));
@@ -145,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ignore
     }
     await SecureStore.deleteItemAsync(ID_TOKEN_KEY);
+    void analytics.reset();
     setState({ status: 'signed-out', error: null });
   }, []);
 
