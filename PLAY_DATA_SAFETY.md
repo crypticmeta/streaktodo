@@ -22,13 +22,26 @@ Mixpanel.
 
 ### Do you provide a way for users to request that their data be deleted?
 
-**Yes.**
-- In-app: the user can sign out (which calls `analytics.reset()` and
-  detaches future events from their identity), and can use the
-  "Reset local data" action on the Profile screen to wipe everything
-  on-device.
-- Out-of-app: contact `ankitpathakofficial@gmail.com` to request deletion
-  of their Mixpanel profile.
+**Yes — but with an honest caveat about scope.**
+
+- **On-device data (full self-serve):** the "Reset local data" action on
+  the Profile screen wipes all local tasks, categories, reminders, repeat
+  rules, and subtasks. Sign-out clears authentication state and detaches
+  future analytics events from the user's identity (`analytics.reset()`).
+  Uninstalling the app removes everything else on-device.
+
+- **Analytics data already collected (request-only, manual):** the app
+  does not currently provide an in-app self-serve flow to delete
+  already-recorded Mixpanel events. Users email
+  `ankitpathakofficial@gmail.com` and we manually delete their analytics
+  profile via Mixpanel's GDPR data-deletion API within 30 days. The
+  privacy policy spells out the request flow (subject line + signed-in
+  email).
+
+If Play asks specifically about an "in-app deletion option" toggle: answer
+**Yes** for on-device data, and indicate that analytics deletion is via
+contact (this is what most privacy-policy-only apps answer; Play accepts
+both routes as long as the policy is explicit).
 
 ## Section 2 — Data types collected
 

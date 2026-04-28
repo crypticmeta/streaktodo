@@ -108,14 +108,36 @@
         <li>Your profile image URL, when available</li>
         <li>Your Google account identifier</li>
       </ul>
-      <p>If you create tasks in the app, the app stores task-related content such as task titles, categories, subtasks, due dates, reminders, and repeat settings.</p>
+      <p>If you create tasks in the app, the app stores task-related content such as task titles, notes, subtasks, categories, due dates and times, reminder settings, and repeat settings. This content is stored locally on your device.</p>
 
       <h2>Analytics</h2>
       <p>
-        We use Mixpanel to understand app usage and improve the product. Events
-        may include app opens, onboarding completion, task creation,
-        completion, deletion, category changes, reminder scheduling, and theme
-        changes.
+        We use Mixpanel (with EU data residency) to understand app usage and
+        improve the product. Events are sent from the app whenever you take
+        one of the actions listed below. Events currently tracked include:
+      </p>
+      <ul>
+        <li>App opens (cold start, after sign-in)</li>
+        <li>Onboarding completion</li>
+        <li>Task creation, editing, completion, uncompletion, and deletion</li>
+        <li>Category creation and deletion</li>
+        <li>Reminder scheduling</li>
+        <li>Theme preference changes</li>
+        <li>Custom repeat-rule configuration (frequency, interval, weekday count, end-date presence)</li>
+        <li>Backup export, backup import, and local-data reset (file size only — never file contents)</li>
+      </ul>
+      <p>
+        When you sign in with Google, the app also associates your Google
+        account identifier, email, name, given/family name, profile image URL,
+        device platform, and a first-seen timestamp with your Mixpanel
+        identity so analytics can be filtered by user.
+      </p>
+      <p>
+        The contents of your tasks, notes, subtasks, categories, and backup
+        files are never sent to Mixpanel — only the fact that an event
+        occurred and small, non-content metadata such as boolean composition
+        flags (“had a due date”, “had a reminder”, and similar) and counts
+        (interval N, weekday count, byte size).
       </p>
 
       <h2>How We Use Information</h2>
@@ -145,9 +167,26 @@
       <ul>
         <li>Choose whether to sign in with Google</li>
         <li>Delete tasks inside the app</li>
-        <li>Sign out of your account</li>
+        <li>Sign out of your account (this stops new analytics events from being attached to your identity)</li>
+        <li>Use “Reset local data” on the Profile screen to wipe all local tasks, categories, reminders, repeat rules, and subtasks from your device</li>
         <li>Uninstall the app</li>
       </ul>
+      <h3>Deleting analytics data already collected</h3>
+      <p>
+        Sign-out and uninstalling stop <em>future</em> events from being
+        recorded against you, but they do not retroactively remove events
+        already sent to Mixpanel. The app does not currently provide an
+        in-app self-serve flow to delete already-collected analytics data.
+      </p>
+      <p>
+        To request deletion of the analytics profile and historical events
+        associated with your Google account identifier, email
+        <a href="mailto:ankitpathakofficial@gmail.com">ankitpathakofficial@gmail.com</a>
+        with the subject line “Delete my analytics data” and the email
+        address you signed in with. We process these requests manually via
+        Mixpanel’s GDPR data-deletion API and will confirm completion within
+        30 days, in line with applicable data-protection law.
+      </p>
 
       <h2>Children's Privacy</h2>
       <p>

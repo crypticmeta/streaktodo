@@ -105,11 +105,24 @@ You can:
 
 - choose whether to sign in with Google
 - delete tasks inside the app
-- sign out of your account
+- sign out of your account (this stops new analytics events from being attached to your identity)
+- use the "Reset local data" action on the Profile screen to wipe all local
+  tasks, categories, reminders, repeat rules, and subtasks from this device
 - uninstall the app
 
-If analytics controls are added later, this policy should be updated to reflect
-them.
+### Deleting analytics data already collected
+
+Sign-out and uninstalling stop *future* events from being recorded against
+you, but they do not retroactively remove events already sent to Mixpanel.
+The app does not currently provide an in-app self-serve flow to delete
+already-collected analytics data.
+
+To request deletion of the analytics profile and historical events
+associated with your Google account identifier, email
+`ankitpathakofficial@gmail.com` with the subject line "Delete my analytics
+data" and the email address you signed in with. We process these requests
+manually via Mixpanel's GDPR data-deletion API and will confirm completion
+within 30 days, in line with applicable data-protection law.
 
 ## Children's privacy
 

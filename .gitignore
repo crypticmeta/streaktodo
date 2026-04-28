@@ -64,6 +64,11 @@ design-system/**/SKILL.md
 # generated native folders
 /ios
 
+# downloaded EAS build artifacts. AABs/APKs are signed binaries that don't
+# belong in source control — they're regenerated on demand from the EAS
+# dashboard or `eas-cli build:list`. Keep this folder local-only.
+/builds/
+
 # android/ is kept under version control so dev builds work without an EAS roundtrip.
 # To regenerate: npx expo prebuild --clean
 # Per-build artifacts inside it are still ignored:
