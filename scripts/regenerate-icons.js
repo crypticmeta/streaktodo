@@ -77,7 +77,7 @@ function angleInArc(theta, start, end) {
 function drawSymbolPixel(nx, ny, scale = 0.84) {
   const x = nx / scale;
   const y = ny / scale;
-  const aa = 0.015;
+  const aa = 0.008;
   const dist = Math.hypot(x, y);
   const theta = Math.atan2(y, x);
 
@@ -114,7 +114,7 @@ function drawSymbolPixel(nx, ny, scale = 0.84) {
     }
   }
 
-  const stroke = 0.1;
+  const stroke = 0.095;
   const d1 = distToSegment(x, y, -0.23, 0.03, -0.02, 0.24);
   const d2 = distToSegment(x, y, -0.02, 0.24, 0.3, -0.08);
   const checkAlpha = Math.max(
@@ -186,8 +186,30 @@ function makeIconPixelFn({ rounded, symbolScale }) {
   };
 }
 
+function makeSplashPixelFn() {
+  return (x, y) => {
+    let pixel = [COLORS.bg[0], COLORS.bg[1], COLORS.bg[2], COLORS.bg[3]];
+
+    const symbol = drawSymbolPixel(x, y, 0.56);
+    pixel = alphaOver(pixel, symbol);
+
+    const pill = sdRoundedRect(x, y - 0.62, 0.08, 0.01, 0.01);
+    const pillAlpha = 1 - smoothstep(-0.002, 0.006, pill);
+    if (pillAlpha > 0) {
+      pixel = alphaOver(pixel, [
+        COLORS.sand[0],
+        COLORS.sand[1],
+        COLORS.sand[2],
+        Math.round(pillAlpha * 255),
+      ]);
+    }
+
+    return pixel;
+  };
+}
+
 writePng(path.join(outDir, 'icon.png'), 1024, 1024, makeIconPixelFn({ rounded: true, symbolScale: 0.82 }));
-writePng(path.join(outDir, 'splash-icon.png'), 1024, 1024, makeIconPixelFn({ rounded: false, symbolScale: 0.7 }));
+writePng(path.join(outDir, 'splash-icon.png'), 1024, 1024, makeSplashPixelFn());
 writePng(path.join(outDir, 'favicon.png'), 48, 48, makeIconPixelFn({ rounded: true, symbolScale: 0.84 }));
 writePng(path.join(outDir, 'adaptive-icon.png'), 1024, 1024, makeIconPixelFn({ rounded: true, symbolScale: 0.82 }));
 writePng(path.join(outDir, 'adaptive-icon-foreground.png'), 1254, 1254, (x, y) =>

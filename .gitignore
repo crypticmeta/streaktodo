@@ -57,6 +57,10 @@ temp/
 test-results/
 playwright-report/
 
+# design workflow artifacts that should not be reintroduced to the public repo
+design-system/chats/
+design-system/**/SKILL.md
+
 # generated native folders
 /ios
 

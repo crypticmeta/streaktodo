@@ -19,9 +19,9 @@ const branding = {
   backgroundColor: '#1f2328',
 
   // Contact / legal — fill in before public launch.
-  supportEmail: 'support@streaktodo.app',
-  privacyUrl: 'https://streaktodo.app/privacy',
-  termsUrl: 'https://streaktodo.app/terms',
+  supportEmail: 'ankitpathakofficial@gmail.com',
+  privacyUrl: 'https://streaktodo.coderixx.com/privacy',
+  termsUrl: 'https://streaktodo.coderixx.com/terms',
 
   // Store presence (placeholders until first publish).
   playStoreUrl: '',

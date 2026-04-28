@@ -21,9 +21,8 @@ mobile app.**
 
 ## Sources
 
-- **Codebase** — `src/` mounted via File System Access API (paths like
-  `src/theme/tokens.ts`, `src/components/TaskRow.tsx`). Read-only.
-  Authoritative for tokens and component behavior.
+- **Codebase** — `src/theme/` and `src/components/` remain authoritative for
+  runtime tokens and component behavior.
 - **App icon** — `uploads/adaptive-icon.png` → copied to `assets/app-icon.png`.
 
 No Figma, no slide deck, no marketing brand book was provided — everything
@@ -34,7 +33,6 @@ component files in `src/components/`.
 
 ```
 README.md                  ← you are here
-SKILL.md                   ← Claude Code skill manifest
 colors_and_type.css        ← CSS vars for the full token system (light + dark)
 
 assets/
@@ -345,4 +343,3 @@ review what they did (or didn't) do. See: `preview/comp-calendar-grid.html`.
 | `assets/app-icon.png` | The only branded artwork |
 | `preview/*.html` | Design-system cards rendered into the Design System tab |
 | `ui_kits/streak-todo/` | High-fidelity recreation of the mobile app |
-| `SKILL.md` | Claude Code skill manifest |
