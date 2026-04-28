@@ -4,7 +4,7 @@ This is a starter draft, not final legal advice. Review it before publishing.
 
 ## Privacy Policy
 
-Effective date: `2026-04-28`
+Effective date: `2026-04-28` (last revised when the analytics event catalogue was expanded)
 
 Streak Todo ("we", "our", or "us") provides a mobile task planning and
 scheduling application.
@@ -35,18 +35,32 @@ If you create tasks in the app, the app stores task-related content such as:
 
 ## Analytics and diagnostic data
 
-We use Mixpanel to understand app usage and improve the product.
+We use Mixpanel to understand app usage and improve the product. Events are
+sent from the app whenever you take one of the actions listed below.
 
-Events currently tracked may include:
+Events currently tracked include:
 
-- app opens
+- app opens (cold start, after sign-in)
 - onboarding completion
-- task creation, completion, uncompletion, and deletion
+- task creation, editing, completion, uncompletion, and deletion
 - category creation and deletion
 - reminder scheduling
-- theme changes
+- theme preference changes
+- custom repeat-rule configuration (frequency, interval, weekday count, end-date presence)
+- backup export, backup import, and local-data reset (file size only — never file contents)
 
-If you sign in, analytics may be associated with your account identity.
+When you sign in with Google, the app also associates the following profile
+information with your Mixpanel identity so analytics can be filtered by user:
+
+- your Google account identifier
+- your email, display name, given name, family name, and profile image URL when available
+- the device platform (Android or iOS)
+- the timestamp of when this Mixpanel identity was first seen
+
+The contents of your tasks, notes, subtasks, categories, and backup files are
+never sent to Mixpanel — only the fact that an event occurred and small,
+non-content metadata such as boolean composition flags ("had a due date",
+"had a reminder", etc.) and counts (interval N, weekday count, byte size).
 
 ## How we use information
 
