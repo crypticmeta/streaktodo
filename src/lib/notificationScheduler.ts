@@ -15,7 +15,7 @@
  */
 
 import { Platform } from 'react-native';
-import { remindersRepo } from '../db';
+import { getDb, remindersRepo } from '../db';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -243,4 +243,27 @@ export async function reconcileAll(): Promise<void> {
       scheduledNotificationId: id,
     });
   }
+}
+
+/**
+ * Clear every scheduled OS notification and forget all persisted ids.
+ * Used before a full DB restore so stale alarms from the pre-import dataset
+ * can't survive into the restored state.
+ */
+export async function resetAllScheduledNotifications(): Promise<void> {
+  const Notifications = await loadModule();
+  if (Notifications) {
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    } catch {
+      // Best-effort only.
+    }
+  }
+
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE task_reminders
+        SET scheduled_notification_id = NULL
+      WHERE scheduled_notification_id IS NOT NULL`
+  );
 }

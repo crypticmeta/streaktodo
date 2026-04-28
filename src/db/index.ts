@@ -30,3 +30,10 @@ export * as remindersRepo from './repos/reminders';
 export * as repeatRulesRepo from './repos/repeatRules';
 
 export { useTasks, useCategories, useDbVersion } from './hooks';
+export {
+  BACKUP_FORMAT_VERSION,
+  createBackupJson,
+  createBackupSnapshot,
+  restoreBackupJson,
+  resetLocalData,
+} from './backup';

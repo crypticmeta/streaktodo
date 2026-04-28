@@ -67,6 +67,7 @@ export type EventName =
   | 'app_opened'
   | 'onboarding_completed'
   | 'task_created'
+  | 'task_edited'
   | 'task_completed'
   | 'task_uncompleted'
   | 'task_deleted'
@@ -74,7 +75,11 @@ export type EventName =
   | 'category_deleted'
   | 'streak_extended'
   | 'notification_scheduled'
-  | 'theme_changed';
+  | 'theme_changed'
+  | 'custom_repeat_configured'
+  | 'backup_exported'
+  | 'backup_imported'
+  | 'local_data_reset';
 
 type Primitive = string | number | boolean | null;
 type Props = Record<string, Primitive | Primitive[]>;

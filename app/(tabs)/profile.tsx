@@ -1,7 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { branding } from '../../branding';
 import { BarChart } from '../../src/components/charts/BarChart';
 import { DonutChart, type DonutSlice } from '../../src/components/charts/DonutChart';
@@ -10,8 +13,10 @@ import { OverviewTotals } from '../../src/components/OverviewTotals';
 import { StreakCounter } from '../../src/components/StreakCounter';
 import { ThemeToggle } from '../../src/components/ThemeToggle';
 import { UpcomingWeek } from '../../src/components/UpcomingWeek';
-import { useCategories, useTasks } from '../../src/db';
+import { createBackupJson, resetLocalData, restoreBackupJson, useCategories, useTasks } from '../../src/db';
+import * as analytics from '../../src/lib/analytics';
 import { useAuth } from '../../src/lib/auth';
+import * as scheduler from '../../src/lib/notificationScheduler';
 import {
   computeCategoryBreakdown,
   computeOverviewTotals,
@@ -64,6 +69,116 @@ export default function ProfileScreen() {
   );
 
   const user = state.status === 'signed-in' ? state.user : null;
+
+  const handleOpenExport = async () => {
+    try {
+      const json = await createBackupJson();
+      const baseDir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+      if (!baseDir) throw new Error('No writable app directory is available on this device.');
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const fileUri = `${baseDir}streaktodo-backup-${stamp}.json`;
+      await FileSystem.writeAsStringAsync(fileUri, json, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      // We log size_bytes (not contents) so we can sanity-check whether
+      // backups are growing as users accumulate data, without sending the
+      // backup itself anywhere.
+      void analytics.track('backup_exported', { size_bytes: json.length });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          UTI: 'public.json',
+          dialogTitle: 'Export Streak Todo backup',
+        });
+        return;
+      }
+
+      Alert.alert('Backup created', `Saved backup JSON to:\n${fileUri}`);
+    } catch (error) {
+      Alert.alert(
+        'Export failed',
+        error instanceof Error ? error.message : 'Could not generate the backup JSON.'
+      );
+    }
+  };
+
+  const handleImportPress = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'text/*'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const raw = await FileSystem.readAsStringAsync(result.assets[0].uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      await handleImport(raw);
+    } catch (error) {
+      Alert.alert('Import failed', error instanceof Error ? error.message : 'Could not read the backup file.');
+    }
+  };
+
+  const handleImport = async (json: string) => {
+    Alert.alert(
+      'Replace local data?',
+      'Importing a backup replaces all current local tasks, categories, reminders, repeat rules, and subtasks on this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await scheduler.resetAllScheduledNotifications();
+                await restoreBackupJson(json);
+                await scheduler.reconcileAll();
+                void analytics.track('backup_imported', { size_bytes: json.length });
+                Alert.alert('Import complete', 'Your local data has been restored from the backup file.');
+              } catch (error) {
+                Alert.alert(
+                  'Import failed',
+                  error instanceof Error ? error.message : 'The selected backup file is invalid.'
+                );
+              }
+            })();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResetLocalData = () => {
+    Alert.alert(
+      'Reset local data?',
+      'This will permanently remove all local tasks, subtasks, reminders, repeat rules, and custom categories from this device. Default categories will be recreated.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await scheduler.resetAllScheduledNotifications();
+                await resetLocalData();
+                void analytics.track('local_data_reset');
+                Alert.alert('Reset complete', 'Local data has been cleared on this device.');
+              } catch (error) {
+                Alert.alert(
+                  'Reset failed',
+                  error instanceof Error ? error.message : 'Could not clear local data.'
+                );
+              }
+            })();
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.color.background }]} edges={['top']}>
@@ -152,6 +267,104 @@ export default function ProfileScreen() {
 
         <ThemeToggle />
 
+        <Section title="Data">
+          <Pressable
+            onPress={() => void handleOpenExport()}
+            style={({ pressed }) => [
+              styles.manageRow,
+              styles.utilityRow,
+              {
+                backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
+                borderRadius: t.radius.xl,
+                padding: t.spacing.lg,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Export backup"
+          >
+            <Icon name="note" size={18} color={t.color.textPrimary} />
+            <View style={styles.utilityBody}>
+              <Text
+                style={{
+                  color: t.color.textPrimary,
+                  fontSize: t.fontSize.md,
+                  fontWeight: t.fontWeight.semibold,
+                }}
+              >
+                Export backup
+              </Text>
+              <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.sm }}>
+                Generate a full JSON snapshot of your local data.
+              </Text>
+            </View>
+            <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>›</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => void handleImportPress()}
+            style={({ pressed }) => [
+              styles.manageRow,
+              styles.utilityRow,
+              {
+                backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
+                borderRadius: t.radius.xl,
+                padding: t.spacing.lg,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Import backup"
+          >
+            <Icon name="calendar" size={18} color={t.color.textPrimary} />
+            <View style={styles.utilityBody}>
+              <Text
+                style={{
+                  color: t.color.textPrimary,
+                  fontSize: t.fontSize.md,
+                  fontWeight: t.fontWeight.semibold,
+                }}
+              >
+                Import backup
+              </Text>
+              <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.sm }}>
+                Paste backup JSON and replace the current local dataset.
+              </Text>
+            </View>
+            <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>›</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleResetLocalData}
+            style={({ pressed }) => [
+              styles.manageRow,
+              styles.utilityRow,
+              {
+                backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
+                borderRadius: t.radius.xl,
+                padding: t.spacing.lg,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Reset local data"
+          >
+            <Icon name="trash" size={18} color={t.color.danger} />
+            <View style={styles.utilityBody}>
+              <Text
+                style={{
+                  color: t.color.danger,
+                  fontSize: t.fontSize.md,
+                  fontWeight: t.fontWeight.semibold,
+                }}
+              >
+                Reset local data
+              </Text>
+              <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.sm }}>
+                Clear this device and start again with the default categories.
+              </Text>
+            </View>
+            <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.lg }}>›</Text>
+          </Pressable>
+        </Section>
+
         <Pressable
           onPress={() => router.push('/categories')}
           style={({ pressed }) => [
@@ -215,6 +428,33 @@ export default function ProfileScreen() {
         >
           {branding.appName}
         </Text>
+
+        {/* Quiet attribution row. Tapping CODERIXX opens the studio site in
+            the system browser. Errors are swallowed — we don't want a missing
+            browser to surface a scary alert at the bottom of the Profile. */}
+        <Text
+          style={{
+            color: t.color.textMuted,
+            fontSize: t.fontSize.xs,
+            textAlign: 'center',
+            marginTop: 2,
+          }}
+        >
+          Made by{' '}
+          <Text
+            onPress={() => {
+              void Linking.openURL('https://coderixx.com').catch(() => {});
+            }}
+            accessibilityRole="link"
+            accessibilityLabel="Made by CODERIXX, opens coderixx.com"
+            style={{
+              color: t.color.textSecondary,
+              fontWeight: t.fontWeight.semibold,
+            }}
+          >
+            CODERIXX
+          </Text>
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -263,5 +503,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  utilityRow: {
+    marginBottom: 12,
+  },
+  utilityBody: {
+    flex: 1,
+    gap: 4,
   },
 });

@@ -169,7 +169,7 @@ Current product direction is fully free.
 - [x] Add animations for composer open/close and task completion — `TaskComposer` now drives a synchronized scrim-fade + sheet-translate via `Animated` (replacing RN's default `slide`); keyboard avoidance composes through `Animated.subtract` so the transform array stays stable. `TaskRow` pulses the checkbox on toggle-to-done and dims the title via animated opacity (strike-through stays static — `textDecorationLine` isn't animatable). First-mount runs are skipped so completed rows don't pulse on scroll-in.
 - [x] Improve accessibility for touch targets, labels, and contrast — focused label pass (SignInScreen, SchedulePickerSheet `×` glyphs, CalendarGrid day cells); skipped redundant labels for controls whose visible text already reads through TalkBack. Color-contrast audit shipped: see [`src/theme/CONTRAST_AUDIT.md`](./src/theme/CONTRAST_AUDIT.md). Six failing pairings fixed (`textMuted` light, `warn` on `warnSoft`, `borderStrong` light + dark for checkbox visibility, dark `danger` for overdue date, pinned-row checkbox border). All audited pairings now clear WCAG AA for text and 3:1 for non-text UI.
 - [x] Add offline-safe persistence migration plan — see [`src/db/migrations/MIGRATIONS.md`](./src/db/migrations/MIGRATIONS.md). Covers when to add a migration, the safety rules (transaction-wrapped, idempotent, never-edit-shipped), the SQLite-specific rebuild dance for column type/constraint changes, the forward-only policy until Phase 14 backup/restore lands, and a testing checklist.
-- [x] Add analytics — Mixpanel integration exists via [`src/lib/analytics.ts`](./src/lib/analytics.ts). Current events cover app opens, onboarding, task actions, category actions, reminder scheduling, and theme changes. Privacy-policy and store disclosures must stay aligned with the shipped data collection.
+- [x] Add analytics — Mixpanel integration exists via [`src/lib/analytics.ts`](./src/lib/analytics.ts). Current events: `app_opened`, `onboarding_completed`, `task_created` / `task_edited` / `task_completed` / `task_uncompleted` / `task_deleted`, `category_created` / `category_deleted`, `notification_scheduled`, `theme_changed`, `custom_repeat_configured` (with `freq`, `interval_n`, `weekday_count`, `has_until`, `via`), `backup_exported` (with `size_bytes`), `backup_imported` (with `size_bytes`), `local_data_reset`. Privacy-policy and store disclosures must stay aligned with the shipped data collection.
 - [x] Draft Play Store description, privacy policy starter, and release checklist — see [`STORE_COPY.md`](./STORE_COPY.md), [`PRIVACY_POLICY.md`](./PRIVACY_POLICY.md), and [`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md)
 - [ ] Capture final Play Store screenshots from the release build
 - [ ] Publish the privacy policy and complete the Play Console listing
@@ -192,9 +192,10 @@ Current product direction is fully free.
 > **Deferred.** Local-only persistence is sufficient for the current product loop; cloud sync would also be a prerequisite for collaboration (Phase 13), so both move together when revisited.
 
 - [ ] Define canonical JSON export shape across all tables
-- [ ] Implement local JSON export with `expo-sharing`
-- [ ] Implement JSON import with conflict and version checks
-- [ ] Add backup/restore UI in the Profile tab
+- [x] Define canonical JSON export shape across all tables — see [`src/db/backup.ts`](./src/db/backup.ts) `backupJsonSchema` (`formatVersion`, `schemaVersion`, and active rows from categories / tasks / subtasks / reminders / repeat rules)
+- [x] Implement local JSON export — Profile tab now generates a real `.json` backup file in app storage and opens the native share/save sheet via `expo-sharing`
+- [x] Implement JSON import with version checks — Profile tab now opens the system file picker via `expo-document-picker`, validates the chosen JSON with Zod, and restores atomically inside one SQLite transaction; stale scheduled notification ids are dropped and re-armed after restore
+- [x] Add backup/restore UI in the Profile tab — `Export backup` and `Import backup` rows under the new `Data` section
 - [ ] Define server contract for cloud sync
 - [ ] Implement cloud sync with last-write-wins or vector-clock strategy
 

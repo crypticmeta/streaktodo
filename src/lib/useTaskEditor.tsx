@@ -220,15 +220,38 @@ export function useTaskEditor(): UseTaskEditorReturn {
           lead_minutes: schedule.reminder.leadMinutes,
         });
       }
-      if (!isEdit) {
-        void analytics.track('task_created', {
-          has_due_date: savedTask.dueAt !== null,
-          has_time: savedTask.dueTime !== null,
-          has_notes: notes !== null && notes.length > 0,
-          has_subtasks: subtasks.length > 0,
-          has_category: categoryId !== null,
-          has_reminder: schedule.reminder.enabled,
-          has_repeat: schedule.repeat.preset !== 'none',
+      const composition = {
+        has_due_date: savedTask.dueAt !== null,
+        has_time: savedTask.dueTime !== null,
+        has_notes: notes !== null && notes.length > 0,
+        has_subtasks: subtasks.length > 0,
+        has_category: categoryId !== null,
+        has_reminder: schedule.reminder.enabled,
+        has_repeat: schedule.repeat.preset !== 'none',
+      };
+      if (isEdit) {
+        // Edit signal carries the same composition flags as create so the
+        // post-edit shape is comparable to the post-create shape downstream.
+        void analytics.track('task_edited', composition);
+      } else {
+        void analytics.track('task_created', composition);
+      }
+
+      // Custom repeat is the most expensive feature surface to maintain —
+      // surface a dedicated event so we can answer "was the custom editor
+      // worth shipping" from the analytics alone, without inferring it from
+      // the generic has_repeat flag.
+      if (schedule.repeat.preset === 'custom' && schedule.repeat.custom) {
+        const c = schedule.repeat.custom;
+        const weekdayCount = c.byWeekday
+          ? c.byWeekday.split(',').filter(Boolean).length
+          : 0;
+        void analytics.track('custom_repeat_configured', {
+          freq: c.freq,
+          interval_n: c.intervalN,
+          weekday_count: weekdayCount,
+          has_until: schedule.repeat.untilAt != null,
+          via: isEdit ? 'edit' : 'create',
         });
       }
     },
