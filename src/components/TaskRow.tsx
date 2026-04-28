@@ -158,7 +158,16 @@ function TaskRowImpl({
           style={[
             styles.checkbox,
             {
-              borderColor: isDone ? '#ffffff' : t.color.borderStrong,
+              // Three-state border:
+              //   done       → white (sits on the accent fill)
+              //   pinned     → textPrimary (passes 3:1 against accentSoft;
+              //                borderStrong fails 2.06:1 there)
+              //   default    → borderStrong (passes 3:1 on surfaceMuted)
+              borderColor: isDone
+                ? '#ffffff'
+                : task.isPinned
+                  ? t.color.textPrimary
+                  : t.color.borderStrong,
               backgroundColor: isDone ? t.color.accent : 'transparent',
             },
           ]}

@@ -68,11 +68,16 @@ const lightColors: SemanticColors = {
 
   border: palette.cream[400],
   borderMuted: palette.cream[500],
-  borderStrong: palette.cream[600],
+  // Bumped from cream-600 (#c8bba8, 1.82:1 on surface — fails WCAG 1.4.11
+  // for non-text UI) to a darker neutral so unchecked checkbox borders,
+  // the composer drag handle, and idle streak rings clear the 3:1 bar.
+  borderStrong: '#8a7c69',
 
   textPrimary: '#1F2328',
   textSecondary: '#4b443d',
-  textMuted: '#7a6e62',
+  // Tiny darken from #7a6e62 (4.33:1 — AA-large only) so muted body text
+  // clears the 4.5:1 AA threshold against background AND surfaceMuted.
+  textMuted: '#766b5f',
   textInverse: palette.white,
   textOnAccent: '#F4EFE6',
   textOnAccentSoft: '#dcccb7',
@@ -83,7 +88,9 @@ const lightColors: SemanticColors = {
 
   success: palette.evergreen[500],
   successSoft: palette.evergreen[100],
-  warn: palette.amber[500],
+  // Was amber[500] (#b58a3d) — only 2.42:1 against warnSoft (FAIL).
+  // Darker amber clears AA so a "warn on warnSoft" pill remains readable.
+  warn: '#7d5f2a',
   warnSoft: palette.amber[200],
   danger: palette.crimson[500],
   dangerSoft: palette.crimson[100],
@@ -102,7 +109,9 @@ const darkColors: SemanticColors = {
 
   border: '#444b54',
   borderMuted: '#383f47',
-  borderStrong: '#59626d',
+  // Bumped from #59626d (2.18:1 on surface — fails 3:1 for non-text UI)
+  // so the unchecked checkbox border is visible against the row.
+  borderStrong: '#7a8694',
 
   textPrimary: '#F4EFE6',
   textSecondary: '#d5cdc1',
@@ -119,7 +128,10 @@ const darkColors: SemanticColors = {
   successSoft: palette.evergreen[700],
   warn: palette.amber[300],
   warnSoft: palette.amber[700],
-  danger: palette.crimson[300],
+  // Was crimson[300] (#e87575) — 3.95:1 on surfaceMuted, fails AA for the
+  // overdue date text (12px, not "large"). crimson[200] is lighter and
+  // passes AA on the row backgrounds in dark mode.
+  danger: palette.crimson[200],
   dangerSoft: palette.crimson[700],
 
   scrim: 'rgba(0, 0, 0, 0.6)',
