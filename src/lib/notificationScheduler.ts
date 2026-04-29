@@ -40,6 +40,12 @@ function loadModule(): Promise<NotificationsModule | null> {
 type PermissionState = 'unknown' | 'granted' | 'denied';
 let permissionCache: PermissionState = 'unknown';
 
+function toPermissionState(status: string): PermissionState {
+  if (status === 'granted') return 'granted';
+  if (status === 'denied') return 'denied';
+  return 'unknown';
+}
+
 /**
  * Ask the OS for notification permission once. Returns the resolved state.
  * Subsequent calls are cached unless the cache is reset (e.g. user toggled
@@ -64,11 +70,13 @@ export async function ensurePermission(): Promise<PermissionState> {
 
   const existing = await Notifications.getPermissionsAsync();
   let status = existing.status;
-  if (status !== 'granted') {
+  let state = toPermissionState(status);
+  if (state === 'unknown') {
     const req = await Notifications.requestPermissionsAsync();
     status = req.status;
+    state = toPermissionState(status);
   }
-  permissionCache = status === 'granted' ? 'granted' : 'denied';
+  permissionCache = state;
   return permissionCache;
 }
 
@@ -207,11 +215,12 @@ export async function reconcileAll(): Promise<void> {
   // We don't need to ensurePermission() here — it's fine to no-op when the
   // user hasn't granted yet. If they later grant, the next save reconciles.
   const status = await Notifications.getPermissionsAsync();
-  if (status.status !== 'granted') {
-    permissionCache = 'denied';
+  const permissionState = toPermissionState(status.status);
+  if (permissionState !== 'granted') {
+    permissionCache = permissionState;
     return;
   }
-  permissionCache = 'granted';
+  permissionCache = permissionState;
 
   const rows = await remindersRepo.listAllActiveRemindersWithTask();
   for (const row of rows) {

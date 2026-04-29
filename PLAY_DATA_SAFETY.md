@@ -142,3 +142,38 @@ fields when prompted:
 - [ ] Confirmed Mixpanel project region. EU? US? IN? — must match the
       privacy policy.
 - [ ] If a new event ships, update both files BEFORE the next release.
+
+## Appendix — Filling the form via CSV import
+
+Play Console offers an Export / Import button on the Data Safety section.
+The Console UI for "Data usage and handling" is misleading: each declared
+data type's "Is this data collected, shared, or both?" question is rendered
+as a single radio with options Collected / Shared, with no "Both" option.
+Selecting "Collected" silently omits the sharing declaration, which produces
+a false "No data shared with third parties" preview even when Mixpanel +
+Google Sign-In are clearly shipped.
+
+The reliable workaround:
+
+1. Fill the form in the UI as best you can, then click **Export** at the
+   top of the Data Safety screen. Save to `~/Downloads/data_safety_export.csv`.
+2. Run `tools/fix_data_safety.py` (or the inline equivalent in tmp) which
+   patches every declared data type's row to set:
+   - `PSL_DATA_USAGE_ONLY_COLLECTED` = `true`
+   - `PSL_DATA_USAGE_ONLY_SHARED`    = `true`   (the missing one)
+   - `PSL_DATA_USAGE_EPHEMERAL`       = `false` (literal string; empty = "unanswered" and import is rejected)
+   - `USER_CONTROL_OPTIONAL`          = `true`  for Personal info (guest mode is the bypass)
+   - `USER_CONTROL_REQUIRED`          = `true`  for App activity (no in-app analytics toggle)
+   - Both `DATA_USAGE_COLLECTION_PURPOSE` and `DATA_USAGE_SHARING_PURPOSE`
+     have `PSL_APP_FUNCTIONALITY` and `PSL_ANALYTICS` set to `true`; everything
+     else stays empty.
+3. Upload `data_safety_fixed.csv` via the **Import** button on the same
+   screen.
+4. Click into Step 5 (Preview) to verify the public summary now lists
+   collected + shared data types and has the encryption-in-transit line.
+
+For Streak Todo's V1 build the five declared types are:
+`PSL_NAME`, `PSL_EMAIL`, `PSL_USER_ACCOUNT`, `PSL_OTHER_PERSONAL`,
+`PSL_USER_INTERACTION`. Re-export and re-run the fixer if the data
+catalogue ever expands (e.g., new Mixpanel events that touch new data
+categories — backup file *contents* would, byte-size only does not).
