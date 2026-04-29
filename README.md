@@ -230,6 +230,16 @@ Current product direction is fully free.
 - [ ] Hook widget refresh into existing `tasks-changed` event emission (so completing a task in the app updates the widget without waiting for the next throttled tick).
 - [ ] Add Play Store listing assets that show the widget (only after it's real).
 
+### Post-v1 Android advisories
+
+> Captured from Play Console review for the SDK 35 release train. These are
+> informational for V1 and should be revisited deliberately, not slipped into
+> a reminder-fix release.
+
+- [ ] Revisit Android 15 edge-to-edge deprecated API advisory on the next Expo / React Native upgrade. Current call sites flagged by Play are upstream (`StatusBarModule`, Material `BottomSheetDialog` / `EdgeToEdgeUtils` / `SheetDialog`), not custom native code in this repo.
+- [ ] Revisit large-screen orientation support. The app currently declares `orientation: 'portrait'` in [`app.config.ts`](./app.config.ts), which generates `android:screenOrientation="portrait"` on `MainActivity`. Android 16 will ignore this on tablets/foldables, so proper support means testing and adapting layouts for landscape rather than relying on the lock.
+- [ ] Ignore the ML Kit barcode scanner orientation advisory unless barcode scanning actually ships as a user-facing feature; the flagged `GmsBarcodeScanningDelegateActivity` is dependency-owned, not app-owned.
+
 ## Current implementation status
 
 - [x] Expo app shell exists

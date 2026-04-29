@@ -32,13 +32,22 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
+    // NOTE: this `permissions` array is effectively dead config in our
+    // current layout. `android/` is checked into the repo (we keep it
+    // versioned so dev builds work without an EAS roundtrip), and Expo's
+    // prebuild treats the existing `android/app/src/main/AndroidManifest.xml`
+    // as the source of truth — it does NOT merge this list into a
+    // pre-existing manifest. The actual permissions live in that XML file.
+    // Mirrored here so that `npx expo prebuild --clean` (which would
+    // regenerate the native folder from this config) produces a manifest
+    // with the same set.
+    //
     // SCHEDULE_EXACT_ALARM lets reminders bypass Doze batching so they fire
     // within seconds of the user-set time instead of being delayed by up
     // to 15 minutes. Auto-granted on install for productivity/calendar
     // apps; users can revoke from system settings, in which case the
     // scheduler falls back to inexact alarms (still functional, just less
-    // precise). RECEIVE_BOOT_COMPLETED is added by expo-notifications
-    // automatically; we restate it here for clarity.
+    // precise).
     permissions: [
       'SCHEDULE_EXACT_ALARM',
       'POST_NOTIFICATIONS',
