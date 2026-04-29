@@ -57,6 +57,7 @@ type TaskComposerProps = {
 const TITLE_MAX_LENGTH = 140;
 const SUBTASK_MAX_LENGTH = 120;
 const NOTES_MAX_LENGTH = 1000;
+const EXACT_ALARM_REQUIRED_SENTINEL = 'EXACT_ALARM_REQUIRED';
 
 type SubtaskDraft = {
   // Stable client-side id used as React key while drafting. Real DB id is
@@ -258,6 +259,10 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
       });
       handleClose();
     } catch (err) {
+      if (err instanceof Error && err.message === EXACT_ALARM_REQUIRED_SENTINEL) {
+        setSubmitting(false);
+        return;
+      }
       setSubmitting(false);
       setError(err instanceof Error ? err.message : 'Could not save the task. Try again.');
     }

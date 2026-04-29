@@ -14,7 +14,7 @@
  * boot re-arms anything missing from the OS queue.
  */
 
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import { getDb, remindersRepo, tasksRepo } from '../db';
 
 type NotificationsModule = typeof import('expo-notifications');
@@ -49,6 +49,7 @@ function loadModule(): Promise<NotificationsModule | null> {
 }
 
 type PermissionState = 'unknown' | 'granted' | 'denied';
+export type ExactAlarmState = 'granted' | 'denied' | 'unavailable';
 let permissionCache: PermissionState = 'unknown';
 const REMINDER_CATEGORY_ID = 'REMINDER';
 const REMINDER_ACTION_DONE = 'DONE';
@@ -61,6 +62,15 @@ const SNOOZE_MINUTES = 10;
 // best-case path rather than worst-case.
 const DEBUG_BATCH_OFFSETS_MINUTES = [2, 4, 6, 8] as const;
 let categorySetupPromise: Promise<void> | null = null;
+type ExactAlarmModuleShape = {
+  canScheduleExactAlarms(): Promise<boolean>;
+  openExactAlarmSettings(): Promise<boolean>;
+};
+
+function getExactAlarmModule(): ExactAlarmModuleShape | null {
+  const maybeModule = NativeModules.ExactAlarmModule as ExactAlarmModuleShape | undefined;
+  return maybeModule ?? null;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -112,6 +122,28 @@ export function logNotificationTiming(data: unknown, source: string): void {
       delayMs: Date.now() - expectedFireAt,
     })
   );
+}
+
+export async function getExactAlarmState(): Promise<ExactAlarmState> {
+  if (Platform.OS !== 'android') return 'granted';
+  const module = getExactAlarmModule();
+  if (!module) return 'unavailable';
+  try {
+    return (await module.canScheduleExactAlarms()) ? 'granted' : 'denied';
+  } catch {
+    return 'unavailable';
+  }
+}
+
+export async function openExactAlarmSettings(): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  const module = getExactAlarmModule();
+  if (!module) return false;
+  try {
+    return await module.openExactAlarmSettings();
+  } catch {
+    return false;
+  }
 }
 
 async function configureNotificationSurface(
@@ -459,11 +491,16 @@ export async function fireDebugNotification(): Promise<PermissionState> {
 
 export async function createDebugReminderBatch(): Promise<{
   permission: PermissionState;
+  exactAlarm: ExactAlarmState;
   reminders: Array<{ title: string; fireAt: number }>;
 }> {
   const perm = await ensurePermission();
   if (perm !== 'granted') {
-    return { permission: perm, reminders: [] };
+    return { permission: perm, exactAlarm: 'unavailable', reminders: [] };
+  }
+  const exactAlarm = await getExactAlarmState();
+  if (exactAlarm === 'denied') {
+    return { permission: 'granted', exactAlarm, reminders: [] };
   }
 
   const baseFireAt = nextWholeMinutePlusOneMinute();
@@ -496,7 +533,7 @@ export async function createDebugReminderBatch(): Promise<{
     reminders.push({ title: task.title, fireAt });
   }
 
-  return { permission: 'granted', reminders };
+  return { permission: 'granted', exactAlarm, reminders };
 }
 
 export async function primeNotificationActions(): Promise<void> {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import type { ReminderType } from '../db';
 import * as scheduler from '../lib/notificationScheduler';
 import { useTheme } from '../theme';
@@ -106,15 +106,70 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
   const t = useTheme();
   const [draft, setDraft] = useState<ReminderDraft>(initial);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [exactAlarmDenied, setExactAlarmDenied] = useState(false);
+
+  const refreshPermissionState = async (next: ReminderDraft) => {
+    if (!next.enabled) {
+      setPermissionDenied(false);
+      setExactAlarmDenied(false);
+      return;
+    }
+
+    const result = await scheduler.ensurePermission();
+    setPermissionDenied(result === 'denied');
+    if (result !== 'granted') {
+      setExactAlarmDenied(false);
+      return;
+    }
+
+    const exactAlarmState = await scheduler.getExactAlarmState();
+    setExactAlarmDenied(exactAlarmState === 'denied');
+  };
 
   // When the user flips the reminder ON, ask for permission. We don't block
   // saving the draft if denied — the row still persists, the scheduler just
   // won't arm anything until the user grants permission later.
   const handleToggle = async (enabled: boolean) => {
-    setDraft((d) => ({ ...d, enabled }));
-    if (!enabled) return;
-    const result = await scheduler.ensurePermission();
-    setPermissionDenied(result === 'denied');
+    if (!enabled) {
+      const next = { ...draft, enabled: false };
+      setDraft(next);
+      await refreshPermissionState(next);
+      return;
+    }
+
+    const notificationsPermission = await scheduler.ensurePermission();
+    setPermissionDenied(notificationsPermission === 'denied');
+    if (notificationsPermission !== 'granted') {
+      setExactAlarmDenied(false);
+      setDraft((d) => ({ ...d, enabled: true }));
+      return;
+    }
+
+    const exactAlarmState = await scheduler.getExactAlarmState();
+    const needsExactAlarmGrant = exactAlarmState === 'denied';
+    if (needsExactAlarmGrant) {
+      setDraft((d) => ({ ...d, enabled: false }));
+      setExactAlarmDenied(true);
+      Alert.alert(
+        'Allow exact alarms?',
+        'Turn on "Alarms & reminders" for Streak Todo before enabling reminders. Without it, Android may delay reminders by several minutes.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          {
+            text: 'Open settings',
+            onPress: () => {
+              void scheduler.openExactAlarmSettings();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    const next = { ...draft, enabled: true };
+    setDraft(next);
+    setPermissionDenied(false);
+    setExactAlarmDenied(false);
   };
 
   return (
@@ -126,7 +181,10 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
       statusBarTranslucent
       // Reset the local draft to the latest `initial` every time the popover
       // opens, so re-opening starts from the parent's current value.
-      onShow={() => setDraft(initial)}
+      onShow={() => {
+        setDraft(initial);
+        void refreshPermissionState(initial);
+      }}
     >
       <Pressable
         style={[styles.scrim, { backgroundColor: t.color.scrim }]}
@@ -180,6 +238,37 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
               <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.xs, marginTop: 4, lineHeight: 18 }}>
                 Your task will save, but no reminder will fire until you allow notifications in system settings.
               </Text>
+            </View>
+          ) : null}
+
+          {exactAlarmDenied && draft.enabled ? (
+            <View
+              style={{
+                marginTop: t.spacing.md,
+                padding: t.spacing.md,
+                borderRadius: t.radius.md,
+                backgroundColor: t.color.warnSoft,
+              }}
+            >
+              <Text style={{ color: t.color.textPrimary, fontSize: t.fontSize.sm, fontWeight: t.fontWeight.semibold }}>
+                Exact alarms are off
+              </Text>
+              <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.xs, marginTop: 4, lineHeight: 18 }}>
+                Your task will still save, but Android may delay this reminder by several minutes until you allow "Alarms & reminders" for Streak Todo.
+              </Text>
+              <Pressable
+                onPress={() => {
+                  void scheduler.openExactAlarmSettings();
+                }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Open exact alarm settings"
+                style={{ marginTop: t.spacing.sm, alignSelf: 'flex-start' }}
+              >
+                <Text style={{ color: t.color.accent, fontSize: t.fontSize.sm, fontWeight: t.fontWeight.bold }}>
+                  Open settings
+                </Text>
+              </Pressable>
             </View>
           ) : null}
 

@@ -27,6 +27,7 @@ import * as analytics from './analytics';
 import * as scheduler from './notificationScheduler';
 
 const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
+const EXACT_ALARM_REQUIRED_SENTINEL = 'EXACT_ALARM_REQUIRED';
 
 function repeatRuleFromSchedule(s: ScheduleDraft): CreateTaskFullInput['repeatRule'] {
   if (s.repeat.preset === 'none' || s.dueAt === null) return null;
@@ -148,6 +149,26 @@ type UseTaskEditorReturn = {
   openEdit: (taskId: string) => Promise<void>;
 };
 
+async function confirmInexactReminderSave(): Promise<'open-settings' | 'save-without-reminder'> {
+  return await new Promise((resolve) => {
+    Alert.alert(
+      'Reminder needs exact alarms',
+      'Turn on "Alarms & reminders" for Streak Todo to save an on-time reminder. You can open settings now, or save this task without a reminder.',
+      [
+        {
+          text: 'Open settings',
+          onPress: () => resolve('open-settings'),
+        },
+        {
+          text: 'Save without reminder',
+          style: 'destructive',
+          onPress: () => resolve('save-without-reminder'),
+        },
+      ]
+    );
+  });
+}
+
 /**
  * No `onChanged` callback needed — every repo write emits `tasks-changed`
  * which fans out to every mounted `useTasks` and `useDbVersion` hook. Each
@@ -185,17 +206,36 @@ export function useTaskEditor(): UseTaskEditorReturn {
 
   const onSubmit = useCallback(
     async ({ title, notes, subtasks, categoryId, schedule }: ComposerSubmitInput) => {
+      let effectiveSchedule = schedule;
+      if (schedule.reminder.enabled) {
+        const exactAlarmState = await scheduler.getExactAlarmState();
+        if (exactAlarmState === 'denied') {
+          const choice = await confirmInexactReminderSave();
+          if (choice === 'open-settings') {
+            await scheduler.openExactAlarmSettings();
+            throw new Error(EXACT_ALARM_REQUIRED_SENTINEL);
+          }
+          effectiveSchedule = {
+            ...schedule,
+            reminder: {
+              ...schedule.reminder,
+              enabled: false,
+            },
+          };
+        }
+      }
+
       const payload: CreateTaskFullInput = {
         task: {
           title,
           notes,
           categoryId,
-          dueAt: schedule.dueAt,
-          dueTime: schedule.dueTime,
+          dueAt: effectiveSchedule.dueAt,
+          dueTime: effectiveSchedule.dueTime,
         },
         subtaskTitles: subtasks,
-        reminders: remindersFromSchedule(schedule),
-        repeatRule: repeatRuleFromSchedule(schedule),
+        reminders: remindersFromSchedule(effectiveSchedule),
+        repeatRule: repeatRuleFromSchedule(effectiveSchedule),
       };
 
       let savedTask: Task;
@@ -209,7 +249,7 @@ export function useTaskEditor(): UseTaskEditorReturn {
         savedTask = await tasksRepo.createTaskFull(payload);
       }
 
-      if (schedule.reminder.enabled && savedTask.dueAt !== null) {
+      if (effectiveSchedule.reminder.enabled && savedTask.dueAt !== null) {
         void scheduler.scheduleForTask({
           taskId: savedTask.id,
           taskTitle: savedTask.title,
@@ -217,7 +257,7 @@ export function useTaskEditor(): UseTaskEditorReturn {
           taskDueTime: savedTask.dueTime,
         });
         void analytics.track('notification_scheduled', {
-          lead_minutes: schedule.reminder.leadMinutes,
+          lead_minutes: effectiveSchedule.reminder.leadMinutes,
         });
       }
       const composition = {
@@ -226,8 +266,8 @@ export function useTaskEditor(): UseTaskEditorReturn {
         has_notes: notes !== null && notes.length > 0,
         has_subtasks: subtasks.length > 0,
         has_category: categoryId !== null,
-        has_reminder: schedule.reminder.enabled,
-        has_repeat: schedule.repeat.preset !== 'none',
+        has_reminder: effectiveSchedule.reminder.enabled,
+        has_repeat: effectiveSchedule.repeat.preset !== 'none',
       };
       if (isEdit) {
         // Edit signal carries the same composition flags as create so the
@@ -255,8 +295,8 @@ export function useTaskEditor(): UseTaskEditorReturn {
       // surface a dedicated event so we can answer "was the custom editor
       // worth shipping" from the analytics alone, without inferring it from
       // the generic has_repeat flag.
-      if (schedule.repeat.preset === 'custom' && schedule.repeat.custom) {
-        const c = schedule.repeat.custom;
+      if (effectiveSchedule.repeat.preset === 'custom' && effectiveSchedule.repeat.custom) {
+        const c = effectiveSchedule.repeat.custom;
         const weekdayCount = c.byWeekday
           ? c.byWeekday.split(',').filter(Boolean).length
           : 0;
@@ -264,7 +304,7 @@ export function useTaskEditor(): UseTaskEditorReturn {
           freq: c.freq,
           interval_n: c.intervalN,
           weekday_count: weekdayCount,
-          has_until: schedule.repeat.untilAt != null,
+          has_until: effectiveSchedule.repeat.untilAt != null,
           via: isEdit ? 'edit' : 'create',
         });
       }

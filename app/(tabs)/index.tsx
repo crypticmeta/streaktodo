@@ -396,16 +396,30 @@ export default function TasksScreen() {
               try {
                 const result = await scheduler.createDebugReminderBatch();
                 if (result.permission === 'granted') {
+                  if (result.exactAlarm === 'denied') {
+                    Alert.alert(
+                      'Exact alarms required',
+                      'Enable "Alarms & reminders" for Streak Todo first. The test batch is meant to measure exact background timing, so it will not create reminders while Android is still batching them.',
+                      [
+                        { text: 'Not now', style: 'cancel' },
+                        {
+                          text: 'Open settings',
+                          onPress: () => {
+                            void scheduler.openExactAlarmSettings();
+                          },
+                        },
+                      ]
+                    );
+                    return;
+                  }
                   const lines = result.reminders.map((reminder) => {
                     return `${reminder.title} -> ${new Date(reminder.fireAt).toLocaleTimeString(undefined, {
                       hour: 'numeric',
                       minute: '2-digit',
                     })}`;
                   });
-                  Alert.alert(
-                    'Reminder batch created',
-                    `Created ${result.reminders.length} real reminder tasks:\n\n${lines.join('\n')}\n\nClose or background the app and watch delivery timing in Metro logs.`
-                  );
+                  const baseMessage = `Created ${result.reminders.length} real reminder tasks:\n\n${lines.join('\n')}\n\nClose or background the app and watch delivery timing in Metro logs.`;
+                  Alert.alert('Reminder batch created', baseMessage);
                 } else if (result.permission === 'denied') {
                   Alert.alert(
                     'Permission denied',
