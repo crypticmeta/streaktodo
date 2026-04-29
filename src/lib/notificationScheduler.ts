@@ -40,9 +40,40 @@ function loadModule(): Promise<NotificationsModule | null> {
 type PermissionState = 'unknown' | 'granted' | 'denied';
 let permissionCache: PermissionState = 'unknown';
 
-function toPermissionState(status: string): PermissionState {
-  if (status === 'granted') return 'granted';
-  if (status === 'denied') return 'denied';
+/**
+ * Map a permission *response* to our internal state.
+ *
+ * Android 13+ subtlety: on first launch (before the system popup has been
+ * shown), `getPermissionsAsync()` returns `{ status: 'denied', canAskAgain:
+ * true }` rather than something like `'undetermined'`. If we treat that as
+ * a real `'denied'`, the in-memory cache gets poisoned at boot via
+ * reconcileAll, and ensurePermission() short-circuits forever — the
+ * request popup never fires.
+ *
+ * The reliable signal is `canAskAgain`: when it's true, the user hasn't
+ * actually denied — they just haven't been asked. Treat that as 'unknown'
+ * so the next ensurePermission() call goes through requestPermissionsAsync
+ * and triggers the system popup.
+ */
+type PermissionResponse = {
+  status: string;
+  canAskAgain?: boolean;
+};
+
+function toPermissionState(response: PermissionResponse | string): PermissionState {
+  // Backwards-compat: callers that pass a bare status string fall back to
+  // best-effort mapping (no canAskAgain context).
+  if (typeof response === 'string') {
+    if (response === 'granted') return 'granted';
+    if (response === 'denied') return 'denied';
+    return 'unknown';
+  }
+  if (response.status === 'granted') return 'granted';
+  if (response.status === 'denied') {
+    // Real denial only when the OS won't let us ask again. Otherwise the
+    // user simply hasn't seen the popup yet.
+    return response.canAskAgain === false ? 'denied' : 'unknown';
+  }
   return 'unknown';
 }
 
@@ -69,12 +100,10 @@ export async function ensurePermission(): Promise<PermissionState> {
   }
 
   const existing = await Notifications.getPermissionsAsync();
-  let status = existing.status;
-  let state = toPermissionState(status);
+  let state = toPermissionState(existing);
   if (state === 'unknown') {
     const req = await Notifications.requestPermissionsAsync();
-    status = req.status;
-    state = toPermissionState(status);
+    state = toPermissionState(req);
   }
   permissionCache = state;
   return permissionCache;
@@ -215,7 +244,11 @@ export async function reconcileAll(): Promise<void> {
   // We don't need to ensurePermission() here — it's fine to no-op when the
   // user hasn't granted yet. If they later grant, the next save reconciles.
   const status = await Notifications.getPermissionsAsync();
-  const permissionState = toPermissionState(status.status);
+  // Pass the full response, not just `status.status`, so the
+  // canAskAgain-aware mapper can correctly identify "first-launch never
+  // asked" as 'unknown' rather than 'denied'. Otherwise the boot-time
+  // call would poison the cache and the request popup would never fire.
+  const permissionState = toPermissionState(status);
   if (permissionState !== 'granted') {
     permissionCache = permissionState;
     return;
