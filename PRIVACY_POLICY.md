@@ -4,7 +4,7 @@ This is a starter draft, not final legal advice. Review it before publishing.
 
 ## Privacy Policy
 
-Effective date: `2026-04-29` (last revised when task-content analytics was enabled)
+Effective date: `2026-04-29` (last revised when exact-alarm permissions and task-content analytics were enabled)
 
 Streak Todo ("we", "our", or "us") provides a mobile task planning and
 scheduling application.
@@ -135,6 +135,26 @@ associated with your Google account identifier, email
 data" and the email address you signed in with. We process these requests
 manually via Mixpanel's GDPR data-deletion API and will confirm completion
 within 30 days, in line with applicable data-protection law.
+
+## Permissions used by the app
+
+The Android app declares the following permissions:
+
+- **POST_NOTIFICATIONS** — to display reminder notifications you set inside the app.
+- **SCHEDULE_EXACT_ALARM** — to deliver reminder notifications at the
+  user-set time without being delayed by Android's battery-saver
+  batching. Auto-granted on install for productivity / calendar apps;
+  revocable in system settings, in which case reminders fall back to
+  inexact delivery (still functional, but may be delayed by several
+  minutes).
+- **RECEIVE_BOOT_COMPLETED** — to re-arm any pending reminders after the
+  device restarts. Without this, scheduled reminders would not survive
+  a reboot.
+- **WAKE_LOCK** — used by the notification system to wake the device
+  when an exact reminder fires. We do not hold wake locks for any other
+  purpose.
+
+We do not use any other Android runtime permissions.
 
 ## Children's privacy
 

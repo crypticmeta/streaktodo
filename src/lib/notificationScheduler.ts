@@ -99,7 +99,8 @@ async function scheduleDebugNotificationAt(fireAt: number): Promise<void> {
   if (!Notifications) return;
   await configureNotificationSurface(Notifications);
 
-  const seconds = Math.max(1, Math.floor((fireAt - Date.now()) / 1000));
+  // Mirror the production scheduleOne path so the dev smoke test exercises
+  // the same DATE / exact-alarm route that real reminders take.
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Streak Todo · debug',
@@ -108,8 +109,8 @@ async function scheduleDebugNotificationAt(fireAt: number): Promise<void> {
       data: { debug: true },
     },
     trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds,
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: fireAt,
     },
   });
 }
@@ -222,8 +223,16 @@ async function scheduleOne(args: {
   if (perm !== 'granted') return null;
   await configureNotificationSurface(Notifications);
 
-  const seconds = Math.max(1, Math.floor((args.fireAt - Date.now()) / 1000));
-
+  // DATE trigger fires at a specific wall-clock time. On Android with
+  // SCHEDULE_EXACT_ALARM granted (declared in app.config.ts → android.
+  // permissions), expo-notifications routes through
+  // AlarmManager.setExactAndAllowWhileIdle, which bypasses Doze batching
+  // and delivers within seconds of the target. If the user revokes the
+  // exact-alarm permission in system settings, Android automatically
+  // falls back to inexact delivery (delayed by Doze, but still fires).
+  // Either way, the trigger is more accurate than TIME_INTERVAL, which
+  // expressed only the gap and was always converted to inexact under
+  // the hood.
   return await Notifications.scheduleNotificationAsync({
     content: {
       title: args.taskTitle,
@@ -232,8 +241,8 @@ async function scheduleOne(args: {
       data: { taskId: args.taskId },
     },
     trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds,
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: args.fireAt,
     },
   });
 }

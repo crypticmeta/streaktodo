@@ -32,6 +32,19 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
+    // SCHEDULE_EXACT_ALARM lets reminders bypass Doze batching so they fire
+    // within seconds of the user-set time instead of being delayed by up
+    // to 15 minutes. Auto-granted on install for productivity/calendar
+    // apps; users can revoke from system settings, in which case the
+    // scheduler falls back to inexact alarms (still functional, just less
+    // precise). RECEIVE_BOOT_COMPLETED is added by expo-notifications
+    // automatically; we restate it here for clarity.
+    permissions: [
+      'SCHEDULE_EXACT_ALARM',
+      'POST_NOTIFICATIONS',
+      'RECEIVE_BOOT_COMPLETED',
+      'WAKE_LOCK',
+    ],
   },
   web: {
     favicon: './assets/favicon.png',

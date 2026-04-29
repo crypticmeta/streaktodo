@@ -92,7 +92,7 @@
     <main>
       <div class="eyebrow">Streak Todo</div>
       <h1>Privacy Policy</h1>
-      <p>Effective date: April 28, 2026</p>
+      <p>Effective date: April 29, 2026 (revised for exact-alarm permission disclosure and task-content analytics)</p>
       <p>
         Streak Todo is a mobile task planning and scheduling application. This
         page explains what information the app collects, how it is used, and
@@ -127,15 +127,29 @@
         <li>Backup export, backup import, and local-data reset (file size only — never file contents)</li>
       </ul>
       <p>
+        For task-related analytics events, we also send limited task content
+        to Mixpanel so we can understand what kinds of work people use the
+        app for. That content may include:
+      </p>
+      <ul>
+        <li>Task titles</li>
+        <li>Task notes</li>
+        <li>Up to the first 10 subtask titles attached to the task</li>
+      </ul>
+      <p>
+        These fields are sent on task creation, editing, completion,
+        uncompletion, and deletion events. Long text is truncated before
+        sending.
+      </p>
+      <p>
         When you sign in with Google, the app also associates your Google
         account identifier, email, name, given/family name, profile image URL,
         device platform, and a first-seen timestamp with your Mixpanel
         identity so analytics can be filtered by user.
       </p>
       <p>
-        The contents of your tasks, notes, subtasks, categories, and backup
-        files are never sent to Mixpanel — only the fact that an event
-        occurred and small, non-content metadata such as boolean composition
+        Backup file contents are never sent to Mixpanel. Some events also
+        include small, non-content metadata such as boolean composition
         flags (“had a due date”, “had a reminder”, and similar) and counts
         (interval N, weekday count, byte size).
       </p>
@@ -187,6 +201,16 @@
         Mixpanel’s GDPR data-deletion API and will confirm completion within
         30 days, in line with applicable data-protection law.
       </p>
+
+      <h2>Permissions Used by the App</h2>
+      <p>The Android app declares the following permissions:</p>
+      <ul>
+        <li><strong>POST_NOTIFICATIONS</strong> — to display reminder notifications you set inside the app.</li>
+        <li><strong>SCHEDULE_EXACT_ALARM</strong> — to deliver reminder notifications at the user-set time without being delayed by Android's battery-saver batching. Auto-granted on install for productivity and calendar apps; revocable in system settings, in which case reminders fall back to inexact delivery (still functional, but may be delayed by several minutes).</li>
+        <li><strong>RECEIVE_BOOT_COMPLETED</strong> — to re-arm any pending reminders after the device restarts. Without this, scheduled reminders would not survive a reboot.</li>
+        <li><strong>WAKE_LOCK</strong> — used by the notification system to wake the device when an exact reminder fires. We do not hold wake locks for any other purpose.</li>
+      </ul>
+      <p>We do not use any other Android runtime permissions.</p>
 
       <h2>Children's Privacy</h2>
       <p>
