@@ -36,6 +36,38 @@ export async function getReminderById(id: string): Promise<Reminder | null> {
   return row ? reminderFromRow(row) : null;
 }
 
+export async function getActiveReminderByScheduledNotificationId(
+  scheduledNotificationId: string
+): Promise<{
+  reminderId: string;
+  taskId: string;
+  taskTitle: string;
+} | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{
+    reminder_id: string;
+    task_id: string;
+    title: string;
+  }>(
+    `SELECT r.id AS reminder_id,
+            r.task_id AS task_id,
+            t.title AS title
+       FROM task_reminders r
+       JOIN tasks t ON t.id = r.task_id
+      WHERE r.deleted_at IS NULL
+        AND t.deleted_at IS NULL
+        AND t.status = 'pending'
+        AND r.scheduled_notification_id = ?`,
+    [scheduledNotificationId]
+  );
+  if (!row) return null;
+  return {
+    reminderId: row.reminder_id,
+    taskId: row.task_id,
+    taskTitle: row.title,
+  };
+}
+
 export async function createReminder(input: CreateReminderInput): Promise<Reminder> {
   const db = await getDb();
   const id = newId();

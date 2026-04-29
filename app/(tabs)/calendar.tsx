@@ -124,6 +124,12 @@ export default function CalendarScreen() {
     });
   }, [tasks, optimistic]);
 
+  const tasksById = useMemo(() => {
+    const out = new Map<string, Task>();
+    for (const task of visibleTasks) out.set(task.id, task);
+    return out;
+  }, [visibleTasks]);
+
   const handleToggleComplete = useCallback(
     (id: string, nextStatus: 'done' | 'pending') => {
       setPatch(id, {
@@ -132,9 +138,15 @@ export default function CalendarScreen() {
       });
       (async () => {
         try {
+          const task = tasksById.get(id);
           if (nextStatus === 'done') {
             await tasksRepo.completeTask(id);
-            void analytics.track('task_completed');
+            void analytics.track('task_completed', task
+              ? analytics.buildTaskTextProps({
+                  title: task.title,
+                  notes: task.notes,
+                })
+              : undefined);
             void scheduler.cancelForTask(id);
             try {
               const spawned = await tasksRepo.spawnNextOccurrence(id);
@@ -151,7 +163,12 @@ export default function CalendarScreen() {
             }
           } else {
             await tasksRepo.uncompleteTask(id);
-            void analytics.track('task_uncompleted');
+            void analytics.track('task_uncompleted', task
+              ? analytics.buildTaskTextProps({
+                  title: task.title,
+                  notes: task.notes,
+                })
+              : undefined);
             const tk = await tasksRepo.getTaskById(id);
             if (tk && tk.dueAt !== null) {
               void scheduler.scheduleForTask({
@@ -170,7 +187,7 @@ export default function CalendarScreen() {
         }
       })();
     },
-    [setPatch]
+    [setPatch, tasksById]
   );
 
   const handleTogglePin = useCallback(

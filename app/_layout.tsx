@@ -55,6 +55,56 @@ function AppGate() {
 
   useEffect(() => {
     if (dbState.status !== 'ready') return;
+
+    let active = true;
+    let subscription: { remove: () => void } | null = null;
+
+    (async () => {
+      try {
+        const Notifications = await import('expo-notifications');
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowBanner: true,
+            shouldShowList: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+          }),
+        });
+        await scheduler.primeNotificationActions();
+        if (!active) return;
+
+        const consume = async (
+          response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>
+        ) => {
+          if (!response) return;
+          await scheduler.handleNotificationResponse(response);
+          await Notifications.clearLastNotificationResponseAsync();
+        };
+
+        const last = await Notifications.getLastNotificationResponseAsync();
+        if (!active) return;
+        await consume(last);
+
+        subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+          void (async () => {
+            await scheduler.handleNotificationResponse(response);
+            await Notifications.clearLastNotificationResponseAsync();
+          })();
+        });
+      } catch {
+        // Best-effort only. Notifications still fire even if action wiring
+        // fails in this session.
+      }
+    })();
+
+    return () => {
+      active = false;
+      subscription?.remove();
+    };
+  }, [dbState.status]);
+
+  useEffect(() => {
+    if (dbState.status !== 'ready') return;
     if (authState.status === 'loading') return;
     if (onboardingState === 'loading') return;
 

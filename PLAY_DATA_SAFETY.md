@@ -99,13 +99,15 @@ None of these.
 |---|---|---|---|
 | **Device or other IDs** | No | — | Mixpanel generates its own pseudo-anonymous device ID; this is the SDK's internal identifier and not a hardware ID. We do not collect Android Advertising ID, IMEI, or similar. |
 
-### Health and fitness / Financial info / Messages / Audio recordings / Tasks (in the Data Safety sense)
+### Other user-generated content
 
-> Note: Play's "App activity" → "Other user-generated content" *might* be
-> claimed for the task titles you create. Our position is that task content
-> stays on-device and is **not collected** in the Play sense — only event
-> metadata is sent. If you ever ship cloud sync (Phase 14), this answer
-> changes to "Yes, collected, linked, App functionality."
+| Type | Collected? | Shared? | Required? | Linked to user? | Purpose |
+|---|---|---|---|---|---|
+| **Other user-generated content** (task titles, task notes, up to the first 10 subtask titles attached to a task, sent in task analytics events) | Yes | Yes (Mixpanel) | Required | Yes (when signed in) | Analytics |
+
+### Health and fitness / Financial info / Messages / Audio recordings
+
+None.
 
 ## Section 3 — Security practices
 
@@ -123,7 +125,8 @@ Mention the following SDKs and their roles in the Data Safety description
 fields when prompted:
 
 - **Mixpanel** — analytics. EU-region ingestion (`api-eu.mixpanel.com`).
-  Receives event metadata + identified user profile when signed in.
+  Receives event metadata, limited task-content fields for task events, and
+  identified user profile when signed in.
 - **Google Sign-In (`@react-native-google-signin/google-signin`)** — sign-in
   only. Token is stored locally in SecureStore; we do not call Google APIs
   beyond authentication.
@@ -172,8 +175,8 @@ The reliable workaround:
 4. Click into Step 5 (Preview) to verify the public summary now lists
    collected + shared data types and has the encryption-in-transit line.
 
-For Streak Todo's V1 build the five declared types are:
+For Streak Todo's V1 build the six declared types are:
 `PSL_NAME`, `PSL_EMAIL`, `PSL_USER_ACCOUNT`, `PSL_OTHER_PERSONAL`,
-`PSL_USER_INTERACTION`. Re-export and re-run the fixer if the data
+`PSL_USER_INTERACTION`, `PSL_OTHER_USER_GENERATED_CONTENT`. Re-export and re-run the fixer if the data
 catalogue ever expands (e.g., new Mixpanel events that touch new data
 categories — backup file *contents* would, byte-size only does not).

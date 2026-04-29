@@ -232,9 +232,23 @@ export function useTaskEditor(): UseTaskEditorReturn {
       if (isEdit) {
         // Edit signal carries the same composition flags as create so the
         // post-edit shape is comparable to the post-create shape downstream.
-        void analytics.track('task_edited', composition);
+        void analytics.track('task_edited', {
+          ...composition,
+          ...analytics.buildTaskTextProps({
+            title: savedTask.title,
+            notes,
+            subtasks,
+          }),
+        });
       } else {
-        void analytics.track('task_created', composition);
+        void analytics.track('task_created', {
+          ...composition,
+          ...analytics.buildTaskTextProps({
+            title: savedTask.title,
+            notes,
+            subtasks,
+          }),
+        });
       }
 
       // Custom repeat is the most expensive feature surface to maintain —
@@ -272,8 +286,14 @@ export function useTaskEditor(): UseTaskEditorReturn {
           onPress: async () => {
             void scheduler.cancelForTask(id);
             try {
+              const task = await tasksRepo.getTaskById(id);
               await tasksRepo.softDeleteTask(id);
-              void analytics.track('task_deleted');
+              void analytics.track('task_deleted', task
+                ? analytics.buildTaskTextProps({
+                    title: task.title,
+                    notes: task.notes,
+                  })
+                : undefined);
               onClose();
             } catch {
               // best-effort

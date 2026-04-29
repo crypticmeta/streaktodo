@@ -15,9 +15,20 @@
  */
 
 import { Platform } from 'react-native';
-import { getDb, remindersRepo } from '../db';
+import { getDb, remindersRepo, tasksRepo } from '../db';
 
 type NotificationsModule = typeof import('expo-notifications');
+type NotificationResponseLike = {
+  actionIdentifier: string;
+  notification: {
+    request: {
+      identifier: string;
+      content: {
+        data?: unknown;
+      };
+    };
+  };
+};
 
 // Lazy-load expo-notifications. The module isn't available in environments
 // where the native pieces haven't been linked yet (e.g. Expo Go before SDK
@@ -39,6 +50,69 @@ function loadModule(): Promise<NotificationsModule | null> {
 
 type PermissionState = 'unknown' | 'granted' | 'denied';
 let permissionCache: PermissionState = 'unknown';
+const REMINDER_CATEGORY_ID = 'REMINDER';
+const REMINDER_ACTION_DONE = 'DONE';
+const REMINDER_ACTION_SNOOZE = 'SNOOZE_10M';
+const SNOOZE_MINUTES = 10;
+let categorySetupPromise: Promise<void> | null = null;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function taskIdFromData(data: unknown): string | null {
+  if (!isRecord(data)) return null;
+  return typeof data.taskId === 'string' ? data.taskId : null;
+}
+
+function isDebugNotificationData(data: unknown): boolean {
+  return isRecord(data) && data.debug === true;
+}
+
+async function configureNotificationSurface(
+  Notifications: NotificationsModule
+): Promise<void> {
+  if (!categorySetupPromise) {
+    categorySetupPromise = (async () => {
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Reminders',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+        });
+      }
+
+      await Notifications.setNotificationCategoryAsync(REMINDER_CATEGORY_ID, [
+        { identifier: REMINDER_ACTION_DONE, buttonTitle: 'Done' },
+        { identifier: REMINDER_ACTION_SNOOZE, buttonTitle: 'Snooze 10m' },
+      ]);
+    })().catch((err) => {
+      categorySetupPromise = null;
+      throw err;
+    });
+  }
+  await categorySetupPromise;
+}
+
+async function scheduleDebugNotificationAt(fireAt: number): Promise<void> {
+  const Notifications = await loadModule();
+  if (!Notifications) return;
+  await configureNotificationSurface(Notifications);
+
+  const seconds = Math.max(1, Math.floor((fireAt - Date.now()) / 1000));
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Streak Todo · debug',
+      body: 'Action-button smoke test. Try Done or Snooze 10m.',
+      categoryIdentifier: REMINDER_CATEGORY_ID,
+      data: { debug: true },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds,
+    },
+  });
+}
 
 /**
  * Map a permission *response* to our internal state.
@@ -90,14 +164,8 @@ export async function ensurePermission(): Promise<PermissionState> {
     return 'denied';
   }
 
-  if (Platform.OS === 'android') {
-    // Android 13+ requires a channel before the OS will show the prompt.
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Reminders',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-    });
-  }
+  // Android 13+ requires a channel before the OS will show the prompt.
+  await configureNotificationSurface(Notifications);
 
   const existing = await Notifications.getPermissionsAsync();
   let state = toPermissionState(existing);
@@ -152,6 +220,7 @@ async function scheduleOne(args: {
   if (!Notifications) return null;
   const perm = await ensurePermission();
   if (perm !== 'granted') return null;
+  await configureNotificationSurface(Notifications);
 
   const seconds = Math.max(1, Math.floor((args.fireAt - Date.now()) / 1000));
 
@@ -159,6 +228,7 @@ async function scheduleOne(args: {
     content: {
       title: args.taskTitle,
       body: 'Reminder',
+      categoryIdentifier: REMINDER_CATEGORY_ID,
       data: { taskId: args.taskId },
     },
     trigger: {
@@ -176,6 +246,19 @@ async function cancelOne(scheduledNotificationId: string | null): Promise<void> 
     await Notifications.cancelScheduledNotificationAsync(scheduledNotificationId);
   } catch {
     // Already gone — ignore.
+  }
+}
+
+async function dismissPresentedNotification(
+  notificationIdentifier: string | null | undefined
+): Promise<void> {
+  if (!notificationIdentifier) return;
+  const Notifications = await loadModule();
+  if (!Notifications) return;
+  try {
+    await Notifications.dismissNotificationAsync(notificationIdentifier);
+  } catch {
+    // Best-effort only. Some platforms/OEMs may have already removed it.
   }
 }
 
@@ -241,6 +324,12 @@ export async function scheduleForTask(args: {
 export async function reconcileAll(): Promise<void> {
   const Notifications = await loadModule();
   if (!Notifications) return;
+  try {
+    await configureNotificationSurface(Notifications);
+  } catch {
+    // Best-effort only. If category registration fails we still want the
+    // permission/cache logic below to run and reminders can still schedule.
+  }
   // We don't need to ensurePermission() here — it's fine to no-op when the
   // user hasn't granted yet. If they later grant, the next save reconciles.
   const status = await Notifications.getPermissionsAsync();
@@ -304,19 +393,98 @@ export async function fireDebugNotification(): Promise<PermissionState> {
 
   const perm = await ensurePermission();
   if (perm !== 'granted') return perm;
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Streak Todo · debug',
-      body: 'If you see this, notifications are wired correctly.',
-      data: { debug: true },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: 3,
-    },
-  });
+  await scheduleDebugNotificationAt(Date.now() + 3_000);
   return 'granted';
+}
+
+export async function primeNotificationActions(): Promise<void> {
+  const Notifications = await loadModule();
+  if (!Notifications) return;
+  await configureNotificationSurface(Notifications);
+}
+
+async function completeTaskFromNotification(taskId: string): Promise<void> {
+  const task = await tasksRepo.getTaskById(taskId);
+  if (!task || task.status === 'done') return;
+
+  await tasksRepo.completeTask(taskId);
+  await cancelForTask(taskId);
+
+  try {
+    const spawned = await tasksRepo.spawnNextOccurrence(taskId);
+    if (spawned && spawned.dueAt !== null) {
+      await scheduleForTask({
+        taskId: spawned.id,
+        taskTitle: spawned.title,
+        taskDueAt: spawned.dueAt,
+        taskDueTime: spawned.dueTime,
+      });
+    }
+  } catch {
+    // Best-effort only. Completion should still stick even if recurrence
+    // spawning fails.
+  }
+}
+
+async function snoozeTaskFromNotification(args: {
+  taskId: string;
+  scheduledNotificationId: string;
+}): Promise<void> {
+  const reminder = await remindersRepo.getActiveReminderByScheduledNotificationId(
+    args.scheduledNotificationId
+  );
+  const fireAt = Date.now() + SNOOZE_MINUTES * 60 * 1000;
+
+  if (reminder) {
+    const nextId = await scheduleOne({
+      taskId: reminder.taskId,
+      taskTitle: reminder.taskTitle,
+      fireAt,
+    });
+    await remindersRepo.updateReminder(reminder.reminderId, {
+      scheduledNotificationId: nextId,
+    });
+    return;
+  }
+
+  const task = await tasksRepo.getTaskById(args.taskId);
+  if (!task || task.status === 'done') return;
+  await scheduleOne({
+    taskId: task.id,
+    taskTitle: task.title,
+    fireAt,
+  });
+}
+
+export async function handleNotificationResponse(
+  response: NotificationResponseLike
+): Promise<void> {
+  const notificationIdentifier = response.notification.request.identifier;
+  const data = response.notification.request.content.data;
+  if (isDebugNotificationData(data)) {
+    if (response.actionIdentifier === REMINDER_ACTION_SNOOZE) {
+      await dismissPresentedNotification(notificationIdentifier);
+      await scheduleDebugNotificationAt(Date.now() + SNOOZE_MINUTES * 60 * 1000);
+    }
+    return;
+  }
+
+  const taskId = taskIdFromData(data);
+  if (!taskId) return;
+
+  if (response.actionIdentifier === REMINDER_ACTION_DONE) {
+    await dismissPresentedNotification(notificationIdentifier);
+    await completeTaskFromNotification(taskId);
+    return;
+  }
+
+  if (response.actionIdentifier === REMINDER_ACTION_SNOOZE) {
+    await dismissPresentedNotification(notificationIdentifier);
+    await snoozeTaskFromNotification({
+      taskId,
+      scheduledNotificationId: notificationIdentifier,
+    });
+  }
 }
 
 /**

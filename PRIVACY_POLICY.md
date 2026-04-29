@@ -4,7 +4,7 @@ This is a starter draft, not final legal advice. Review it before publishing.
 
 ## Privacy Policy
 
-Effective date: `2026-04-28` (last revised when the analytics event catalogue was expanded)
+Effective date: `2026-04-29` (last revised when task-content analytics was enabled)
 
 Streak Todo ("we", "our", or "us") provides a mobile task planning and
 scheduling application.
@@ -49,6 +49,17 @@ Events currently tracked include:
 - custom repeat-rule configuration (frequency, interval, weekday count, end-date presence)
 - backup export, backup import, and local-data reset (file size only — never file contents)
 
+For task-related analytics events, we also send limited task content to
+Mixpanel so we can understand what kinds of work people use the app for.
+That content may include:
+
+- task titles
+- task notes
+- up to the first 10 subtask titles attached to the task
+
+These fields are sent on task creation, editing, completion, uncompletion,
+and deletion events. Long text is truncated before sending.
+
 When you sign in with Google, the app also associates the following profile
 information with your Mixpanel identity so analytics can be filtered by user:
 
@@ -57,10 +68,11 @@ information with your Mixpanel identity so analytics can be filtered by user:
 - the device platform (Android or iOS)
 - the timestamp of when this Mixpanel identity was first seen
 
-The contents of your tasks, notes, subtasks, categories, and backup files are
-never sent to Mixpanel — only the fact that an event occurred and small,
-non-content metadata such as boolean composition flags ("had a due date",
-"had a reminder", etc.) and counts (interval N, weekday count, byte size).
+Task titles, notes, and a limited number of subtask titles may be sent to
+Mixpanel as described above. Backup file contents are never sent to
+Mixpanel. Some analytics events also include small metadata such as boolean
+composition flags ("had a due date", "had a reminder", etc.) and counts
+(interval N, weekday count, byte size).
 
 ## How we use information
 

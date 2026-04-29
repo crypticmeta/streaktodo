@@ -156,9 +156,16 @@ export default function TasksScreen() {
       });
       (async () => {
         try {
+          const task = tasksById.get(id);
           if (nextStatus === 'done') {
             await tasksRepo.completeTask(id);
-            void analytics.track('task_completed');
+            void analytics.track('task_completed', task
+              ? analytics.buildTaskTextProps({
+                  title: task.title,
+                  notes: task.notes,
+                  subtasks: (subtasksByTask[id] ?? []).map((subtask) => subtask.title),
+                })
+              : undefined);
             // Completed tasks shouldn't keep buzzing the phone.
             void scheduler.cancelForTask(id);
             // If the task carried a repeat rule, spawn its next occurrence and
@@ -179,7 +186,13 @@ export default function TasksScreen() {
             }
           } else {
             await tasksRepo.uncompleteTask(id);
-            void analytics.track('task_uncompleted');
+            void analytics.track('task_uncompleted', task
+              ? analytics.buildTaskTextProps({
+                  title: task.title,
+                  notes: task.notes,
+                  subtasks: (subtasksByTask[id] ?? []).map((subtask) => subtask.title),
+                })
+              : undefined);
             // Re-arm in case the user un-checks an old completion.
             const t = await tasksRepo.getTaskById(id);
             if (t && t.dueAt !== null) {
@@ -198,7 +211,7 @@ export default function TasksScreen() {
         }
       })();
     },
-    [setPatch]
+    [setPatch, subtasksByTask, tasksById]
   );
 
   const handleTogglePin = useCallback(
@@ -250,7 +263,14 @@ export default function TasksScreen() {
           });
           try {
             await tasksRepo.completeTask(parentTaskId);
-            void analytics.track('task_completed');
+            void analytics.track(
+              'task_completed',
+              analytics.buildTaskTextProps({
+                title: parent.title,
+                notes: parent.notes,
+                subtasks: (subtasksByTask[parentTaskId] ?? []).map((subtask) => subtask.title),
+              })
+            );
             void scheduler.cancelForTask(parentTaskId);
             try {
               const spawned = await tasksRepo.spawnNextOccurrence(parentTaskId);
@@ -276,7 +296,14 @@ export default function TasksScreen() {
           });
           try {
             await tasksRepo.uncompleteTask(parentTaskId);
-            void analytics.track('task_uncompleted');
+            void analytics.track(
+              'task_uncompleted',
+              analytics.buildTaskTextProps({
+                title: parent.title,
+                notes: parent.notes,
+                subtasks: (subtasksByTask[parentTaskId] ?? []).map((subtask) => subtask.title),
+              })
+            );
             if (parent.dueAt !== null) {
               void scheduler.scheduleForTask({
                 taskId: parent.id,
@@ -372,7 +399,7 @@ export default function TasksScreen() {
                 if (result === 'granted') {
                   Alert.alert(
                     'Notification scheduled',
-                    'Should fire in ~3 seconds. Background the app or watch the tray.'
+                    'Should fire in ~3 seconds with Done and Snooze 10m actions. Background the app or watch the tray.'
                   );
                 } else if (result === 'denied') {
                   Alert.alert(

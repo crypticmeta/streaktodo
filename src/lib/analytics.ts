@@ -84,6 +84,35 @@ export type EventName =
 type Primitive = string | number | boolean | null;
 type Props = Record<string, Primitive | Primitive[]>;
 
+const TASK_TITLE_MAX = 200;
+const TASK_NOTES_MAX = 2_000;
+const SUBTASK_TITLE_MAX = 140;
+const MAX_SUBTASKS_TRACKED = 10;
+
+function trimTrackedText(value: string, maxLength: number): string {
+  return value.trim().slice(0, maxLength);
+}
+
+export function buildTaskTextProps(args: {
+  title: string;
+  notes?: string | null;
+  subtasks?: string[];
+}): Props {
+  const title = trimTrackedText(args.title, TASK_TITLE_MAX);
+  const notes = args.notes ? trimTrackedText(args.notes, TASK_NOTES_MAX) : null;
+  const subtasks = (args.subtasks ?? [])
+    .map((item) => trimTrackedText(item, SUBTASK_TITLE_MAX))
+    .filter((item) => item.length > 0)
+    .slice(0, MAX_SUBTASKS_TRACKED);
+
+  return {
+    task_title: title,
+    task_notes: notes && notes.length > 0 ? notes : null,
+    subtask_titles: subtasks,
+    subtask_count_tracked: subtasks.length,
+  };
+}
+
 export async function track(event: EventName, props?: Props): Promise<void> {
   const mp = await getMixpanel();
   if (!mp) {
