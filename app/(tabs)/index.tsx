@@ -386,22 +386,27 @@ export default function TasksScreen() {
           paddingBottom: t.spacing.xs,
         }}
       >
-        {/* Dev-only smoke test for the notification permission + scheduling
-            pipeline. Schedules a one-shot notification 3s out via the same
-            `ensurePermission` path the real reminder flow uses, so a
-            regression in either layer surfaces here. Stripped from
+        {/* Dev-only reminder batch creator. Creates real tasks with "at time"
+            reminders spanning 15 minutes so background-delivery timing can be
+            tested repeatedly without hand-entering tasks. Stripped from
             production via __DEV__ + bundler dead-code elimination. */}
         {__DEV__ ? (
           <Pressable
             onPress={async () => {
               try {
-                const result = await scheduler.fireDebugNotification();
-                if (result === 'granted') {
+                const result = await scheduler.createDebugReminderBatch();
+                if (result.permission === 'granted') {
+                  const lines = result.reminders.map((reminder) => {
+                    return `${reminder.title} -> ${new Date(reminder.fireAt).toLocaleTimeString(undefined, {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}`;
+                  });
                   Alert.alert(
-                    'Notification scheduled',
-                    'Should fire in ~3 seconds with Done and Snooze 10m actions. Background the app or watch the tray.'
+                    'Reminder batch created',
+                    `Created ${result.reminders.length} real reminder tasks:\n\n${lines.join('\n')}\n\nClose or background the app and watch delivery timing in Metro logs.`
                   );
-                } else if (result === 'denied') {
+                } else if (result.permission === 'denied') {
                   Alert.alert(
                     'Permission denied',
                     'Enable notifications in system settings, then try again.'
@@ -421,7 +426,7 @@ export default function TasksScreen() {
             }}
             hitSlop={6}
             accessibilityRole="button"
-            accessibilityLabel="Fire test notification (dev only)"
+            accessibilityLabel="Create test reminder batch (dev only)"
             style={({ pressed }) => [
               styles.devNotifButton,
               {
@@ -440,10 +445,10 @@ export default function TasksScreen() {
                 fontWeight: t.fontWeight.semibold,
               }}
             >
-              Test notif
-            </Text>
-          </Pressable>
-        ) : null}
+                Test reminders
+              </Text>
+            </Pressable>
+          ) : null}
         <Pressable
           onPress={handleToggleShowDone}
           hitSlop={6}

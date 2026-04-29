@@ -57,7 +57,8 @@ function AppGate() {
     if (dbState.status !== 'ready') return;
 
     let active = true;
-    let subscription: { remove: () => void } | null = null;
+    let responseSubscription: { remove: () => void } | null = null;
+    let receiveSubscription: { remove: () => void } | null = null;
 
     (async () => {
       try {
@@ -85,7 +86,11 @@ function AppGate() {
         if (!active) return;
         await consume(last);
 
-        subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        receiveSubscription = Notifications.addNotificationReceivedListener((notification) => {
+          scheduler.logNotificationTiming(notification.request.content.data, 'received');
+        });
+
+        responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
           void (async () => {
             await scheduler.handleNotificationResponse(response);
             await Notifications.clearLastNotificationResponseAsync();
@@ -99,7 +104,8 @@ function AppGate() {
 
     return () => {
       active = false;
-      subscription?.remove();
+      responseSubscription?.remove();
+      receiveSubscription?.remove();
     };
   }, [dbState.status]);
 

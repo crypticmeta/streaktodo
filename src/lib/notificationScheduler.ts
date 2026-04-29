@@ -54,6 +54,12 @@ const REMINDER_CATEGORY_ID = 'REMINDER';
 const REMINDER_ACTION_DONE = 'DONE';
 const REMINDER_ACTION_SNOOZE = 'SNOOZE_10M';
 const SNOOZE_MINUTES = 10;
+// Dev-only reminder smoke-test schedule. Each value is the offset in
+// minutes from "the next whole minute + 1 minute" (i.e. the batch's base
+// fire time). Tighter spacing surfaces drift faster; the 8-minute
+// horizon stays inside one Doze maintenance window so we measure the
+// best-case path rather than worst-case.
+const DEBUG_BATCH_OFFSETS_MINUTES = [2, 4, 6, 8] as const;
 let categorySetupPromise: Promise<void> | null = null;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -67,6 +73,45 @@ function taskIdFromData(data: unknown): string | null {
 
 function isDebugNotificationData(data: unknown): boolean {
   return isRecord(data) && data.debug === true;
+}
+
+function numberFromData(data: unknown, key: string): number | null {
+  if (!isRecord(data)) return null;
+  const value = data[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function startOfLocalDay(ts: number): number {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function dueTimeMinutes(ts: number): number {
+  const d = new Date(ts);
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function nextWholeMinutePlusOneMinute(nowTs: number = Date.now()): number {
+  return Math.ceil(nowTs / 60_000) * 60_000 + 60_000;
+}
+
+export function logNotificationTiming(data: unknown, source: string): void {
+  const expectedFireAt = numberFromData(data, 'expectedFireAt');
+  if (expectedFireAt === null) return;
+  const scheduledAt = numberFromData(data, 'scheduledAt');
+  const taskId = taskIdFromData(data);
+  console.log(
+    '[notif]',
+    source,
+    JSON.stringify({
+      taskId,
+      scheduledAt,
+      expectedFireAt,
+      observedAt: Date.now(),
+      delayMs: Date.now() - expectedFireAt,
+    })
+  );
 }
 
 async function configureNotificationSurface(
@@ -98,6 +143,7 @@ async function scheduleDebugNotificationAt(fireAt: number): Promise<void> {
   const Notifications = await loadModule();
   if (!Notifications) return;
   await configureNotificationSurface(Notifications);
+  const scheduledAt = Date.now();
 
   // Mirror the production scheduleOne path so the dev smoke test exercises
   // the same DATE / exact-alarm route that real reminders take.
@@ -106,7 +152,7 @@ async function scheduleDebugNotificationAt(fireAt: number): Promise<void> {
       title: 'Streak Todo · debug',
       body: 'Action-button smoke test. Try Done or Snooze 10m.',
       categoryIdentifier: REMINDER_CATEGORY_ID,
-      data: { debug: true },
+      data: { debug: true, expectedFireAt: fireAt, scheduledAt },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -222,6 +268,7 @@ async function scheduleOne(args: {
   const perm = await ensurePermission();
   if (perm !== 'granted') return null;
   await configureNotificationSurface(Notifications);
+  const scheduledAt = Date.now();
 
   // DATE trigger fires at a specific wall-clock time. On Android with
   // SCHEDULE_EXACT_ALARM granted (declared in app.config.ts → android.
@@ -238,7 +285,11 @@ async function scheduleOne(args: {
       title: args.taskTitle,
       body: 'Reminder',
       categoryIdentifier: REMINDER_CATEGORY_ID,
-      data: { taskId: args.taskId },
+      data: {
+        taskId: args.taskId,
+        expectedFireAt: args.fireAt,
+        scheduledAt,
+      },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -406,6 +457,48 @@ export async function fireDebugNotification(): Promise<PermissionState> {
   return 'granted';
 }
 
+export async function createDebugReminderBatch(): Promise<{
+  permission: PermissionState;
+  reminders: Array<{ title: string; fireAt: number }>;
+}> {
+  const perm = await ensurePermission();
+  if (perm !== 'granted') {
+    return { permission: perm, reminders: [] };
+  }
+
+  const baseFireAt = nextWholeMinutePlusOneMinute();
+  const reminders: Array<{ title: string; fireAt: number }> = [];
+
+  for (const offsetMinutes of DEBUG_BATCH_OFFSETS_MINUTES) {
+    const fireAt = baseFireAt + offsetMinutes * 60_000;
+    const label = new Date(fireAt).toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const title = `Debug reminder ${label}`;
+    const task = await tasksRepo.createTaskFull({
+      task: {
+        title,
+        notes: `Dev reminder batch target ${label}`,
+        dueAt: startOfLocalDay(fireAt),
+        dueTime: dueTimeMinutes(fireAt),
+      },
+      subtaskTitles: [],
+      reminders: [{ leadMinutes: 0, type: 'notification' }],
+      repeatRule: null,
+    });
+    await scheduleForTask({
+      taskId: task.id,
+      taskTitle: task.title,
+      taskDueAt: task.dueAt,
+      taskDueTime: task.dueTime,
+    });
+    reminders.push({ title: task.title, fireAt });
+  }
+
+  return { permission: 'granted', reminders };
+}
+
 export async function primeNotificationActions(): Promise<void> {
   const Notifications = await loadModule();
   if (!Notifications) return;
@@ -470,6 +563,7 @@ export async function handleNotificationResponse(
 ): Promise<void> {
   const notificationIdentifier = response.notification.request.identifier;
   const data = response.notification.request.content.data;
+  logNotificationTiming(data, `response:${response.actionIdentifier}`);
   if (isDebugNotificationData(data)) {
     if (response.actionIdentifier === REMINDER_ACTION_SNOOZE) {
       await dismissPresentedNotification(notificationIdentifier);
