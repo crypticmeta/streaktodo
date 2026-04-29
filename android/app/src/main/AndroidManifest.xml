@@ -4,17 +4,6 @@
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-  <!--
-    Reminder accuracy: SCHEDULE_EXACT_ALARM lets AlarmManager.setExactAnd-
-    AllowWhileIdle bypass Doze batching so reminders fire within seconds
-    of the user-set time. Auto-granted on install for productivity /
-    calendar apps; revocable in system settings, in which case Android
-    falls back to inexact delivery (still fires, just delayed).
-
-    POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK are added by
-    expo-notifications via manifest merging — listed here for clarity
-    so the source of truth is one file.
-  -->
   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
