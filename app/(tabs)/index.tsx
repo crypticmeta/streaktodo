@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { CategoryPills } from '../../src/components/CategoryPills';
@@ -348,12 +348,75 @@ export default function TasksScreen() {
       <View
         style={{
           flexDirection: 'row',
-          justifyContent: 'flex-end',
+          // Dev: debug button on the left, show-done on the right.
+          // Production: __DEV__ branch is dead-code-eliminated, leaving a
+          // single right-aligned show-done pill (visually identical to
+          // before).
+          justifyContent: __DEV__ ? 'space-between' : 'flex-end',
+          alignItems: 'center',
           paddingHorizontal: t.spacing.xl,
           paddingTop: t.spacing.sm,
           paddingBottom: t.spacing.xs,
         }}
       >
+        {/* Dev-only smoke test for the notification permission + scheduling
+            pipeline. Schedules a one-shot notification 3s out via the same
+            `ensurePermission` path the real reminder flow uses, so a
+            regression in either layer surfaces here. Stripped from
+            production via __DEV__ + bundler dead-code elimination. */}
+        {__DEV__ ? (
+          <Pressable
+            onPress={async () => {
+              try {
+                const result = await scheduler.fireDebugNotification();
+                if (result === 'granted') {
+                  Alert.alert(
+                    'Notification scheduled',
+                    'Should fire in ~3 seconds. Background the app or watch the tray.'
+                  );
+                } else if (result === 'denied') {
+                  Alert.alert(
+                    'Permission denied',
+                    'Enable notifications in system settings, then try again.'
+                  );
+                } else {
+                  Alert.alert(
+                    'Module unavailable',
+                    'expo-notifications failed to load. Likely an Expo Go runtime — needs a dev build.'
+                  );
+                }
+              } catch (err) {
+                Alert.alert(
+                  'Notification error',
+                  err instanceof Error ? err.message : 'Unknown error.'
+                );
+              }
+            }}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Fire test notification (dev only)"
+            style={({ pressed }) => [
+              styles.devNotifButton,
+              {
+                backgroundColor: pressed ? t.color.surfaceMuted : 'transparent',
+                borderRadius: t.radius.pill,
+                borderColor: t.color.borderStrong,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <Icon name="reminder" size={14} color={t.color.textMuted} />
+            <Text
+              style={{
+                color: t.color.textMuted,
+                fontSize: t.fontSize.xs,
+                fontWeight: t.fontWeight.semibold,
+              }}
+            >
+              Test notif
+            </Text>
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={handleToggleShowDone}
           hitSlop={6}
@@ -587,6 +650,13 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   showDoneToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  devNotifButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,

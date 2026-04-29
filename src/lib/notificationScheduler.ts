@@ -255,6 +255,38 @@ export async function reconcileAll(): Promise<void> {
 }
 
 /**
+ * Dev-only smoke test. Asks for permission via the real `ensurePermission`
+ * path (so a regression in the boot-time-cache logic surfaces here too),
+ * then schedules a one-shot notification a few seconds out. Persists
+ * nothing — no reminder row, no scheduled_notification_id tracked.
+ *
+ * Returns:
+ *   - `'granted'` if the notification was scheduled
+ *   - `'denied'`  if the user (or system) refused permission
+ *   - `'unknown'` if the native module failed to load
+ */
+export async function fireDebugNotification(): Promise<PermissionState> {
+  const Notifications = await loadModule();
+  if (!Notifications) return 'unknown';
+
+  const perm = await ensurePermission();
+  if (perm !== 'granted') return perm;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Streak Todo · debug',
+      body: 'If you see this, notifications are wired correctly.',
+      data: { debug: true },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 3,
+    },
+  });
+  return 'granted';
+}
+
+/**
  * Clear every scheduled OS notification and forget all persisted ids.
  * Used before a full DB restore so stale alarms from the pre-import dataset
  * can't survive into the restored state.
