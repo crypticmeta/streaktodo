@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { OverviewTotals as Totals } from '../lib/streakStats';
 import { useTheme } from '../theme';
+import { Icon, type IconName } from './Icon';
 
 type Props = {
   totals: Totals;
@@ -14,9 +15,6 @@ export function OverviewTotals({ totals }: Props) {
       style={[
         styles.container,
         {
-          backgroundColor: t.color.surface,
-          borderRadius: t.radius.xl,
-          padding: t.spacing.xl,
           gap: t.spacing.md,
         },
       ]}
@@ -30,14 +28,14 @@ export function OverviewTotals({ totals }: Props) {
           textTransform: 'uppercase',
         }}
       >
-        Overview
+        Momentum at a glance
       </Text>
 
       <View style={styles.grid}>
-        <Stat label="total" value={totals.total} />
-        <Stat label="done" value={totals.done} accent />
-        <Stat label="pending" value={totals.pending} />
-        <Stat label="overdue" value={totals.overdue} danger={totals.overdue > 0} />
+        <Stat label="All tasks" value={totals.total} tone="info" icon="sparkles" />
+        <Stat label="Done" value={totals.done} tone="success" icon="check" />
+        <Stat label="In motion" value={totals.pending} tone="warning" icon="time" />
+        <Stat label="Overdue" value={totals.overdue} tone="danger" icon="reminder" />
       </View>
     </View>
   );
@@ -46,41 +44,56 @@ export function OverviewTotals({ totals }: Props) {
 function Stat({
   label,
   value,
-  accent,
-  danger,
+  tone,
+  icon,
 }: {
   label: string;
   value: number;
-  accent?: boolean;
-  danger?: boolean;
+  tone: 'info' | 'success' | 'warning' | 'danger';
+  icon: IconName;
 }) {
   const t = useTheme();
-  const color = danger
-    ? t.color.danger
-    : accent
-      ? t.color.accent
-      : t.color.textPrimary;
+  const backgroundColor = tone === 'info'
+    ? t.color.infoSoft
+    : tone === 'success'
+      ? t.color.successSoft
+      : tone === 'warning'
+        ? t.color.warnSoft
+        : t.color.dangerSoft;
+  const iconColor = tone === 'info'
+    ? t.color.info
+    : tone === 'success'
+      ? t.color.success
+      : tone === 'warning'
+        ? t.color.warn
+        : t.color.danger;
   return (
-    <View style={styles.cell}>
+    <View style={[styles.cell, { backgroundColor, borderRadius: t.radius.xl, padding: t.spacing.lg }]}>
+      <View style={styles.statTop}>
+        <View style={[styles.iconBubble, { backgroundColor: t.color.surface, borderRadius: t.radius.pill }]}>
+          <Icon name={icon} size={16} color={iconColor} />
+        </View>
+        <Text
+          style={{
+            color: t.color.textMuted,
+            fontSize: t.fontSize.xs,
+            fontWeight: t.fontWeight.semibold,
+          }}
+        >
+          {label}
+        </Text>
+      </View>
       <Text
         style={{
-          color,
-          fontSize: t.fontSize['2xl'],
+          color: t.color.textPrimary,
+          fontSize: t.fontSize['3xl'],
           fontWeight: t.fontWeight.heavy,
           fontVariant: ['tabular-nums'],
           letterSpacing: t.tracking.tight,
+          marginTop: t.spacing.md,
         }}
       >
         {value}
-      </Text>
-      <Text
-        style={{
-          color: t.color.textMuted,
-          fontSize: t.fontSize.xs,
-          marginTop: 2,
-        }}
-      >
-        {label}
       </Text>
     </View>
   );
@@ -92,9 +105,14 @@ const styles = StyleSheet.create({
   },
   grid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 10,
   },
   cell: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '47%',
+    minHeight: 108,
   },
+  statTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBubble: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
 });

@@ -42,7 +42,8 @@ Primary reference points from `inspiration/app/`:
 
 - [x] Finalize branding: app name, icon set, package IDs, and launch assets — single source in [`branding.js`](./branding.js)
 - [x] Define color, spacing, type, and icon tokens for the mobile UI — see [`src/theme/`](./src/theme)
-- [x] Set up navigation shell for Tasks, Calendar, and Profile tabs — expo-router under [`app/`](./app)
+
+- [x] Set up navigation shell for Tasks, Calendar, and Insights tabs — expo-router under [`app/`](./app)
 - [x] Add local persistence model for tasks, categories, subtasks, reminders, and repeat rules — sqlite + raw SQL repos under [`src/db/`](./src/db)
 - [x] ~~Create seed/demo data for rapid UI iteration~~ — **deliberately skipped.** Phase 3 (composer) is built before Phase 2 (list), so all data is real user-created from day one. A targeted dev-only fixture helper may be added later if edge-case coverage is needed.
 
@@ -125,7 +126,7 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [ ] Duplicate task flow — deferred until there's a long-press menu on rows
 - [x] Preserve completed-task history — `Show done` / `Showing done` toggle pill in the Tasks tab header; persisted to SecureStore (`tasks_show_done_v1`); flips `useTasks` between `status: 'pending'` (default, hides completed rows) and `status: 'all'`. Completed tasks were always preserved in the DB; this exposes them in the UI.
 - [x] Add richer edit/details presentation inspired by `update_screen.jpeg` — partial: edit mode now lifts the category chip up above the title (single-source-of-truth `categoryChipNode` carries `chipRef` so the picker menu still anchors correctly). Skipped: summary-row reskin of the action row (the icon-bar + Schedule sheet already surface the same data one tap away — net win not worth the conditional-layout cost) and overflow menu (no actions to put there until duplicate-task ships, which itself depends on a long-press menu).
-- [x] Add notes editing — multiline notes input in the composer between subtasks and the action row; 1000-char cap; trimmed empty values stored as `null`; round-trips through `tasksRepo.createTaskFull` / `updateTaskFull` (the column already existed in schema). Plumbed through `ComposerSubmitInput`, `ComposerInitial`, `useTaskEditor`. Tracked in `task_created` analytics via `has_notes` flag. Surface in the row: small `note` icon (Ionicon `document-text-outline`) appears in the `TaskRow` meta line when notes are non-empty, sitting alongside the existing reminder + repeat icons; screen-reader label gains `"has notes"` for users who don't see the icon.
+- [x] Add notes editing — multiline notes input with a 1000-character cap; trimmed empty values store as `null` and round-trip through the transactional task repository. A note icon and screen-reader label expose note presence without sending content anywhere.
 - [ ] Attachment support intentionally deferred out of scope
 - [x] Hide unimplemented templates / attachment-related UI from the current product surface
 
@@ -142,10 +143,10 @@ UI for the repeat menu lives in the Schedule sheet (Phase 2). This phase compute
 - [x] Refine the selected-day task card styling — small uppercase count label (`3 TASKS` / `NOTHING SCHEDULED`) and friendlier empty state above the list
 - [x] Mute past-date cells on the Calendar tab — 0.55 opacity + muted text so they read as historical; still tappable so users can review history. Composer's date picker keeps its hard block (`disablePast=true` default).
 
-### Phase 10: profile and settings
+### Phase 10: insights and settings
 
-- [x] Build Profile tab as a dashboard surface — see [`app/(tabs)/profile.tsx`](./app/(tabs)/profile.tsx)
-- [x] Add account state, sign-in status, streak summary, and sign-out — user bar at top, `StreakCounter`, sign-out button at bottom
+- [x] Build the Insights tab as a local dashboard surface — see [`app/(tabs)/profile.tsx`](./app/(tabs)/profile.tsx)
+- [x] Show optional Google identity, local-mode state, analytics controls, and clear task-data boundaries
 - [x] ~~Add upgrade banner equivalent~~ — intentionally out of scope; product is fully free
 - [x] Add weekly completion chart — `BarChart` (Phase 10 design spec) using `computeWeeklyCompletion`
 - [x] Add category breakdown chart — `DonutChart` (SVG via `react-native-svg`) using `computeCategoryBreakdown`
@@ -164,7 +165,7 @@ Current product direction is fully free.
 
 - [x] Keep the shipped product fully free
 - [ ] Revisit monetization only if the core product is strong and there is a clear reason to change scope
-- [ ] Re-introduce premium-flagged UI only when the underlying features actually exist
+- [ ] Add monetization UI only if a real paid feature and product decision exist
 - [ ] Re-introduce templates UI when task templates are implemented
 - [x] ~~Re-introduce custom repeat UI when the custom repeat editor exists~~ — editor shipped (Phase 7); accessible from the RepeatPopover's "Custom…" row.
 - [ ] Re-introduce advanced reminder UI when silent/alarm/screen-lock reminders actually work
@@ -175,7 +176,8 @@ Current product direction is fully free.
 - [x] Add animations for composer open/close and task completion — `TaskComposer` now drives a synchronized scrim-fade + sheet-translate via `Animated` (replacing RN's default `slide`); keyboard avoidance composes through `Animated.subtract` so the transform array stays stable. `TaskRow` pulses the checkbox on toggle-to-done and dims the title via animated opacity (strike-through stays static — `textDecorationLine` isn't animatable). First-mount runs are skipped so completed rows don't pulse on scroll-in.
 - [x] Improve accessibility for touch targets, labels, and contrast — focused label pass (SignInScreen, SchedulePickerSheet `×` glyphs, CalendarGrid day cells); skipped redundant labels for controls whose visible text already reads through TalkBack. Color-contrast audit shipped: see [`src/theme/CONTRAST_AUDIT.md`](./src/theme/CONTRAST_AUDIT.md). Six failing pairings fixed (`textMuted` light, `warn` on `warnSoft`, `borderStrong` light + dark for checkbox visibility, dark `danger` for overdue date, pinned-row checkbox border). All audited pairings now clear WCAG AA for text and 3:1 for non-text UI.
 - [x] Add offline-safe persistence migration plan — see [`src/db/migrations/MIGRATIONS.md`](./src/db/migrations/MIGRATIONS.md). Covers when to add a migration, the safety rules (transaction-wrapped, idempotent, never-edit-shipped), the SQLite-specific rebuild dance for column type/constraint changes, the forward-only policy until Phase 14 backup/restore lands, and a testing checklist.
-- [x] Add analytics — Mixpanel integration exists via [`src/lib/analytics.ts`](./src/lib/analytics.ts). Current events: `app_opened`, `onboarding_completed`, `task_created` / `task_edited` / `task_completed` / `task_uncompleted` / `task_deleted` (now including bounded task-content fields: title, notes, and up to 10 subtask titles), `category_created` / `category_deleted`, `notification_scheduled`, `theme_changed`, `custom_repeat_configured` (with `freq`, `interval_n`, `weekday_count`, `has_until`, `via`), `backup_exported` (with `size_bytes`), `backup_imported` (with `size_bytes`), `local_data_reset`. Privacy-policy and store disclosures must stay aligned with the shipped data collection.
+- [x] Add optional Google sign-in while retaining a fully usable local mode; identity does not imply task sync
+- [x] Add opt-out Mixpanel product analytics with an explicit event allowlist that excludes task and backup content
 - [x] Draft Play Store description, privacy policy starter, and release checklist — see [`STORE_COPY.md`](./STORE_COPY.md), [`PRIVACY_POLICY.md`](./PRIVACY_POLICY.md), and [`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md)
 - [ ] Capture final Play Store screenshots from the release build
 - [ ] Publish the privacy policy and complete the Play Console listing
@@ -195,19 +197,19 @@ Current product direction is fully free.
 
 ### Phase 14: backup, restore, and sync
 
-> **Deferred.** Local-only persistence is sufficient for the current product loop; cloud sync would also be a prerequisite for collaboration (Phase 13), so both move together when revisited.
+> **Partially shipped.** Manual JSON backup and restore are available now. Automatic cloud sync remains deferred and would also be a prerequisite for collaboration (Phase 13).
 
-- [ ] Define canonical JSON export shape across all tables
 - [x] Define canonical JSON export shape across all tables — see [`src/db/backup.ts`](./src/db/backup.ts) `backupJsonSchema` (`formatVersion`, `schemaVersion`, and active rows from categories / tasks / subtasks / reminders / repeat rules)
-- [x] Implement local JSON export — Profile tab now generates a real `.json` backup file in app storage and opens the native share/save sheet via `expo-sharing`
-- [x] Implement JSON import with version checks — Profile tab now opens the system file picker via `expo-document-picker`, validates the chosen JSON with Zod, and restores atomically inside one SQLite transaction; stale scheduled notification ids are dropped and re-armed after restore
-- [x] Add backup/restore UI in the Profile tab — `Export backup` and `Import backup` rows under the new `Data` section
+- [x] Implement local JSON export — Insights now generates a real `.json` backup file in app storage and opens the native share/save sheet via `expo-sharing`
+- [x] Implement JSON import with version checks — Insights opens the system file picker, validates JSON with Zod, and restores atomically; stale notification ids are dropped and re-armed
+- [x] Add backup/restore UI in Insights — `Export backup` and `Import backup` rows under Data
 - [ ] Define server contract for cloud sync
 - [ ] Implement cloud sync with last-write-wins or vector-clock strategy
 
 ### Phase 15: achievement badges
 
-> Pure-JS gamification layer. Builds on existing `streakStats` data — no new schema, no new tables. The badges live on the Profile dashboard and surface via Mixpanel events when first unlocked, so we can see which milestones drive engagement.
+> Pure-JS gamification layer. Builds on existing `streakStats` data. If added,
+> unlock state stays local and appears on the Insights dashboard.
 
 - [ ] Define the badge catalogue (id, title, description, condition, icon). Suggested first set:
       - `first_completion` — completed your first task
@@ -218,7 +220,7 @@ Current product direction is fully free.
       - `perfect_week` — a calendar week with zero missed days
 - [ ] Build `src/lib/badges.ts` — pure function `computeUnlockedBadges(tasks): BadgeId[]`. No persistence; recompute every render. Cheap.
 - [ ] Add `BadgeShelf` component on Profile (above or below the streak counter), shows unlocked badges in color, locked ones grayscale with a hint
-- [ ] Track `badge_unlocked` analytics event the first time a badge flips unlocked. Persist a small `unlocked_badges_v1` SecureStore set so we only fire the event once per user.
+- [ ] Persist unlocked badges locally so each milestone appears only once
 - [ ] Optional: a "celebrate" toast when a new badge unlocks during a session (debounced; once per badge per session)
 
 ### Phase 16: home-screen widgets
@@ -250,12 +252,12 @@ Current product direction is fully free.
 
 - [x] Expo app shell exists
 - [x] Android local dev build path exists
-- [x] Google sign-in wiring exists
+- [x] Optional Google sign-in and account-free local mode both exist; task data remains device-local unless the user exports a backup
 - [x] Local reminders engine ships in production (`src/lib/notificationScheduler.ts`); the standalone dev test screen has been removed
 - [x] Streak Todo branding is in place
 - [x] Product task system is built
 - [x] Calendar experience exists
-- [x] Profile dashboard exists
+- [x] Insights dashboard exists
 - [ ] Collaboration features are intentionally deferred until the single-user product and sync are stable
 
 ## Public repo note

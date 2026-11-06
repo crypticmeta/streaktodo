@@ -18,6 +18,7 @@ import {
   Weekday,
 } from '../lib/date';
 import { useTheme } from '../theme';
+import { DEFAULT_REMINDER_TIME_MINUTES } from '../lib/reminderTime';
 import { CalendarGrid } from './CalendarGrid';
 import { CustomRepeatSheet } from './CustomRepeatSheet';
 import { Icon, type IconName } from './Icon';
@@ -25,6 +26,8 @@ import { ReminderPopover } from './ReminderPopover';
 import { RepeatPopover } from './RepeatPopover';
 import {
   canConfigureReminder,
+  DEFAULT_REMINDER,
+  DEFAULT_REPEAT,
   type ScheduleDraft,
 } from './scheduleTypes';
 
@@ -43,11 +46,12 @@ type Shortcut = {
 
 function buildShortcuts(): Shortcut[] {
   const today = startOfDay();
+  const sundayLabel = new Date(today).getDay() === Weekday.Sun ? 'Next Sunday' : 'This Sunday';
   return [
     { key: 'today',    label: 'Today',         resolve: () => today },
     { key: 'tomorrow', label: 'Tomorrow',      resolve: () => addDays(today, 1) },
     { key: '3-days',   label: '3 Days Later',  resolve: () => addDays(today, 3) },
-    { key: 'sunday',   label: 'This Sunday',   resolve: () => nextWeekday(Weekday.Sun, today) },
+    { key: 'sunday',   label: sundayLabel,     resolve: () => nextWeekday(Weekday.Sun, today) },
     { key: 'no-date',  label: 'No Date',       resolve: () => null },
   ];
 }
@@ -107,12 +111,19 @@ export function SchedulePickerSheet({
 
   const handlePickShortcut = (s: Shortcut) => {
     const next = s.resolve();
-    setDraft((d) => ({ ...d, dueAt: next, ...(next === null ? { dueTime: null } : null) }));
+    setDraft((d) => ({
+      ...d,
+      dueAt: next,
+      ...(next === null
+        ? { dueTime: null, reminder: DEFAULT_REMINDER, repeat: DEFAULT_REPEAT }
+        : null),
+    }));
     if (next !== null) setMonth(startOfMonth(next));
   };
 
   const handlePickDay = (dayStartTs: number) => {
     setDraft((d) => ({ ...d, dueAt: dayStartTs }));
+    setMonth(startOfMonth(dayStartTs));
   };
 
   const handleClearTime = () => {
@@ -248,7 +259,7 @@ export function SchedulePickerSheet({
           <View style={[styles.footer, { borderTopColor: t.color.borderMuted }]}>
             <Pressable onPress={onCancel} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cancel">
               <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.md, fontWeight: t.fontWeight.semibold }}>
-                CANCEL
+                Cancel
               </Text>
             </Pressable>
             <Pressable
@@ -259,7 +270,7 @@ export function SchedulePickerSheet({
               style={{ marginLeft: 24 }}
             >
               <Text style={{ color: t.color.accent, fontSize: t.fontSize.md, fontWeight: t.fontWeight.bold }}>
-                DONE
+                Done
               </Text>
             </Pressable>
           </View>
@@ -290,7 +301,16 @@ export function SchedulePickerSheet({
         initial={draft.reminder}
         onCancel={() => setReminderOpen(false)}
         onConfirm={(reminder) => {
-          setDraft((d) => ({ ...d, reminder }));
+          // Never hide the all-day 09:00 fallback from the user. Turning a
+          // reminder on makes the actual task/reminder time explicit.
+          setDraft((d) => ({
+            ...d,
+            dueTime:
+              reminder.enabled && d.dueTime === null
+                ? DEFAULT_REMINDER_TIME_MINUTES
+                : d.dueTime,
+            reminder,
+          }));
           setReminderOpen(false);
         }}
       />

@@ -33,6 +33,7 @@ import {
   MONTH_SHORT,
   startOfDay,
   startOfMonth,
+  WEEKDAY_LONG,
 } from '../lib/date';
 import {
   DEFAULT_REPEAT,
@@ -187,10 +188,16 @@ export function CustomRepeatSheet({
   }, [freq, intervalN, weekdays, untilAt, anchorDate, unitLabel]);
 
   const handleConfirm = () => {
+    const anchor = anchorDate !== null ? new Date(anchorDate) : null;
     const body: CustomRepeatBody = {
       freq,
       intervalN: Math.max(1, Math.min(MAX_INTERVAL, intervalN)),
       byWeekday: freq === 'weekly' ? weekdayCsv(weekdays) : undefined,
+      byMonthDay:
+        (freq === 'monthly' || freq === 'yearly') && anchor
+          ? anchor.getDate()
+          : undefined,
+      byMonth: freq === 'yearly' && anchor ? anchor.getMonth() + 1 : undefined,
     };
     onConfirm({
       preset: 'custom',
@@ -379,7 +386,7 @@ export function CustomRepeatSheet({
                         ]}
                         accessibilityRole="button"
                         accessibilityState={{ selected: active }}
-                        accessibilityLabel={`Weekday ${idx}`}
+                        accessibilityLabel={WEEKDAY_LONG[idx]}
                       >
                         <Text
                           style={{
@@ -453,6 +460,7 @@ export function CustomRepeatSheet({
                     setUntilPickerOpen(false);
                   }}
                   disablePast
+                  minDate={anchorDate ?? undefined}
                 />
               </View>
             ) : null}

@@ -34,6 +34,8 @@ type CalendarGridProps = {
    * false because browsing past days is fine when reviewing history.
    */
   disablePast?: boolean;
+  /** Optional earliest selectable day. Useful for repeat end dates. */
+  minDate?: number;
   /**
    * `'month'` (default) renders the full 6×7 grid. `'week'` renders only the
    * single 7-cell row containing `selected` (or `month` if no selection),
@@ -108,6 +110,7 @@ export function CalendarGrid({
   onSelect,
   markedDays,
   disablePast = true,
+  minDate,
   mode = 'month',
 }: CalendarGridProps) {
   const t = useTheme();
@@ -153,7 +156,7 @@ export function CalendarGrid({
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={mode === 'week' ? 'Previous week' : 'Previous month'}
-          style={styles.navButton}
+          style={[styles.navButton, { backgroundColor: t.color.surface, borderRadius: t.radius.pill }]}
         >
           <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.lg }}>‹</Text>
         </Pressable>
@@ -172,7 +175,7 @@ export function CalendarGrid({
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={mode === 'week' ? 'Next week' : 'Next month'}
-          style={styles.navButton}
+          style={[styles.navButton, { backgroundColor: t.color.surface, borderRadius: t.radius.pill }]}
         >
           <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.lg }}>›</Text>
         </Pressable>
@@ -200,7 +203,8 @@ export function CalendarGrid({
           const isSelected = selected !== null && isSameDay(cell.ts, selected);
           const isToday = isSameDay(cell.ts, today);
           const isPast = dayStart < today;
-          const isBlocked = disablePast && isPast;
+          const isBeforeMinimum = minDate !== undefined && dayStart < startOfDay(minDate);
+          const isBlocked = (disablePast && isPast) || isBeforeMinimum;
           // Past-but-viewable: caller passed disablePast=false (e.g. the
           // calendar tab for history review). The day stays tappable but
           // visually de-emphasizes so it doesn't read as a future option.
@@ -221,7 +225,7 @@ export function CalendarGrid({
           // selected/disabled state from accessibilityState automatically.
           const cellDate = new Date(cell.ts);
           const a11yParts = [
-            `${MONTH_SHORT[cellDate.getMonth()]} ${day}`,
+            `${MONTH_SHORT[cellDate.getMonth()]} ${day}, ${cellDate.getFullYear()}`,
           ];
           if (isToday) a11yParts.push('today');
           if (isMarked) a11yParts.push('has task');
@@ -237,6 +241,7 @@ export function CalendarGrid({
               style={({ pressed }) => [
                 styles.cell,
                 isSelected && { backgroundColor: t.color.accent },
+                !isSelected && isToday && { backgroundColor: t.color.warnSoft },
                 !isSelected && !isBlocked && pressed && {
                   backgroundColor: t.color.surfaceMuted,
                 },
@@ -282,8 +287,6 @@ export function CalendarGrid({
   );
 }
 
-const CELL_SIZE = 40;
-
 const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
@@ -291,6 +294,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 8,
     paddingBottom: 12,
+    width: '100%',
+    maxWidth: 350,
+    alignSelf: 'center',
   },
   navButton: {
     width: 32,
@@ -302,9 +308,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingBottom: 6,
+    width: '100%',
+    maxWidth: 350,
+    alignSelf: 'center',
   },
   weekdayLabel: {
-    width: CELL_SIZE,
+    flexBasis: '14.285%',
+    flexGrow: 0,
+    flexShrink: 0,
+    maxWidth: 44,
     textAlign: 'center',
     fontSize: 12,
   },
@@ -312,13 +324,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    width: '100%',
+    maxWidth: 350,
+    alignSelf: 'center',
   },
   cell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
+    flexBasis: '14.285%',
+    flexGrow: 0,
+    flexShrink: 0,
+    maxWidth: 44,
+    maxHeight: 44,
+    aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: CELL_SIZE / 2,
+    borderRadius: 999,
     marginBottom: 2,
   },
   marker: {

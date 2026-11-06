@@ -1,224 +1,220 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { branding } from '../../branding';
+import { Icon } from '../components/Icon';
 import { useAuth } from '../lib/auth';
 import { useTheme } from '../theme';
 
 export function SignInScreen() {
   const t = useTheme();
-  const { state, signIn, continueAsGuest } = useAuth();
-
-  const isLoading = state.status === 'loading';
-  const isUnsupported = state.status === 'unsupported';
+  const { state, busy, signIn, continueAsGuest } = useAuth();
+  const loading = state.status === 'loading' || busy;
+  const unsupported = state.status === 'unsupported';
   const error = state.status === 'signed-out' ? state.error : null;
 
   return (
-    <View style={[styles.container, { backgroundColor: t.color.background }]}>
-      <View style={styles.shell}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: t.color.background }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: t.spacing['2xl'], paddingVertical: t.spacing['3xl'] },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View
           style={[
-            styles.heroCard,
+            styles.intro,
             {
-              backgroundColor: t.color.surface,
-              borderColor: t.color.border,
+              backgroundColor: t.color.infoSoft,
               borderRadius: t.radius['3xl'],
               padding: t.spacing['2xl'],
-              ...t.elevation.lg,
+              ...t.elevation.sm,
             },
           ]}
         >
-          <Text
-            style={{
-              fontSize: t.fontSize.xs,
-              textTransform: 'uppercase',
-              letterSpacing: t.tracking.wider,
-              color: t.color.textMuted,
-              fontWeight: t.fontWeight.bold,
-              marginBottom: 10,
-            }}
-          >
-            Welcome
+          <View style={[styles.decorDot, styles.decorDotOne, { backgroundColor: t.color.warnSoft }]} />
+          <View style={[styles.decorDot, styles.decorDotTwo, { backgroundColor: t.color.accentSoft }]} />
+          <View style={[styles.mark, { backgroundColor: t.color.accent, borderRadius: t.radius.xl }]}>
+            <Icon name="sparkles" size={27} color={t.color.textOnAccent} />
+          </View>
+          <Text style={{ color: t.color.info, fontSize: t.fontSize.xs, fontWeight: t.fontWeight.bold, letterSpacing: t.tracking.wider }}>
+            {branding.appName.toUpperCase()}
           </Text>
-          <Text
-            style={{
-              fontSize: t.fontSize['4xl'],
-              fontWeight: t.fontWeight.bold,
-              color: t.color.textPrimary,
-              letterSpacing: t.tracking.tight,
-            }}
-          >
-            {branding.appName}
+          <Text style={{
+            color: t.color.textPrimary,
+            fontSize: t.fontSize['4xl'],
+            fontWeight: t.fontWeight.heavy,
+            letterSpacing: t.tracking.tight,
+          }}>
+            Make progress stick.
           </Text>
-          <Text
-            style={{
-              fontSize: t.fontSize.base,
-              lineHeight: t.fontSize.base * t.lineHeight.normal,
-              color: t.color.textSecondary,
-              marginTop: t.spacing.sm,
-            }}
-          >
-            Plan tasks, schedule reminders, and keep a streak. Sign in to
-            label your data with your Google account, or continue without
-            an account — the app is fully usable either way.
+          <Text style={{
+            color: t.color.textSecondary,
+            fontSize: t.fontSize.md,
+            lineHeight: 23,
+            maxWidth: 420,
+          }}>
+            Turn everyday tasks into tiny wins worth coming back for.
           </Text>
-
-          {isUnsupported ? (
-            <View
-              style={[
-                styles.messageBox,
-                {
-                  backgroundColor: t.color.warnSoft,
-                  borderColor: t.color.borderMuted,
-                  borderRadius: t.radius.xl,
-                  padding: t.spacing.lg,
-                  marginTop: t.spacing.lg,
-                },
-              ]}
-            >
-              <Text style={{ fontSize: t.fontSize.md, fontWeight: t.fontWeight.bold, color: t.color.textPrimary }}>
-                Unsupported runtime
-              </Text>
-              <Text
-                style={{
-                  fontSize: t.fontSize.sm,
-                  lineHeight: t.fontSize.sm * t.lineHeight.normal,
-                  color: t.color.textSecondary,
-                  marginTop: 8,
-                }}
-              >
-                {state.reason}
-              </Text>
-            </View>
-          ) : null}
-
-          {error ? (
-            <View
-              style={[
-                styles.messageBox,
-                {
-                  backgroundColor: t.color.surfaceMuted,
-                  borderColor: t.color.borderMuted,
-                  borderRadius: t.radius.xl,
-                  padding: t.spacing.lg,
-                  marginTop: t.spacing.lg,
-                },
-              ]}
-            >
-              <Text style={{ fontSize: t.fontSize.md, fontWeight: t.fontWeight.bold, color: t.color.danger }}>
-                Sign-in error
-              </Text>
-              <Text
-                style={{
-                  fontSize: t.fontSize.sm,
-                  lineHeight: t.fontSize.sm * t.lineHeight.normal,
-                  color: t.color.textSecondary,
-                  marginTop: 8,
-                }}
-              >
-                {error}
-              </Text>
-            </View>
-          ) : null}
         </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            {
-              backgroundColor: t.color.accent,
-              borderRadius: t.radius['2xl'],
-              paddingHorizontal: t.spacing.lg,
-              paddingVertical: t.spacing.lg,
-              ...t.elevation.md,
-              shadowColor: t.color.accent,
-            },
-            (isLoading || isUnsupported) && styles.buttonDisabled,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={signIn}
-          disabled={isLoading || isUnsupported}
-          accessibilityRole="button"
-          accessibilityLabel="Sign in with Google"
-          accessibilityState={{ disabled: isLoading || isUnsupported, busy: isLoading }}
-          accessibilityHint="Uses your Google account to sign in"
-        >
-          <Text style={{ color: t.color.textOnAccent, fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold }}>
-            Sign in with Google
-          </Text>
-          <Text style={{ color: t.color.textOnAccentSoft, fontSize: t.fontSize.sm, marginTop: 4 }}>
-            {isLoading ? 'Restoring session…' : 'Uses your Google account'}
-          </Text>
-        </Pressable>
+        <View style={[styles.facts, { backgroundColor: t.color.surface, borderColor: t.color.border, borderRadius: t.radius['2xl'], ...t.elevation.sm }]}>
+          <Fact tone="accent" text="Sign in with Google, or use the app locally without an account." />
+          <Fact tone="warning" text="Tasks stay on this device. Export or restore a JSON backup from Insights." />
+          <Fact tone="info" text="Mixpanel receives product actions, never task titles, notes, or backup contents." />
+        </View>
 
-        {/* Guest mode: skip Google Sign-In and use the app locally. Available
-            even on unsupported runtimes (Expo Go, missing client ID) so the
-            app is at least demo-able. Disabled only while we're still
-            restoring an existing session. */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            {
-              borderRadius: t.radius['2xl'],
-              paddingHorizontal: t.spacing.lg,
-              paddingVertical: t.spacing.md,
-              borderColor: t.color.border,
-            },
-            isLoading && styles.buttonDisabled,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={() => {
-            void continueAsGuest();
-          }}
-          disabled={isLoading}
-          accessibilityRole="button"
-          accessibilityLabel="Continue without signing in"
-          accessibilityHint="Use the app without a Google account; data stays on this device"
-        >
-          <Text
-            style={{
-              color: t.color.textPrimary,
-              fontSize: t.fontSize.md,
-              fontWeight: t.fontWeight.semibold,
-              textAlign: 'center',
-            }}
+        {unsupported ? (
+          <Notice title="Google sign-in unavailable" message={state.reason} tone="warning" />
+        ) : null}
+        {error ? <Notice title="Couldn’t sign in" message={error} tone="error" /> : null}
+
+        <View style={styles.actions}>
+          <Pressable
+            onPress={() => { void signIn(); }}
+            disabled={loading || unsupported}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in with Google"
+            accessibilityState={{ disabled: loading || unsupported, busy: loading }}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              {
+                backgroundColor: t.color.accent,
+                borderRadius: t.radius.xl,
+                opacity: loading || unsupported ? 0.45 : pressed ? 0.86 : 1,
+                ...t.elevation.md,
+              },
+            ]}
           >
-            Continue without signing in
-          </Text>
-        </Pressable>
+            {loading ? (
+              <ActivityIndicator color={t.color.textOnAccent} />
+            ) : (
+              <>
+                <View style={[styles.googleMark, { backgroundColor: t.color.background, borderRadius: t.radius.pill }]}>
+                  <Text style={{ color: t.color.accent, fontWeight: t.fontWeight.heavy }}>G</Text>
+                </View>
+                <Text style={{ color: t.color.textOnAccent, fontSize: t.fontSize.md, fontWeight: t.fontWeight.bold }}>
+                  Continue with Google
+                </Text>
+              </>
+            )}
+          </Pressable>
+
+          <Pressable
+            onPress={() => { void continueAsGuest(); }}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Continue locally without signing in"
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              {
+                borderColor: t.color.borderStrong,
+                borderRadius: t.radius.xl,
+                backgroundColor: pressed ? t.color.surfaceMuted : t.color.surface,
+                opacity: loading ? 0.45 : 1,
+              },
+            ]}
+          >
+            <Text style={{ color: t.color.textPrimary, fontSize: t.fontSize.md, fontWeight: t.fontWeight.semibold }}>
+              Continue locally
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, lineHeight: 17, textAlign: 'center' }}>
+          Product analytics is on by default and can be turned off any time in Insights.
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function Fact({ text, tone }: { text: string; tone: 'accent' | 'warning' | 'info' }) {
+  const t = useTheme();
+  const backgroundColor = tone === 'accent'
+    ? t.color.accentMuted
+    : tone === 'warning'
+      ? t.color.warnSoft
+      : t.color.infoSoft;
+  const color = tone === 'accent'
+    ? t.color.accent
+    : tone === 'warning'
+      ? t.color.warn
+      : t.color.info;
+  return (
+    <View style={styles.factRow}>
+      <View style={[styles.factIcon, { backgroundColor, borderRadius: t.radius.pill }]}>
+        <Icon name="check" size={14} color={color} />
       </View>
+      <Text style={{ flex: 1, color: t.color.textSecondary, fontSize: t.fontSize.sm, lineHeight: 20 }}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+function Notice({
+  title,
+  message,
+  tone,
+}: {
+  title: string;
+  message: string;
+  tone: 'warning' | 'error';
+}) {
+  const t = useTheme();
+  return (
+    <View style={[
+      styles.notice,
+      {
+        backgroundColor: tone === 'error' ? t.color.dangerSoft : t.color.warnSoft,
+        borderRadius: t.radius.xl,
+      },
+    ]}>
+      <Text style={{ color: tone === 'error' ? t.color.danger : t.color.textPrimary, fontSize: t.fontSize.sm, fontWeight: t.fontWeight.bold }}>
+        {title}
+      </Text>
+      <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.sm, lineHeight: 20, marginTop: 3 }}>
+        {message}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  screen: { flex: 1 },
+  content: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  intro: { gap: 10, overflow: 'hidden' },
+  mark: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  decorDot: { position: 'absolute', borderRadius: 999 },
+  decorDotOne: { width: 78, height: 78, right: -20, top: -22 },
+  decorDotTwo: { width: 42, height: 42, right: 52, bottom: -19 },
+  facts: { borderWidth: 1, padding: 18, gap: 14 },
+  factRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
+  factIcon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  notice: { padding: 16 },
+  actions: { gap: 10 },
+  primaryButton: {
+    minHeight: 54,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    gap: 10,
   },
-  shell: {
-    width: '100%',
-    maxWidth: 420,
-    gap: 14,
-  },
-  heroCard: {
-    borderWidth: 1,
-  },
-  messageBox: {
-    borderWidth: 1,
-  },
-  button: {
-    alignItems: 'flex-start',
-  },
+  googleMark: { width: 25, height: 25, alignItems: 'center', justifyContent: 'center' },
   secondaryButton: {
+    minHeight: 50,
+    paddingHorizontal: 20,
     borderWidth: 1,
-    backgroundColor: 'transparent',
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-  buttonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

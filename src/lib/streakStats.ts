@@ -18,39 +18,60 @@
 import type { Task } from '../db';
 import { addDays, startOfDay } from './date';
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+type DayState = 'completed' | 'pending' | 'missed' | 'blank';
 
-type DayState = 'completed' | 'missed' | 'blank';
+export type DayActivity = {
+  /** Local calendar-day start timestamp. */
+  ts: number;
+  due: number;
+  completed: number;
+};
+
+/** Compact task history used by both the pure helpers and SQL-backed Insights. */
+export function summarizeTaskDays(tasks: ReadonlyArray<Task>): DayActivity[] {
+  const totals = new Map<number, { due: number; completed: number }>();
+  for (const task of tasks) {
+    if (task.dueAt !== null) {
+      const day = startOfDay(task.dueAt);
+      const slot = totals.get(day) ?? { due: 0, completed: 0 };
+      slot.due += 1;
+      totals.set(day, slot);
+    }
+    if (task.status === 'done' && task.completedAt !== null) {
+      const day = startOfDay(task.completedAt);
+      const slot = totals.get(day) ?? { due: 0, completed: 0 };
+      slot.completed += 1;
+      totals.set(day, slot);
+    }
+  }
+  return [...totals.entries()].map(([ts, counts]) => ({ ts, ...counts }));
+}
 
 /**
  * For each day in the user's task history, classify it:
- *   - completed: at least one task that was due that day, completed
- *   - missed:    at least one task that was due that day, none completed
- *   - blank:     no tasks due that day
+ *   - completed: at least one task was finished that day
+ *   - missed:    at least one task was due that day, with no completion
+ *   - blank:     no task was due or completed that day
  *
  * Returns a Map keyed by start-of-day epoch ms. Only days that have at
  * least one TASK (completed OR pending OR skipped, with a dueAt) appear in
  * the map. Days with no due-anything are absent.
  */
-function classifyDays(tasks: ReadonlyArray<Task>): Map<number, DayState> {
-  const totalsByDay = new Map<number, { total: number; done: number }>();
-
-  for (const t of tasks) {
-    if (t.dueAt === null) continue;
-    const day = startOfDay(t.dueAt);
-    const slot = totalsByDay.get(day) ?? { total: 0, done: 0 };
-    slot.total += 1;
-    if (t.status === 'done') slot.done += 1;
-    totalsByDay.set(day, slot);
-  }
-
+function classifyDays(
+  activity: ReadonlyArray<DayActivity>,
+  today: number
+): { states: Map<number, DayState>; dueDays: Set<number> } {
   const out = new Map<number, DayState>();
-  for (const [day, { total, done }] of totalsByDay) {
-    if (done > 0) out.set(day, 'completed');
-    else if (total > 0) out.set(day, 'missed');
-    else out.set(day, 'blank');
+  const dueDays = new Set<number>();
+  for (const row of activity) {
+    const day = startOfDay(row.ts);
+    if (row.due > 0) dueDays.add(day);
+    if (row.completed > 0) out.set(day, 'completed');
+    else if (row.due > 0) {
+      out.set(day, day < today ? 'missed' : 'pending');
+    } else out.set(day, 'blank');
   }
-  return out;
+  return { states: out, dueDays };
 }
 
 export type StreakStats = {
@@ -72,8 +93,15 @@ export function computeStreakStats(
   tasks: ReadonlyArray<Task>,
   nowTs: number = Date.now()
 ): StreakStats {
+  return computeStreakStatsFromActivity(summarizeTaskDays(tasks), nowTs);
+}
+
+export function computeStreakStatsFromActivity(
+  activity: ReadonlyArray<DayActivity>,
+  nowTs: number = Date.now()
+): StreakStats {
   const today = startOfDay(nowTs);
-  const days = classifyDays(tasks);
+  const { states: days, dueDays } = classifyDays(activity, today);
 
   // Walk backwards from today to find the current streak length.
   // A 'completed' day continues the streak. A 'blank' day is also continuing
@@ -85,11 +113,8 @@ export function computeStreakStats(
   if (days.get(today) === 'completed') {
     current = 1;
     cursor = addDays(today, -1);
-  } else if (days.get(today) === 'missed') {
-    // Hard zero — today exists and we already missed it.
-    current = 0;
   } else {
-    // Blank or no entry today — streak continues from yesterday.
+    // Pending or blank today holds the streak until the day ends.
     cursor = addDays(today, -1);
   }
 
@@ -119,27 +144,14 @@ export function computeStreakStats(
   const sortedDays = [...days.keys()].sort((a, b) => a - b);
   let best = 0;
   let run = 0;
-  let prev: number | null = null;
   for (const day of sortedDays) {
     const state = days.get(day)!;
-    if (prev !== null) {
-      // Walk through any blank days between prev and day. If we hit a missed
-      // boundary (we won't — missed days are in the map), the run breaks.
-      // Blanks between two completed days still continue the run.
-      const gapDays = Math.round((day - prev) / MS_PER_DAY) - 1;
-      if (gapDays > 0) {
-        // We have to know what's IN the gap to know if it breaks. Since
-        // classifyDays only includes days with at least one task, the gap
-        // days are all 'blank' by definition — they keep the run going.
-      }
-    }
     if (state === 'completed') {
       run += 1;
       if (run > best) best = run;
     } else if (state === 'missed') {
       run = 0;
     }
-    prev = day;
   }
 
   // Missed-this-month — count missed days whose date is in the current month.
@@ -160,7 +172,7 @@ export function computeStreakStats(
     current,
     best,
     todayCompleted: days.get(today) === 'completed',
-    todayHasDueTask: days.has(today),
+    todayHasDueTask: dueDays.has(today),
     missedThisMonth,
   };
 }
@@ -198,17 +210,18 @@ export function computeWeeklyCompletion(
   tasks: ReadonlyArray<Task>,
   nowTs: number = Date.now()
 ): WeeklyBar[] {
-  const today = startOfDay(nowTs);
-  const totals = new Map<number, { total: number; done: number }>();
+  return computeWeeklyCompletionFromActivity(summarizeTaskDays(tasks), nowTs);
+}
 
-  for (const t of tasks) {
-    if (t.dueAt === null) continue;
-    const day = startOfDay(t.dueAt);
-    const slot = totals.get(day) ?? { total: 0, done: 0 };
-    slot.total += 1;
-    if (t.status === 'done') slot.done += 1;
-    totals.set(day, slot);
-  }
+export function computeWeeklyCompletionFromActivity(
+  activity: ReadonlyArray<DayActivity>,
+  nowTs: number = Date.now()
+): WeeklyBar[] {
+  const today = startOfDay(nowTs);
+  const totals = new Map(activity.map((row) => [
+    startOfDay(row.ts),
+    { total: row.due, done: row.completed },
+  ]));
 
   const bars: WeeklyBar[] = [];
   for (let i = 6; i >= 0; i--) {
@@ -241,7 +254,7 @@ export type OverviewTotals = {
 };
 
 /**
- * Counts across the user's full task list. Used by the Profile dashboard's
+ * Counts across the user's full task list. Used by the Insights dashboard's
  * overview card. Excludes soft-deleted rows (caller is expected to pass
  * non-deleted tasks via useTasks, but we filter defensively).
  */
@@ -310,6 +323,14 @@ export function computeUpcomingWeek(
     counts.set(day, (counts.get(day) ?? 0) + 1);
   }
 
+  return computeUpcomingWeekFromCounts(counts, nowTs);
+}
+
+export function computeUpcomingWeekFromCounts(
+  counts: ReadonlyMap<number, number>,
+  nowTs: number = Date.now()
+): UpcomingDay[] {
+  const today = startOfDay(nowTs);
   const days: UpcomingDay[] = [];
   for (let i = 1; i <= 7; i++) {
     const day = addDays(today, i);

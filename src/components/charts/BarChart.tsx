@@ -48,6 +48,11 @@ export function BarChart({ bars, height = 120 }: BarChartProps) {
           return (
             <View key={bar.ts} style={styles.column}>
               <View style={styles.barWrap}>
+                {bar.completed > 0 ? (
+                  <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.xs, textAlign: 'center', marginBottom: 4 }}>
+                    {bar.completed}
+                  </Text>
+                ) : null}
                 <View
                   style={[
                     styles.bar,
@@ -65,6 +70,7 @@ export function BarChart({ bars, height = 120 }: BarChartProps) {
                       backgroundColor: t.color.surfaceMuted,
                     },
                   ]}
+                  accessibilityLabel={`${bar.completed} tasks completed; ${bar.total} scheduled`}
                 />
               </View>
             </View>

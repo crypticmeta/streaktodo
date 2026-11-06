@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-import type { Subtask, Task } from '../db';
+import type { ReminderScheduleState, Subtask, Task } from '../db';
 import { formatRelativeShort, formatTimeFromMinutes, isOverdue } from '../lib/date';
 import { useTheme } from '../theme';
 import { Icon } from './Icon';
@@ -16,9 +16,11 @@ export type TaskRowProps = {
   subtasks?: Subtask[];
   subtaskCounts?: { total: number; done: number };
   hasReminder?: boolean;
+  reminderState?: ReminderScheduleState;
   hasRepeat?: boolean;
   onToggleComplete: (taskId: string, nextStatus: 'done' | 'pending') => void;
   onToggleSubtaskComplete?: (subtaskId: string, nextStatus: 'done' | 'pending') => void;
+  onToggleSubtasks?: (taskId: string) => void;
   onTogglePin: (taskId: string, nextPinned: boolean) => void;
   /** Tap on the row body (NOT the checkbox or pin) opens the editor. */
   onPress?: (taskId: string) => void;
@@ -30,9 +32,11 @@ function TaskRowImpl({
   subtasks,
   subtaskCounts,
   hasReminder,
+  reminderState,
   hasRepeat,
   onToggleComplete,
   onToggleSubtaskComplete,
+  onToggleSubtasks,
   onTogglePin,
   onPress,
 }: TaskRowProps) {
@@ -123,6 +127,7 @@ function TaskRowImpl({
   // on top would visually fight. Pinned-and-overdue is rare; if it happens we
   // lean on the red date text + Overdue pill instead of the stripe.
   const showOverdueStripe = overdue && !task.isPinned;
+  const showCategoryStripe = category !== null && !showOverdueStripe && !task.isPinned;
 
   return (
     <View
@@ -131,10 +136,13 @@ function TaskRowImpl({
         {
           // Filled card — no visible border. Pinned rows get the soft accent
           // tint as a quiet differentiator instead of a stroke.
-          backgroundColor: task.isPinned ? t.color.accentSoft : t.color.surfaceMuted,
-          borderRadius: t.radius.lg,
+          backgroundColor: task.isPinned ? t.color.accentSoft : t.color.surface,
+          borderColor: task.isPinned ? t.color.accent : t.color.border,
+          borderWidth: 1,
+          borderRadius: t.radius.xl,
           paddingHorizontal: t.spacing.lg,
           paddingVertical: t.spacing.lg,
+          ...t.elevation.sm,
           // Clip the overdue stripe to the rounded corners.
           overflow: 'hidden',
         },
@@ -144,6 +152,12 @@ function TaskRowImpl({
         <View
           pointerEvents="none"
           style={[styles.overdueStripe, { backgroundColor: t.color.danger }]}
+        />
+      ) : null}
+      {showCategoryStripe ? (
+        <View
+          pointerEvents="none"
+          style={[styles.categoryStripe, { backgroundColor: category.color ?? t.color.info }]}
         />
       ) : null}
 
@@ -197,7 +211,7 @@ function TaskRowImpl({
           style={{
             color: t.color.textPrimary,
             fontSize: t.fontSize.md,
-            fontWeight: t.fontWeight.medium,
+            fontWeight: t.fontWeight.semibold,
             // Strike-through is static — textDecorationLine isn't an
             // animatable property — but the opacity dim carries most of the
             // visual weight of the toggle.
@@ -213,8 +227,11 @@ function TaskRowImpl({
           category={category}
           subtaskCounts={subtaskCounts}
           hasReminder={hasReminder}
+          reminderState={reminderState}
           hasRepeat={hasRepeat}
           overdue={overdue}
+          subtasksExpanded={subtasks !== undefined}
+          onToggleSubtasks={onToggleSubtasks ? () => onToggleSubtasks(task.id) : undefined}
         />
 
         {subtasks && subtasks.length > 0 ? (
@@ -296,15 +313,21 @@ function Meta({
   category,
   subtaskCounts,
   hasReminder,
+  reminderState,
   hasRepeat,
   overdue,
+  subtasksExpanded,
+  onToggleSubtasks,
 }: {
   task: Task;
   category: TaskRowCategory | null;
   subtaskCounts?: { total: number; done: number };
   hasReminder?: boolean;
+  reminderState?: ReminderScheduleState;
   hasRepeat?: boolean;
   overdue: boolean;
+  subtasksExpanded: boolean;
+  onToggleSubtasks?: () => void;
 }) {
   const t = useTheme();
 
@@ -312,6 +335,10 @@ function Meta({
   const timeText = task.dueTime !== null ? formatTimeFromMinutes(task.dueTime) : null;
   const hasSubtasks = subtaskCounts !== undefined && subtaskCounts.total > 0;
   const hasNotes = task.notes !== null && task.notes.trim().length > 0;
+  const reminderNeedsAttention =
+    reminderState !== undefined &&
+    reminderState !== 'scheduled' &&
+    reminderState !== 'pending';
 
   const showMeta =
     overdue ||
@@ -351,18 +378,22 @@ function Meta({
         </View>
       ) : null}
 
-      {/* Category dot — encodes category by color; we drop the textual name
-          from the tail to keep meta line tight. */}
+      {/* Category uses text as well as color so it remains scannable for
+          color-vision differences and monochrome displays. */}
       {category ? (
         <View
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: category.color ?? t.color.borderStrong,
-            marginRight: 6,
-          }}
-        />
+          style={[styles.categoryLabel, { borderColor: category.color ?? t.color.borderStrong }]}
+        >
+          <View
+            style={[
+              styles.categoryDot,
+              { backgroundColor: category.color ?? t.color.borderStrong },
+            ]}
+          />
+          <Text numberOfLines={1} style={{ color: t.color.textSecondary, fontSize: t.fontSize.xs }}>
+            {category.name}
+          </Text>
+        </View>
       ) : null}
 
       {dateText !== null ? (
@@ -379,8 +410,24 @@ function Meta({
       ) : null}
 
       {hasReminder ? (
-        <View style={{ marginLeft: 6 }}>
-          <Icon name="reminder-filled" size={12} color={t.color.textMuted} />
+        <View
+          style={[
+            styles.reminderMeta,
+            reminderNeedsAttention
+              ? { backgroundColor: t.color.warnSoft }
+              : null,
+          ]}
+        >
+          <Icon
+            name="reminder-filled"
+            size={12}
+            color={reminderNeedsAttention ? t.color.warn : t.color.textMuted}
+          />
+          {reminderNeedsAttention ? (
+            <Text style={{ color: t.color.warn, fontSize: t.fontSize.xs, fontWeight: t.fontWeight.semibold }}>
+              Needs attention
+            </Text>
+          ) : null}
         </View>
       ) : null}
       {hasRepeat ? (
@@ -395,7 +442,17 @@ function Meta({
       ) : null}
 
       {hasSubtasks ? (
-        <View
+        <Pressable
+          onPress={(event) => {
+            event.stopPropagation();
+            onToggleSubtasks?.();
+          }}
+          disabled={!onToggleSubtasks}
+          accessibilityRole="button"
+          accessibilityLabel={`${subtaskCounts!.done} of ${subtaskCounts!.total} subtasks done`}
+          accessibilityHint={onToggleSubtasks
+            ? subtasksExpanded ? 'Collapses subtasks' : 'Expands subtasks'
+            : undefined}
           style={[
             styles.metaChip,
             {
@@ -413,8 +470,9 @@ function Meta({
             }}
           >
             {subtaskCounts!.done}/{subtaskCounts!.total}
+            {onToggleSubtasks ? ` ${subtasksExpanded ? '▴' : '▾'}` : ''}
           </Text>
-        </View>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -423,9 +481,21 @@ function Meta({
 // Memo: a re-render of the list shouldn't repaint every row. Custom equality
 // catches the most common change shapes (status, pin, title, due fields, meta).
 export const TaskRow = memo(TaskRowImpl, (prev, next) => {
-  if (prev.task !== next.task) return false;
-  if (prev.category !== next.category) return false;
+  const aTask = prev.task;
+  const bTask = next.task;
+  if (
+    aTask.id !== bTask.id || aTask.title !== bTask.title ||
+    aTask.notes !== bTask.notes || aTask.categoryId !== bTask.categoryId ||
+    aTask.dueAt !== bTask.dueAt || aTask.dueTime !== bTask.dueTime ||
+    aTask.status !== bTask.status || aTask.isPinned !== bTask.isPinned ||
+    aTask.completedAt !== bTask.completedAt || aTask.updatedAt !== bTask.updatedAt
+  ) return false;
+  if (
+    prev.category?.name !== next.category?.name ||
+    prev.category?.color !== next.category?.color
+  ) return false;
   if (prev.hasReminder !== next.hasReminder) return false;
+  if (prev.reminderState !== next.reminderState) return false;
   if (prev.hasRepeat !== next.hasRepeat) return false;
   const prevSubtasks = prev.subtasks;
   const nextSubtasks = next.subtasks;
@@ -449,8 +519,16 @@ export const TaskRow = memo(TaskRowImpl, (prev, next) => {
   const b = next.subtaskCounts;
   if ((a === undefined) !== (b === undefined)) return false;
   if (a && b && (a.total !== b.total || a.done !== b.done)) return false;
-  // Callback identity is allowed to change every render; we don't capture state
-  // from them inside the row.
+  // Function props are part of correctness: the subtask handler captures the
+  // latest expanded rows and parent status. Ignoring a changed callback would
+  // leave a memoized row invoking stale state.
+  if (
+    prev.onToggleComplete !== next.onToggleComplete ||
+    prev.onToggleSubtaskComplete !== next.onToggleSubtaskComplete ||
+    prev.onToggleSubtasks !== next.onToggleSubtasks ||
+    prev.onTogglePin !== next.onTogglePin ||
+    prev.onPress !== next.onPress
+  ) return false;
   return true;
 });
 
@@ -461,9 +539,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 1.75,
     alignItems: 'center',
     justifyContent: 'center',
@@ -479,6 +557,29 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginTop: 4,
   },
+  categoryLabel: {
+    maxWidth: 110,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderLeftWidth: 2,
+    paddingLeft: 5,
+    marginRight: 7,
+  },
+  categoryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  reminderMeta: {
+    marginLeft: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 999,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
   pinButton: {
     paddingHorizontal: 4,
     paddingVertical: 2,
@@ -490,6 +591,13 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 3,
+  },
+  categoryStripe: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
   },
   metaChip: {
     paddingHorizontal: 6,

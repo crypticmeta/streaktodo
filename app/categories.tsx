@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CreateCategoryDialog } from '../src/components/CreateCategoryDialog';
 import { EditCategoryDialog } from '../src/components/EditCategoryDialog';
@@ -15,18 +15,28 @@ const UNCATEGORIZED_FALLBACK = '#9a8f81';
 export default function CategoriesScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { categories } = useCategories();
+  const { categories, loading, error, refresh: refreshCategories } = useCategories();
 
   // Per-category task counts. Re-fetched whenever categories OR tasks change,
   // so deleting a category (which moves tasks to "no category") updates the
   // remaining rows' "N tasks" subtext immediately.
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
+  const [countError, setCountError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
-      const next = await categoriesRepo.countTasksByCategory();
-      if (!cancelled) setCounts(next);
+      try {
+        const next = await categoriesRepo.countTasksByCategory();
+        if (!cancelled) {
+          setCounts(next);
+          setCountError(null);
+        }
+      } catch (refreshError) {
+        if (!cancelled) {
+          setCountError(refreshError instanceof Error ? refreshError.message : 'Could not load task counts.');
+        }
+      }
     };
     refresh();
     const unsubTasks = subscribe('tasks-changed', refresh);
@@ -65,9 +75,20 @@ export default function CategoriesScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          // Fire-and-forget — repo emits events that refresh the list.
-          void categoriesRepo.softDeleteCategory(cat.id);
-          void analytics.track('category_deleted', { affected_tasks: taskCount });
+          void (async () => {
+            try {
+              await categoriesRepo.softDeleteCategory(cat.id);
+              void analytics.track('category_deleted', {
+                had_tasks: taskCount > 0,
+                was_default: cat.isDefault,
+              });
+            } catch (error) {
+              Alert.alert(
+                'Couldn’t delete category',
+                error instanceof Error ? error.message : 'Try again in a moment.'
+              );
+            }
+          })();
         },
       },
     ]);
@@ -114,6 +135,14 @@ export default function CategoriesScreen() {
       </View>
 
       <ScrollView
+        refreshControl={(
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => { void refreshCategories(); }}
+            tintColor={t.color.accent}
+            colors={[t.color.accent]}
+          />
+        )}
         contentContainerStyle={[
           styles.list,
           {
@@ -124,7 +153,14 @@ export default function CategoriesScreen() {
           },
         ]}
       >
-        {categories.length === 0 ? (
+        {error || countError ? (
+          <Text style={{ color: t.color.danger, textAlign: 'center', marginBottom: t.spacing.md }}>
+            {error ?? countError}
+          </Text>
+        ) : null}
+        {loading && categories.length === 0 ? (
+          <ActivityIndicator color={t.color.accent} accessibilityLabel="Loading categories" />
+        ) : categories.length === 0 ? (
           <Text style={{ color: t.color.textMuted, textAlign: 'center', marginTop: 40 }}>
             No categories yet. Tap + to add one.
           </Text>

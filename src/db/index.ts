@@ -12,6 +12,7 @@ export type {
   SubtaskStatus,
   Reminder,
   ReminderType,
+  ReminderScheduleState,
   RepeatRule,
   RepeatFrequency,
 } from './schema';
@@ -28,12 +29,22 @@ export * as tasksRepo from './repos/tasks';
 export * as subtasksRepo from './repos/subtasks';
 export * as remindersRepo from './repos/reminders';
 export * as repeatRulesRepo from './repos/repeatRules';
+export * as insightsRepo from './repos/insights';
+export type { ListTasksFilter } from './repos/tasks';
 
-export { useTasks, useCategories, useDbVersion } from './hooks';
+export {
+  useTasks,
+  usePaginatedTasks,
+  useTaskCount,
+  useInsights,
+  useCategories,
+  useDbVersion,
+} from './hooks';
 export {
   BACKUP_FORMAT_VERSION,
   createBackupJson,
   createBackupSnapshot,
   restoreBackupJson,
+  parseBackupJson,
   resetLocalData,
 } from './backup';

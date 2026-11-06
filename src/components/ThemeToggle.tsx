@@ -58,7 +58,9 @@ export function ThemeToggle() {
               key={opt.key}
               onPress={() => {
                 setPreference(opt.key);
-                void analytics.track('theme_changed', { preference: opt.key });
+                if (opt.key !== preference) {
+                  void analytics.track('theme_changed', { theme: opt.key });
+                }
               }}
               style={[
                 styles.segment,

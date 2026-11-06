@@ -11,12 +11,23 @@ let dbPromise: Promise<SQLiteDatabase> | null = null;
 // and seeds defaults. Every subsequent call returns the same handle.
 export function getDb(): Promise<SQLiteDatabase> {
   if (!dbPromise) {
-    dbPromise = (async () => {
+    const attempt = (async () => {
       const db = await SQLite.openDatabaseAsync(DB_NAME);
-      await runMigrations(db);
-      await seedDefaultCategoriesIfEmpty(db);
-      return db;
+      try {
+        await runMigrations(db);
+        await seedDefaultCategoriesIfEmpty(db);
+        return db;
+      } catch (error) {
+        await db.closeAsync().catch(() => {});
+        throw error;
+      }
     })();
+    dbPromise = attempt;
+    void attempt.catch(() => {
+      // A rejected promise must not poison the singleton forever. The error
+      // screen's Retry action can now perform a genuine fresh open.
+      if (dbPromise === attempt) dbPromise = null;
+    });
   }
   return dbPromise;
 }

@@ -23,7 +23,9 @@ To-do list with reminders, calendar, and an honest streak counter.
 ### Full description (max 4000 chars)
 
 ```
-Streak Todo is a free local-first to-do list app for Android. Plan daily tasks, set reminders, and track your streak without paywalls, ads, or forced sign-in.
+Streak Todo is a free local-first to-do list app for Android. Plan daily tasks,
+set reminders, and track your streak without paywalls or ads. Sign in with
+Google or continue locally; task content stays on your device.
 
 Capture tasks fast from a floating action button, organize them into categories with color tags, set reminders, and repeat important routines with a real custom rule editor for schedules like every 2 weeks on Mon/Wed or weekdays only. See what's due today, what's coming up, and what needs attention next.
 
@@ -37,6 +39,8 @@ What's inside
 - An honest streak counter that doesn't fake-encourage you on missed days
 - Light, dark, and system-matched themes
 - Local-first storage on your device, with backup export and import via standard file sharing
+- Optional Google sign-in; every task feature also works in local mode
+- Privacy-bounded product analytics with task text excluded and an in-app off switch
 - Notes on every task
 
 What it leaves out, on purpose
@@ -85,7 +89,7 @@ Made by CODERIXX (coderixx.com).
 | Promo video | optional; skip for V1 | — |
 
 > Play Console rejects icons with transparency in some flows. If yours is
-> rejected, flatten the alpha against your brand cream (`#f4efe6`) and
+> rejected, flatten the alpha against your brand cream (`#fff7e6`) and
 > re-upload.
 
 ### Suggested screenshot order
@@ -103,15 +107,16 @@ Made by CODERIXX (coderixx.com).
 ### Privacy policy
 
 - URL: `https://streaktodo.coderixx.com/privacy`
+- Account/data deletion URL: `https://streaktodo.coderixx.com/delete-account`
 - Confirm fetch returns 200 + plain HTML/markdown before submitting.
 
 ### App access
 
 > "Is part of your app restricted, e.g. behind a login?"
 
-**No.** Sign-in is offered (Google) but every screen of the app is reachable
-without an account. If we ever gate features behind login, change this and
-provide a test account.
+**No.** Google sign-in is optional and every task feature remains available in
+local mode after onboarding. Reviewers can choose **Continue locally** without
+credentials.
 
 ### Ads
 
@@ -141,9 +146,9 @@ Expected rating: **Everyone (PEGI 3, IARC 3+).**
 
 ### Target audience and content
 
-- Target age groups: **18 and over** (safest option for a productivity tool;
-  picking 13+ would force you into Designed-for-Families compliance, which
-  has stricter ad/SDK rules and isn't a fit for a Mixpanel-using app)
+- Target age groups: choose the audience you genuinely intend to serve. Do
+  not enroll in Designed for Families unless the app and listing are reviewed
+  for that program's requirements.
 - Does the app appeal to children? **No**
 
 ### News app

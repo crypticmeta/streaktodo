@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Alert,
   Dimensions,
   Easing,
   Keyboard,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,7 +18,6 @@ import {
   type TextInput as RNTextInput,
 } from 'react-native';
 import { categoriesRepo, useCategories } from '../db';
-import * as analytics from '../lib/analytics';
 import { MONTH_SHORT } from '../lib/date';
 import { useTheme } from '../theme';
 import { CategoryPickerMenu } from './CategoryPickerMenu';
@@ -29,6 +30,7 @@ export type ComposerSubmitInput = {
   title: string;
   notes: string | null;
   subtasks: string[];
+  subtaskItems: Array<{ id?: string; title: string; status?: 'pending' | 'done' }>;
   categoryId: string | null;
   schedule: ScheduleDraft;
 };
@@ -39,7 +41,7 @@ export type ComposerSubmitInput = {
 export type ComposerInitial = {
   title: string;
   notes: string | null;
-  subtasks: string[];
+  subtasks: Array<{ id: string; title: string; status: 'pending' | 'done' }>;
   categoryId: string | null;
   schedule: ScheduleDraft;
 };
@@ -57,13 +59,15 @@ type TaskComposerProps = {
 const TITLE_MAX_LENGTH = 140;
 const SUBTASK_MAX_LENGTH = 120;
 const NOTES_MAX_LENGTH = 1000;
-const EXACT_ALARM_REQUIRED_SENTINEL = 'EXACT_ALARM_REQUIRED';
+const MAX_SUBTASKS = 25;
 
 type SubtaskDraft = {
   // Stable client-side id used as React key while drafting. Real DB id is
   // assigned by subtasksRepo on save.
   draftId: string;
+  sourceId?: string;
   title: string;
+  status: 'pending' | 'done';
 };
 
 let nextDraftId = 0;
@@ -174,7 +178,12 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
     setTitle(initial?.title ?? '');
     setNotes(initial?.notes ?? '');
     setSubtasks(
-      initial?.subtasks.map((title) => ({ draftId: newDraftId(), title })) ?? []
+      initial?.subtasks.map((subtask) => ({
+        draftId: newDraftId(),
+        sourceId: subtask.id,
+        title: subtask.title,
+        status: subtask.status,
+      })) ?? []
     );
     setCategoryId(initial?.categoryId ?? null);
     setPickerOpen(false);
@@ -196,6 +205,13 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
 
   const trimmed = title.trim();
   const cleanedSubtasks = subtasks.map((s) => s.title.trim()).filter((s) => s.length > 0);
+  const cleanedSubtaskItems = subtasks
+    .map((subtask) => ({
+      id: subtask.sourceId,
+      title: subtask.title.trim(),
+      status: subtask.status,
+    }))
+    .filter((subtask) => subtask.title.length > 0);
   const canSave = trimmed.length > 0 && !submitting;
   const remaining = TITLE_MAX_LENGTH - title.length;
   const showLengthHint = remaining <= 20;
@@ -210,7 +226,11 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
   };
 
   const handleAddSubtask = () => {
-    const draft: SubtaskDraft = { draftId: newDraftId(), title: '' };
+    if (subtasks.length >= MAX_SUBTASKS) {
+      setError(`A task can have up to ${MAX_SUBTASKS} subtasks.`);
+      return;
+    }
+    const draft: SubtaskDraft = { draftId: newDraftId(), title: '', status: 'pending' };
     setSubtasks((prev) => [...prev, draft]);
     requestAnimationFrame(() => {
       subtaskRefs.current.get(draft.draftId)?.focus();
@@ -239,9 +259,36 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
     handleAddSubtask();
   };
 
-  const handleClose = () => {
+  const closeImmediately = () => {
     Keyboard.dismiss();
     onClose();
+  };
+
+  const isDirty = (() => {
+    const initialSubtasks = initial?.subtasks.map((subtask) => ({
+      id: subtask.id,
+      title: subtask.title.trim(),
+      status: subtask.status,
+    })) ?? [];
+    return (
+      title.trim() !== (initial?.title.trim() ?? '') ||
+      notes.trim() !== (initial?.notes?.trim() ?? '') ||
+      JSON.stringify(cleanedSubtaskItems) !== JSON.stringify(initialSubtasks) ||
+      categoryId !== (initial?.categoryId ?? null) ||
+      JSON.stringify(schedule) !== JSON.stringify(initial?.schedule ?? EMPTY_SCHEDULE)
+    );
+  })();
+
+  const handleClose = () => {
+    if (submitting) return;
+    if (!isDirty) {
+      closeImmediately();
+      return;
+    }
+    Alert.alert('Discard changes?', 'Your unsaved task changes will be lost.', [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: closeImmediately },
+    ]);
   };
 
   const handleSave = async () => {
@@ -254,28 +301,15 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
         title: trimmed,
         notes: trimmedNotes.length > 0 ? trimmedNotes : null,
         subtasks: cleanedSubtasks,
+        subtaskItems: cleanedSubtaskItems,
         categoryId,
         schedule,
       });
-      handleClose();
+      closeImmediately();
     } catch (err) {
-      if (err instanceof Error && err.message === EXACT_ALARM_REQUIRED_SENTINEL) {
-        setSubmitting(false);
-        return;
-      }
       setSubmitting(false);
       setError(err instanceof Error ? err.message : 'Could not save the task. Try again.');
     }
-  };
-
-  // Chip-anchored category menu. We measure where the category chip sits in
-  // the screen, then ask the menu to position itself just above it.
-  const handleChipLayout = (e: LayoutChangeEvent) => {
-    // We need screen-relative coords; the chip is inside a positioned sheet
-    // that's translated for the keyboard. Use measureInWindow at tap time
-    // instead via a ref. For now, capture the local layout — the menu
-    // anchor refines this on actual press.
-    void e; // unused; kept to keep onLayout wired for future precise anchoring
   };
 
   const chipRef = useRef<View>(null);
@@ -296,14 +330,10 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
     setScheduleOpen(true);
   };
 
-  // Single source-of-truth for the category chip. Rendered above the title
-  // in edit mode (so the user sees what bucket the task is in at a glance,
-  // per the inspiration's `update_screen.jpeg` brief) and inside the action
-  // row in create mode (the existing layout). Wrapped in a View that holds
-  // chipRef so the picker menu can anchor to wherever the chip currently
-  // lives.
+  // Keep category context above the title in both create and edit modes. It
+  // stays visible without crowding the primary action row on small phones.
   const categoryChipNode = (
-    <View ref={chipRef} onLayout={handleChipLayout} collapsable={false} style={styles.chipWrap}>
+    <View ref={chipRef} collapsable={false} style={styles.chipWrap}>
       <Pressable
         onPress={handleOpenPicker}
         hitSlop={6}
@@ -337,13 +367,15 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
           />
         ) : null}
         <Text
+          numberOfLines={1}
           style={{
             color: t.color.textPrimary,
             fontSize: t.fontSize.sm,
             fontWeight: t.fontWeight.semibold,
+            maxWidth: 180,
           }}
         >
-          {selectedCategory ? selectedCategory.name : 'No Category'}
+          {selectedCategory ? selectedCategory.name : 'No category'}
         </Text>
       </Pressable>
     </View>
@@ -351,7 +383,6 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
 
   const handleCreateCategory = async ({ name, color }: { name: string; color: string }) => {
     const created = await categoriesRepo.createCategory({ name, color });
-    void analytics.track('category_created');
     await refreshCategories();
     setCategoryId(created.id);
     setCreateCategoryOpen(false);
@@ -398,14 +429,16 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
         >
           <View style={[styles.handle, { backgroundColor: t.color.borderStrong, borderRadius: t.radius.pill }]} />
 
-          {/* Edit-mode header: lift the category chip up here so the user
-              sees what bucket the task lives in before scanning the body.
-              In create mode the chip stays in the action row at the bottom. */}
-          {isEditMode ? (
-            <View style={[styles.editHeaderRow, { marginTop: t.spacing.sm, marginBottom: t.spacing.xs }]}>
-              {categoryChipNode}
-            </View>
-          ) : null}
+          <ScrollView
+            style={styles.composerScroll}
+            contentContainerStyle={{ paddingBottom: t.spacing.sm }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+
+          <View style={[styles.editHeaderRow, { marginTop: t.spacing.sm, marginBottom: t.spacing.xs }]}>
+            {categoryChipNode}
+          </View>
 
           {/* Title input — large; matches the inspiration's "Input new task here" */}
           <View
@@ -421,7 +454,7 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
               ref={inputRef}
               value={title}
               onChangeText={handleTitleChange}
-              placeholder="Input new task here"
+              placeholder="What needs doing?"
               placeholderTextColor={t.color.textMuted}
               maxLength={TITLE_MAX_LENGTH}
               multiline
@@ -470,7 +503,27 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
             <View style={{ gap: t.spacing.sm, marginTop: t.spacing.md }}>
               {subtasks.map((s) => (
                 <View key={s.draftId} style={styles.subtaskRow}>
-                  <View style={[styles.subtaskBullet, { borderColor: t.color.borderStrong }]} />
+                  <Pressable
+                    onPress={() => {
+                      setSubtasks((previous) => previous.map((item) => (
+                        item.draftId === s.draftId
+                          ? { ...item, status: item.status === 'done' ? 'pending' : 'done' }
+                          : item
+                      )));
+                    }}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: s.status === 'done' }}
+                    accessibilityLabel={`Mark subtask ${s.title || 'untitled'} as ${s.status === 'done' ? 'not done' : 'done'}`}
+                    style={[
+                      styles.subtaskBullet,
+                      {
+                        borderColor: s.status === 'done' ? t.color.accent : t.color.borderStrong,
+                        backgroundColor: s.status === 'done' ? t.color.accent : 'transparent',
+                      },
+                    ]}
+                  >
+                    {s.status === 'done' ? <Icon name="check" size={10} color={t.color.textOnAccent} /> : null}
+                  </Pressable>
                   <TextInput
                     ref={(ref) => {
                       if (ref) subtaskRefs.current.set(s.draftId, ref);
@@ -478,7 +531,7 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
                     }}
                     value={s.title}
                     onChangeText={(next) => handleSubtaskChange(s.draftId, next)}
-                    placeholder="Input the sub-task"
+                    placeholder="Add a step"
                     placeholderTextColor={t.color.textMuted}
                     maxLength={SUBTASK_MAX_LENGTH}
                     returnKeyType="next"
@@ -517,27 +570,27 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
             <TextInput
               value={notes}
               onChangeText={setNotes}
-              placeholder="Notes (optional)"
+              placeholder="Add notes (optional)"
               placeholderTextColor={t.color.textMuted}
               maxLength={NOTES_MAX_LENGTH}
               multiline
-              scrollEnabled={false}
+              scrollEnabled
               style={{
                 color: t.color.textPrimary,
                 fontSize: t.fontSize.sm,
                 lineHeight: t.fontSize.sm * t.lineHeight.normal,
                 minHeight: 32,
+                maxHeight: 120,
                 padding: 0,
               }}
             />
           </View>
 
-          {/* Action row: [chip] [📅] [🔗 subtasks] [📋 templates 👑] · spacer · [● send]
-              In edit mode the chip lives above the title block instead, so we
-              skip it here to avoid duplication. */}
-          <View style={[styles.actionRow, { marginTop: t.spacing.lg }]}>
-            {!isEditMode ? categoryChipNode : null}
+          </ScrollView>
 
+          {/* Secondary actions stay left; the labelled primary action stays
+              anchored at the right so saving never looks like sending chat. */}
+          <View style={[styles.actionRow, { marginTop: t.spacing.lg }]}>
             {/* Calendar trigger */}
             <Pressable
               onPress={handleOpenSchedule}
@@ -574,29 +627,29 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
             {/* Subtasks toggle — adds a fresh subtask row inline */}
             <Pressable
               onPress={handleAddSubtask}
+              disabled={subtasks.length >= MAX_SUBTASKS}
               hitSlop={6}
               accessibilityRole="button"
               accessibilityLabel="Add subtask"
+              accessibilityState={{ disabled: subtasks.length >= MAX_SUBTASKS }}
               style={({ pressed }) => [
                 styles.iconButton,
                 {
                   backgroundColor: pressed ? t.color.surfaceMuted : 'transparent',
                   borderRadius: t.radius.md,
+                  opacity: subtasks.length >= MAX_SUBTASKS ? 0.4 : 1,
                 },
               ]}
             >
               <Icon name="subtask" size={20} color={t.color.textSecondary} />
             </Pressable>
 
-            <View style={{ flex: 1 }} />
-
-            {/* Delete (edit mode only). Lives next to the send button so the
-                most destructive action sits beside the most constructive one
-                — clearer than burying it in a menu, easier than duplicating
-                a separate detail screen for V0. */}
+            {/* Keep the destructive action with secondary controls and leave
+                flexible space before the primary save action. */}
             {onDelete ? (
               <Pressable
                 onPress={onDelete}
+                disabled={submitting}
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel="Delete task"
@@ -613,9 +666,10 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
               </Pressable>
             ) : null}
 
-            {/* Circular send button — replaces the text Save. Always rendered
-                with the accent fill so it stays visible behind a scrim; uses
-                opacity + a softer arrow color to communicate disabled state. */}
+            <View style={{ flex: 1 }} />
+
+            {/* Label the primary action literally; an arrow-only control read
+                as messaging and made create vs. edit ambiguous. */}
             <Pressable
               onPress={handleSave}
               disabled={!canSave}
@@ -624,7 +678,7 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
               accessibilityLabel="Save task"
               accessibilityState={{ disabled: !canSave }}
               style={({ pressed }) => [
-                styles.sendButton,
+                styles.saveButton,
                 {
                   backgroundColor: t.color.accent,
                   opacity: !canSave ? 0.4 : pressed ? 0.85 : 1,
@@ -634,7 +688,10 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
                 },
               ]}
             >
-              <Icon name="send" size={22} color={t.color.textOnAccent} />
+              <Icon name="check" size={17} color={t.color.textOnAccent} />
+              <Text style={{ color: t.color.textOnAccent, fontSize: t.fontSize.sm, fontWeight: t.fontWeight.bold }}>
+                {isEditMode ? 'Save' : 'Add task'}
+              </Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -669,8 +726,6 @@ export function TaskComposer({ visible, onClose, initial, onSubmit, onDelete }: 
   );
 }
 
-const SEND_SIZE = 48;
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -681,6 +736,11 @@ const styles = StyleSheet.create({
   },
   sheet: {
     borderTopWidth: 1,
+    maxHeight: '92%',
+  },
+  composerScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
   },
   handle: {
     alignSelf: 'center',
@@ -705,6 +765,8 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   subtaskInput: {
     flex: 1,
@@ -735,10 +797,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendButton: {
-    width: SEND_SIZE,
-    height: SEND_SIZE,
-    borderRadius: SEND_SIZE / 2,
+  saveButton: {
+    minHeight: 46,
+    paddingHorizontal: 17,
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },

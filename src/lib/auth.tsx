@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
@@ -9,81 +17,70 @@ import {
 } from '@react-native-google-signin/google-signin';
 import * as analytics from './analytics';
 
-const ID_TOKEN_KEY = 'google_id_token';
-
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-
-if (!WEB_CLIENT_ID) {
-  console.warn('[GoogleSignIn] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set in the bundle');
-} else {
-  console.log('[GoogleSignIn] webClientId present, suffix:', WEB_CLIENT_ID.slice(-12));
-}
+const GUEST_PREF_KEY = 'auth_guest_v1';
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 export type AuthUser = {
   id: string;
   email: string;
   name: string | null;
-  givenName: string | null;
-  familyName: string | null;
-  photo: string | null;
 };
 
-type AuthState =
+export type AuthState =
   | { status: 'loading' }
   | { status: 'unsupported'; reason: string }
   | { status: 'signed-out'; error: string | null }
-  // Guest mode: the user explicitly chose "Continue without signing in" on
-  // the sign-in screen. The app is fully usable (it's local-first), but no
-  // Google profile is attached and analytics events run against an
-  // anonymous Mixpanel distinct_id. Mainly exists so Play Store reviewers
-  // (who can't sign into a third-party Google account) can review every
-  // screen of the app.
-  | { status: 'guest' }
-  | { status: 'signed-in'; user: AuthUser; idToken: string | null };
-
-const GUEST_PREF_KEY = 'auth_guest_v1';
+  | { status: 'guest'; error: string | null }
+  | { status: 'signed-in'; user: AuthUser };
 
 type AuthContextValue = {
   state: AuthState;
+  busy: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  /** Skip Google Sign-In and use the app as an anonymous local-only user. */
   continueAsGuest: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-
-function toAuthUser(u: User): AuthUser {
+function toAuthUser(user: User): AuthUser {
   return {
-    id: u.user.id,
-    email: u.user.email,
-    name: u.user.name,
-    givenName: u.user.givenName,
-    familyName: u.user.familyName,
-    photo: u.user.photo,
+    id: user.user.id,
+    email: user.user.email,
+    name: user.user.name,
   };
+}
+
+function signInMessage(error: unknown): string {
+  const value = error as { code?: string; message?: string };
+  if (value.code === statusCodes.IN_PROGRESS) return 'Sign-in is already in progress.';
+  if (value.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+    return 'Google Play services is unavailable or needs an update.';
+  }
+  if (value.code === '10') {
+    return 'This build is not registered for Google sign-in. Check its Android signing certificate in Google Cloud.';
+  }
+  return value.message?.trim() || 'Google sign-in failed. Try again.';
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     if (isExpoGo) {
       setState({
         status: 'unsupported',
-        reason:
-          'Google sign-in needs a development build. Expo Go cannot load native modules. Build with EAS and install the dev APK.',
+        reason: 'Google sign-in needs an installed development or release build. You can still continue locally.',
       });
       return;
     }
-
     if (!WEB_CLIENT_ID) {
       setState({
         status: 'unsupported',
-        reason:
-          'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Add it to .env and restart the Metro bundler.',
+        reason: 'Google sign-in is not configured in this build. You can still continue locally.',
       });
       return;
     }
@@ -94,127 +91,120 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       offlineAccess: false,
     });
 
-    // Try silent restore on first load.
-    (async () => {
+    void (async () => {
       try {
         const result = await GoogleSignin.signInSilently();
-        if (result.type === 'success') {
-          const authUser = toAuthUser(result.data);
-          setState({
-            status: 'signed-in',
-            user: authUser,
-            idToken: result.data.idToken,
-          });
-          if (result.data.idToken) {
-            await SecureStore.setItemAsync(ID_TOKEN_KEY, result.data.idToken);
-          }
-          void analytics.identify(authUser);
+        if (!cancelled && result.type === 'success') {
+          const user = toAuthUser(result.data);
+          setState({ status: 'signed-in', user });
+          void analytics.identify(user);
           return;
         }
       } catch {
-        // No saved credential — fall through to guest-or-signed-out.
+        // No restorable Google session; guest preference is checked next.
       }
-
-      // No Google session, but check if the user previously opted into
-      // guest mode — if so, restore that instead of bouncing them back to
-      // the sign-in screen on every launch.
       try {
         const guest = await SecureStore.getItemAsync(GUEST_PREF_KEY);
-        if (guest === 'true') {
-          setState({ status: 'guest' });
+        if (!cancelled && guest === 'true') {
+          setState({ status: 'guest', error: null });
           return;
         }
       } catch {
-        // SecureStore unavailable; fall through.
+        // If preference storage is unavailable, show the explicit choice.
       }
-      setState({ status: 'signed-out', error: null });
+      if (!cancelled) setState({ status: 'signed-out', error: null });
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const signIn = useCallback(async () => {
-    // Allow sign-in from signed-out (the obvious path), signed-in (a no-op
-    // re-sign), or guest (the upgrade path: guest → identified user).
-    if (
-      state.status !== 'signed-out' &&
-      state.status !== 'signed-in' &&
-      state.status !== 'guest'
-    ) {
+    if (state.status !== 'signed-out' && state.status !== 'guest') return;
+    const wasGuest = state.status === 'guest';
+    if (isExpoGo || !WEB_CLIENT_ID) {
+      const message = isExpoGo
+        ? 'Google sign-in needs an installed development or release build.'
+        : 'Google sign-in is not configured in this build.';
+      setState(wasGuest
+        ? { status: 'guest', error: message }
+        : { status: 'unsupported', reason: `${message} You can still continue locally.` });
       return;
     }
+    setBusy(true);
     try {
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       }
       const result = await GoogleSignin.signIn();
       if (result.type === 'cancelled') {
-        setState({ status: 'signed-out', error: null });
+        setState(wasGuest
+          ? { status: 'guest', error: null }
+          : { status: 'signed-out', error: null });
         return;
       }
-      const authUser = toAuthUser(result.data);
-      setState({
-        status: 'signed-in',
-        user: authUser,
-        idToken: result.data.idToken,
-      });
-      if (result.data.idToken) {
-        await SecureStore.setItemAsync(ID_TOKEN_KEY, result.data.idToken);
-      }
-      // Signing in supersedes any previous guest preference.
+      const user = toAuthUser(result.data);
       await SecureStore.deleteItemAsync(GUEST_PREF_KEY).catch(() => {});
-      void analytics.identify(authUser);
-      void analytics.track('app_opened', { source: 'sign_in' });
-    } catch (err: unknown) {
-      const e = err as { code?: string; message?: string; name?: string; userInfo?: unknown };
-      console.warn('[GoogleSignIn] error', JSON.stringify(e, Object.getOwnPropertyNames(e)));
-      const code = e.code;
+      setState({ status: 'signed-in', user });
+      void Promise.all([
+        analytics.identify(user),
+        analytics.track('sign_in_completed', { provider: 'google' }),
+      ]);
+    } catch (error) {
+      const code = (error as { code?: string }).code;
       if (code === statusCodes.SIGN_IN_CANCELLED) {
-        setState({ status: 'signed-out', error: null });
+        setState(wasGuest
+          ? { status: 'guest', error: null }
+          : { status: 'signed-out', error: null });
         return;
       }
-      const baseMessage =
-        code === statusCodes.IN_PROGRESS
-          ? 'Sign-in already in progress.'
-          : code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE
-            ? 'Google Play Services unavailable on this device.'
-            : (e.message ?? 'Sign-in failed.');
-      const detail = code ? ` [code: ${code}]` : '';
-      setState({ status: 'signed-out', error: `${baseMessage}${detail}` });
+      const message = signInMessage(error);
+      setState(wasGuest
+        ? { status: 'guest', error: message }
+        : { status: 'signed-out', error: message });
+    } finally {
+      setBusy(false);
     }
   }, [state.status]);
 
   const signOut = useCallback(async () => {
+    setBusy(true);
+    // Preserve attribution ordering without making sign-out wait on analytics.
+    void (async () => {
+      await analytics.track('sign_out', { provider: 'google' });
+      analytics.flush();
+      await analytics.reset();
+    })();
     try {
-      await GoogleSignin.signOut();
-    } catch {
-      // ignore
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // Local sign-out should still complete if Google Play services fails.
+      }
+      await SecureStore.deleteItemAsync(GUEST_PREF_KEY).catch(() => {});
+      setState({ status: 'signed-out', error: null });
+    } finally {
+      setBusy(false);
     }
-    await SecureStore.deleteItemAsync(ID_TOKEN_KEY);
-    // Sign-out drops the user back to the sign-in screen, NOT to guest. The
-    // user explicitly asked to leave; respect that and let them re-pick.
-    await SecureStore.deleteItemAsync(GUEST_PREF_KEY).catch(() => {});
-    void analytics.reset();
-    setState({ status: 'signed-out', error: null });
   }, []);
 
   const continueAsGuest = useCallback(async () => {
-    // Persist the choice so cold starts skip the sign-in screen. This
-    // matches the silent-restore path: signed-in users skip sign-in via a
-    // valid Google session, guest users skip via this flag.
     await SecureStore.setItemAsync(GUEST_PREF_KEY, 'true').catch(() => {});
-    setState({ status: 'guest' });
-    void analytics.track('app_opened', { source: 'guest' });
+    setState({ status: 'guest', error: null });
+    void analytics.track('local_mode_selected');
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ state, signIn, signOut, continueAsGuest }),
-    [state, signIn, signOut, continueAsGuest]
+    () => ({ state, busy, signIn, signOut, continueAsGuest }),
+    [state, busy, signIn, signOut, continueAsGuest]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used inside AuthProvider');
+  return context;
 }

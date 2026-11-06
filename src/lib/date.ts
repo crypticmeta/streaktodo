@@ -1,8 +1,52 @@
-// Pure date helpers. All times work in the device's LOCAL timezone — task
-// due-dates are calendar-day concepts ("due tomorrow"), not absolute instants.
-// Stored as epoch ms at 00:00 local on the due day.
+// Pure date helpers. Calendar dates are stored as YYYY-MM-DD keys so a task
+// remains due on the same human day after travel, DST changes, or backup
+// restore in another timezone. UI code may continue to use local-midnight
+// timestamps; the DB boundary converts between the two representations.
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export type CalendarDate = `${number}-${number}-${number}`;
+
+const DATE_KEY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Convert a local calendar day to a stable YYYY-MM-DD key. */
+export function dateKeyFromTimestamp(ts: number): CalendarDate {
+  if (!Number.isFinite(ts)) throw new Error('Invalid timestamp.');
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) throw new Error('Invalid timestamp.');
+  const year = String(d.getFullYear()).padStart(4, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}` as CalendarDate;
+}
+
+/** Parse a YYYY-MM-DD key as local midnight. Rejects impossible dates. */
+export function timestampFromDateKey(key: string): number {
+  const match = DATE_KEY_RE.exec(key);
+  if (!match) throw new Error(`Invalid calendar date: ${key}`);
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const d = new Date(year, month - 1, day);
+  d.setHours(0, 0, 0, 0);
+  if (
+    d.getFullYear() !== year ||
+    d.getMonth() !== month - 1 ||
+    d.getDate() !== day
+  ) {
+    throw new Error(`Invalid calendar date: ${key}`);
+  }
+  return d.getTime();
+}
+
+export function isCalendarDate(value: string): value is CalendarDate {
+  try {
+    timestampFromDateKey(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Returns 00:00:00.000 local time for the given timestamp. */
 export function startOfDay(ts: number = Date.now()): number {

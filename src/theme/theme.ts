@@ -52,6 +52,8 @@ type SemanticColors = {
   warnSoft: string;
   danger: string;
   dangerSoft: string;
+  info: string;
+  infoSoft: string;
 
   // Tactical UI
   scrim: string;       // overlay behind modals
@@ -61,83 +63,78 @@ type SemanticColors = {
 };
 
 const lightColors: SemanticColors = {
-  background: palette.cream[200],
-  surface: palette.cream[50],
-  surfaceMuted: palette.cream[300],
+  // "Streak garden": sunny paper, crisp cards, leaf-green actions, and
+  // candy-like status tints. It stays calm enough for a daily utility while
+  // giving the app a recognizable, playful personality.
+  background: '#FFF7E6',
+  surface: palette.white,
+  surfaceMuted: '#F2EDE4',
   surfaceRaised: palette.white,
 
-  border: palette.cream[400],
-  borderMuted: palette.cream[500],
-  // Bumped from cream-600 (#c8bba8, 1.82:1 on surface — fails WCAG 1.4.11
-  // for non-text UI) to a darker neutral so unchecked checkbox borders,
-  // the composer drag handle, and idle streak rings clear the 3:1 bar.
-  borderStrong: '#8a7c69',
+  border: '#E5D9C6',
+  borderMuted: '#D8C8AF',
+  borderStrong: '#756957',
 
-  textPrimary: '#1F2328',
-  textSecondary: '#4b443d',
-  // Tiny darken from #7a6e62 (4.33:1 — AA-large only) so muted body text
-  // clears the 4.5:1 AA threshold against background AND surfaceMuted.
-  textMuted: '#766b5f',
+  textPrimary: '#25213A',
+  textSecondary: '#514B61',
+  textMuted: '#696273',
   textInverse: palette.white,
-  textOnAccent: '#F4EFE6',
-  textOnAccentSoft: '#dcccb7',
+  textOnAccent: palette.white,
+  textOnAccentSoft: '#25213A',
 
-  accent: '#1F2328',
-  accentSoft: '#D2B48C',
-  accentMuted: '#EAD7B7',
+  accent: '#1D6D55',
+  accentSoft: '#BDE8D4',
+  accentMuted: '#DDF5E9',
 
-  success: palette.evergreen[500],
-  successSoft: palette.evergreen[100],
-  // Was amber[500] (#b58a3d) — only 2.42:1 against warnSoft (FAIL).
-  // Darker amber clears AA so a "warn on warnSoft" pill remains readable.
-  warn: '#7d5f2a',
-  warnSoft: palette.amber[200],
-  danger: palette.crimson[500],
-  dangerSoft: palette.crimson[100],
+  success: '#23734D',
+  successSoft: '#D7F3DF',
+  warn: '#7A5411',
+  warnSoft: '#FFE7A8',
+  danger: '#B62F4A',
+  dangerSoft: '#FFDCE5',
+  info: '#4D55A5',
+  infoSoft: '#E2E4FF',
 
-  scrim: 'rgba(31, 35, 40, 0.45)',
-  divider: palette.cream[400],
-  link: '#1F2328',
-  focusRing: '#D2B48C',
+  scrim: 'rgba(37, 33, 58, 0.48)',
+  divider: '#E5D9C6',
+  link: '#1D6D55',
+  focusRing: '#1D6D55',
 };
 
 const darkColors: SemanticColors = {
-  background: '#1F2328',
-  surface: '#2A2F35',
-  surfaceMuted: '#343A42',
-  surfaceRaised: '#31363D',
+  background: '#18172A',
+  surface: '#24223A',
+  surfaceMuted: '#2E2B48',
+  surfaceRaised: '#34304E',
 
-  border: '#444b54',
-  borderMuted: '#383f47',
-  // Bumped from #59626d (2.18:1 on surface — fails 3:1 for non-text UI)
-  // so the unchecked checkbox border is visible against the row.
-  borderStrong: '#7a8694',
+  border: '#403C5D',
+  borderMuted: '#373451',
+  borderStrong: '#918AA9',
 
-  textPrimary: '#F4EFE6',
-  textSecondary: '#d5cdc1',
-  textMuted: '#b1a89b',
-  textInverse: '#1F2328',
-  textOnAccent: '#1F2328',
-  textOnAccentSoft: '#4d4338',
+  textPrimary: '#FFF8E8',
+  textSecondary: '#DDD5EC',
+  textMuted: '#B9B1C9',
+  textInverse: '#18172A',
+  textOnAccent: '#10291F',
+  textOnAccentSoft: '#FFF8E8',
 
-  accent: '#D2B48C',
-  accentSoft: '#4b3f33',
-  accentMuted: '#6e5b46',
+  accent: '#70D6A9',
+  accentSoft: '#214B3E',
+  accentMuted: '#2C624F',
 
-  success: palette.evergreen[300],
-  successSoft: palette.evergreen[700],
-  warn: palette.amber[300],
-  warnSoft: palette.amber[700],
-  // Was crimson[300] (#e87575) — 3.95:1 on surfaceMuted, fails AA for the
-  // overdue date text (12px, not "large"). crimson[200] is lighter and
-  // passes AA on the row backgrounds in dark mode.
-  danger: palette.crimson[200],
-  dangerSoft: palette.crimson[700],
+  success: '#7BE1A9',
+  successSoft: '#203F35',
+  warn: '#FFD166',
+  warnSoft: '#4D3B19',
+  danger: '#FF8FA3',
+  dangerSoft: '#512536',
+  info: '#AEB7FF',
+  infoSoft: '#33365D',
 
   scrim: 'rgba(0, 0, 0, 0.6)',
-  divider: '#444b54',
-  link: '#D2B48C',
-  focusRing: '#D2B48C',
+  divider: '#403C5D',
+  link: '#70D6A9',
+  focusRing: '#70D6A9',
 };
 
 // Static, non-color tokens are shared across schemes.

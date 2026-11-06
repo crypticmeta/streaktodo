@@ -4,8 +4,8 @@
 
 # Streak Todo
 
-**A focused, local-first task planner for Android.**
-Capture tasks, set reminders that fire on time, and keep an honest streak — no paywalls, no ads, no forced sign-up.
+**A playful, local-first task planner for Android.**
+Capture tasks, set reminders that fire on time, and keep an honest streak — no paywalls, no ads, and no forced sign-up.
 
 [Privacy policy](https://streaktodo.coderixx.com/privacy) ·
 [Delete your data](https://streaktodo.coderixx.com/delete-account) ·
@@ -17,7 +17,11 @@ Made by **[Coderixx](https://coderixx.com)**
 
 ## Overview
 
-Streak Todo is the productivity app I'd want on my own phone: fast capture, real recurrence, reminders that don't drift, and a streak counter that doesn't lie to you on a missed day. It's built local-first — your data lives on your device, not on someone else's server — with optional Google sign-in for users who want their account associated with usage analytics.
+Streak Todo is the productivity app I'd want on my own phone: fast capture,
+real recurrence, explicit reminder health, and a streak counter that doesn't
+pretend a pending day is already missed. Task data stays on the device; Google
+sign-in is optional, manual JSON backup is built in, and privacy-bounded
+Mixpanel analytics can be disabled from Insights.
 
 Currently in **closed testing on Google Play**, with v1.0 production submission queued behind the standard 14-day testing requirement for new developer accounts.
 
@@ -57,10 +61,12 @@ Currently in **closed testing on Google Play**, with v1.0 production submission 
 - Local reminders that survive a reboot, with `SCHEDULE_EXACT_ALARM` for on-time delivery
 - "Done" and "Snooze 10m" actions inside the notification itself
 - Calendar view with month / week modes
-- Profile dashboard: streak counter, weekly completion bars, next-7-days strip, category breakdown donut, overview totals
+- Insights dashboard: streak counter, weekly completion bars, next-7-days strip, category breakdown donut, overview totals
 - Light / dark / system themes (persisted)
 - Backup export and import via the system file picker
-- Continue-without-signing-in path so Play reviewers and privacy-conscious users can use every screen of the app without a Google account
+- Optional Google sign-in or local mode; task features never require an account
+- Privacy-bounded Mixpanel events with automatic capture/session replay off and an in-app opt-out
+- Search, focused views, collapsible sections, and recoverable task deletion
 
 ## Tech stack
 
@@ -69,9 +75,10 @@ Currently in **closed testing on Google Play**, with v1.0 production submission 
 | **Runtime** | React Native 0.81 + Expo SDK 54, TypeScript strict |
 | **Routing** | expo-router (file-system, typed routes) |
 | **Persistence** | expo-sqlite, raw SQL repositories, no ORM |
-| **Auth** | `@react-native-google-signin/google-signin` (Web Client ID, OAuth ID tokens) |
 | **Notifications** | expo-notifications with `DATE` triggers + Android `SCHEDULE_EXACT_ALARM` |
-| **Analytics** | Mixpanel (EU residency), bounded task-content payloads, opt-out via env |
+| **Identity** | Optional Google sign-in; no cloud task account or forced login |
+| **Analytics** | Manual Mixpanel events only; task text excluded; in-app opt-out |
+| **Privacy** | Local task database, no ads, no cloud task sync, no remote push product |
 | **State** | React hooks + a small in-memory pub/sub event bus for cross-screen invalidation |
 | **Theme** | Two-layer token system (raw palette → semantic tokens), WCAG-AA audited |
 | **Build** | EAS Build, signed via Play App Signing, AAB output |
@@ -80,12 +87,11 @@ Currently in **closed testing on Google Play**, with v1.0 production submission 
 
 ```
 streaktodo/
-├── app/                    expo-router screens (Tasks / Calendar / Profile / onboarding / sign-in / categories / notifications)
+├── app/                    expo-router screens (Tasks / Calendar / Insights / onboarding / categories / Trash)
 ├── src/
 │   ├── components/         TaskRow, TaskComposer, CalendarGrid, charts, sheets, dialogs
 │   ├── db/                 repos/, hooks, schema, migrations, event bus
-│   ├── lib/                analytics, auth, notificationScheduler, recurrence, streakStats, taskGrouping
-│   ├── screens/            SignInScreen
+│   ├── lib/                notification scheduling, recurrence, streak stats, task actions
 │   └── theme/              tokens, semantic theme, ThemeProvider
 ├── android/                checked in so dev builds work without an EAS roundtrip
 ├── assets/                 app icons, splash, store assets
@@ -111,7 +117,6 @@ streaktodo/
 ```bash
 # Prereqs: Node 20+, Java 17, Android SDK with API 35, a connected device.
 npm install --legacy-peer-deps
-cp .env.example .env                # then add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
 npx expo run:android                # native Android build + install
 ```
 
@@ -129,7 +134,10 @@ Production AABs are built via EAS. The upload keystore lives in the project's Ex
 npx eas-cli@latest build -p android --profile production
 ```
 
-`eas.json` carries the production environment variables (Google client ID, Mixpanel region). The Mixpanel project token is in [`branding.js`](./branding.js) and is public-by-design — Mixpanel project tokens identify the destination project, not write credentials.
+The build uses public Google OAuth and Mixpanel project identifiers. They are
+not client secrets, but production Google sign-in still depends on registering
+the correct package name and Play/local signing certificates. Never commit a
+Google client secret or Mixpanel service-account credential.
 
 ## Status
 

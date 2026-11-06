@@ -1,4 +1,4 @@
-import type { ReminderType, RepeatFrequency } from '../db';
+import type { RepeatFrequency } from '../db';
 
 // ─── Reminder draft ─────────────────────────────────────────────────────
 
@@ -17,15 +17,13 @@ export type ReminderLeadMinutes = (typeof REMINDER_LEAD_OPTIONS)[number]['minute
 export type ReminderDraft = {
   enabled: boolean;
   leadMinutes: number;            // matches REMINDER_LEAD_OPTIONS but kept open for custom values later
-  type: ReminderType;             // 'notification' (free) | 'silent' | 'alarm' (premium-flagged)
-  screenLock: boolean;            // premium-flagged
+  type: 'notification';
 };
 
 export const DEFAULT_REMINDER: ReminderDraft = {
   enabled: false,
   leadMinutes: 5,
   type: 'notification',
-  screenLock: false,
 };
 
 // ─── Repeat draft ───────────────────────────────────────────────────────
@@ -77,8 +75,8 @@ export const EMPTY_SCHEDULE: ScheduleDraft = {
 };
 
 /**
- * Reminder popover requires a dueAt+dueTime to function (otherwise we have
- * nothing to schedule from). Helper so UI can show the "set a date first" hint.
+ * A reminder needs a date. If no time is set, confirming an enabled reminder
+ * makes the scheduler's 09:00 default explicit in the task draft.
  */
 export function canConfigureReminder(draft: ScheduleDraft): boolean {
   return draft.dueAt !== null;

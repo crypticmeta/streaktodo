@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { initialSchemaSql } from './001_initial';
+import { reliabilitySchemaSql } from './002_reliability';
 
 // Migrations run in version order. Each migration is wrapped in its own
 // transaction. user_version is bumped only after the migration succeeds.
@@ -13,6 +14,12 @@ const migrations: Migration[] = [
     version: 1,
     up: async (db) => {
       await db.execAsync(initialSchemaSql);
+    },
+  },
+  {
+    version: 2,
+    up: async (db) => {
+      await db.execAsync(reliabilitySchemaSql);
     },
   },
 ];
@@ -32,11 +39,13 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     .sort((a, b) => a.version - b.version);
 
   for (const m of pending) {
-    await db.withTransactionAsync(async () => {
-      await m.up(db);
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await m.up(txn);
+      // Keep the schema change and its version marker in one commit. If the
+      // process stops midway, SQLite rolls both back instead of re-running an
+      // already-applied ALTER TABLE on the next launch.
+      await txn.execAsync(`PRAGMA user_version = ${m.version};`);
     });
-    // PRAGMA can't take a parameter, so interpolate the trusted constant.
-    await db.execAsync(`PRAGMA user_version = ${m.version};`);
     currentVersion = m.version;
   }
 }

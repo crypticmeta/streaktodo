@@ -29,6 +29,9 @@ Core features:
 - Streak and completion tracking
 - Light and dark theme support
 - Local-first task storage on your device
+- Optional Google sign-in or local mode
+- Manual JSON backup export and validated restore
+- Privacy-bounded product analytics that can be turned off in Insights
 
 Streak Todo is built to stay simple:
 
@@ -56,7 +59,7 @@ Use these as raw material for the Play Store listing and website copy:
 
 ## Notes before publish
 
-- Keep claims aligned with the shipped build. Do not mention backup/sync,
-  collaboration, attachments, or premium features until they are real.
-- If Google sign-in is optional in the release build, avoid making it sound
-  mandatory in the store listing.
+- Keep claims aligned with the shipped build. Manual backup is real; cloud
+  sync, collaboration, attachments, and premium features are not.
+- Do not claim "no account" or "no analytics." Google sign-in is optional and
+  Mixpanel is privacy-bounded with an in-app opt-out.

@@ -9,6 +9,7 @@ export declare const branding: {
   readonly backgroundColor: string;
   readonly supportEmail: string;
   readonly privacyUrl: string;
+  readonly deletionUrl: string;
   readonly termsUrl: string;
   readonly playStoreUrl: string;
   readonly appStoreUrl: string;

@@ -9,7 +9,7 @@ type FabProps = {
   disabled?: boolean;
 };
 
-const SIZE = 60;
+const SIZE = 62;
 const HALO_PADDING = 8; // halo extends this far past the button on every side
 
 // Standalone circular floating action button. Lives at bottom-right of any
@@ -75,8 +75,8 @@ export function Fab({ onPress, glyph = '+', accessibilityLabel, hint, disabled }
         <Text
           style={{
             color: t.color.textOnAccent,
-            fontSize: 28,
-            fontWeight: t.fontWeight.regular,
+            fontSize: 30,
+            fontWeight: t.fontWeight.bold,
             lineHeight: 32,
             marginTop: -2,                // optical centering for a "+" glyph
           }}
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   button: {
     width: SIZE,
     height: SIZE,
-    borderRadius: SIZE / 2,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
   },

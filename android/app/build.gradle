@@ -89,11 +89,15 @@ android {
 
     namespace 'com.streaktodo.app'
     defaultConfig {
-        applicationId 'com.streaktodo.app'
+        // Optional side-by-side package for local device QA. The production
+        // path keeps the canonical id; passing
+        // -Pstreaktodo.applicationIdOverride=com.streaktodo.app.audit avoids
+        // replacing a Play-signed install (and therefore preserves its data).
+        applicationId findProperty('streaktodo.applicationIdOverride') ?: 'com.streaktodo.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0.0"
+        versionName findProperty('streaktodo.versionNameOverride') ?: "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

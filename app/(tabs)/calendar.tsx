@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarGrid } from '../../src/components/CalendarGrid';
 import { Fab } from '../../src/components/Fab';
@@ -15,11 +15,14 @@ import {
   useDbVersion,
   useTasks,
   type Task,
+  type ReminderScheduleState,
 } from '../../src/db';
-import * as analytics from '../../src/lib/analytics';
 import { addMonths, addDays, isSameDay, startOfDay, startOfMonth } from '../../src/lib/date';
+import * as analytics from '../../src/lib/analytics';
 import * as scheduler from '../../src/lib/notificationScheduler';
+import { completeTaskWithFollowUp, reopenTaskAndReminder } from '../../src/lib/taskActions';
 import { useTaskEditor } from '../../src/lib/useTaskEditor';
+import { useTodayStart } from '../../src/lib/useToday';
 import { useTheme } from '../../src/theme';
 
 // Local optimistic patch applied on top of a Task while a write is in flight.
@@ -31,11 +34,11 @@ export default function CalendarScreen() {
   const [month, setMonth] = useState<number>(() => startOfMonth());
   const [selectedDay, setSelectedDay] = useState<number>(() => startOfDay());
   const [calendarCollapsed, setCalendarCollapsed] = useState(false);
-  const today = useMemo(() => startOfDay(), []);
+  const today = useTodayStart();
 
   // Tasks for the selected day. We pass dueAtMin = dueAtMax = day so the
   // serialized filter key changes whenever the user picks a new day.
-  const { tasks, refresh } = useTasks({
+  const { tasks, loading, error, refresh } = useTasks({
     status: 'all',
     dueAtMin: selectedDay,
     dueAtMax: selectedDay,
@@ -58,11 +61,15 @@ export default function CalendarScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const set = await tasksRepo.listDueDaysInRange({
-        fromTs: monthWindow.from,
-        toTs: monthWindow.to,
-      });
-      if (!cancelled) setMarkedDays(set);
+      try {
+        const set = await tasksRepo.listDueDaysInRange({
+          fromTs: monthWindow.from,
+          toTs: monthWindow.to,
+        });
+        if (!cancelled) setMarkedDays(set);
+      } catch {
+        if (!cancelled) setMarkedDays(new Set());
+      }
     })();
     return () => {
       cancelled = true;
@@ -78,28 +85,39 @@ export default function CalendarScreen() {
 
   // Per-row meta queries; refresh on dbVersion bump too.
   const taskIds = useMemo(() => tasks.map((task) => task.id), [tasks]);
+  const taskIdsKey = taskIds.join('|');
   const [subtaskCounts, setSubtaskCounts] = useState<
     Record<string, { total: number; done: number }>
   >({});
   const [reminderIds, setReminderIds] = useState<Set<string>>(() => new Set());
+  const [reminderHealth, setReminderHealth] = useState<Record<string, ReminderScheduleState>>({});
   const [repeatIds, setRepeatIds] = useState<Set<string>>(() => new Set());
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [counts, reminders, repeats] = await Promise.all([
-        subtasksRepo.countsByTaskIds(taskIds),
-        remindersRepo.taskIdsWithReminders(taskIds),
-        repeatRulesRepo.taskIdsWithRepeat(taskIds),
-      ]);
-      if (cancelled) return;
-      setSubtaskCounts(counts);
-      setReminderIds(reminders);
-      setRepeatIds(repeats);
+      try {
+        const [counts, health, repeats] = await Promise.all([
+          subtasksRepo.countsByTaskIds(taskIds),
+          remindersRepo.healthByTaskIds(taskIds),
+          repeatRulesRepo.taskIdsWithRepeat(taskIds),
+        ]);
+        if (cancelled) return;
+        setSubtaskCounts(counts);
+        setReminderHealth(health);
+        setReminderIds(new Set(Object.keys(health)));
+        setRepeatIds(repeats);
+      } catch {
+        if (cancelled) return;
+        setSubtaskCounts({});
+        setReminderHealth({});
+        setReminderIds(new Set());
+        setRepeatIds(new Set());
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [taskIds, dbVersion]);
+  }, [taskIdsKey, dbVersion]);
 
   // Optimistic patches mirror the home screen so completing/pinning here
   // feels instant.
@@ -125,69 +143,62 @@ export default function CalendarScreen() {
   }, [tasks, optimistic]);
 
   const tasksById = useMemo(() => {
-    const out = new Map<string, Task>();
-    for (const task of visibleTasks) out.set(task.id, task);
-    return out;
+    const byId = new Map<string, Task>();
+    for (const task of visibleTasks) byId.set(task.id, task);
+    return byId;
   }, [visibleTasks]);
+
+  const trackTaskStatusChange = useCallback((
+    task: Task,
+    event: 'task_completed' | 'task_uncompleted'
+  ) => {
+    void analytics.track(event, {
+      source: 'calendar',
+      ...analytics.buildTaskShapeProps({
+        hasDueDate: task.dueAt !== null,
+        hasTime: task.dueTime !== null,
+        hasNotes: Boolean(task.notes?.trim()),
+        subtaskCount: subtaskCounts[task.id]?.total ?? 0,
+        hasCategory: task.categoryId !== null,
+        hasReminder: reminderIds.has(task.id),
+        hasRepeat: repeatIds.has(task.id),
+      }),
+    });
+  }, [subtaskCounts, reminderIds, repeatIds]);
 
   const handleToggleComplete = useCallback(
     (id: string, nextStatus: 'done' | 'pending') => {
+      const task = tasksById.get(id);
       setPatch(id, {
         status: nextStatus,
         completedAt: nextStatus === 'done' ? Date.now() : null,
       });
       (async () => {
         try {
-          const task = tasksById.get(id);
           if (nextStatus === 'done') {
-            await tasksRepo.completeTask(id);
-            void analytics.track('task_completed', task
-              ? analytics.buildTaskTextProps({
-                  title: task.title,
-                  notes: task.notes,
-                })
-              : undefined);
-            void scheduler.cancelForTask(id);
-            try {
-              const spawned = await tasksRepo.spawnNextOccurrence(id);
-              if (spawned && spawned.dueAt !== null) {
-                void scheduler.scheduleForTask({
-                  taskId: spawned.id,
-                  taskTitle: spawned.title,
-                  taskDueAt: spawned.dueAt,
-                  taskDueTime: spawned.dueTime,
-                });
-              }
-            } catch {
-              // best-effort
-            }
+            await completeTaskWithFollowUp(id);
           } else {
-            await tasksRepo.uncompleteTask(id);
-            void analytics.track('task_uncompleted', task
-              ? analytics.buildTaskTextProps({
-                  title: task.title,
-                  notes: task.notes,
-                })
-              : undefined);
-            const tk = await tasksRepo.getTaskById(id);
-            if (tk && tk.dueAt !== null) {
-              void scheduler.scheduleForTask({
-                taskId: tk.id,
-                taskTitle: tk.title,
-                taskDueAt: tk.dueAt,
-                taskDueTime: tk.dueTime,
-              });
-            }
+            await reopenTaskAndReminder(id);
+          }
+          if (task) {
+            trackTaskStatusChange(
+              task,
+              nextStatus === 'done' ? 'task_completed' : 'task_uncompleted'
+            );
           }
           // Refresh happens automatically via the tasks-changed event
           // emitted by completeTask / uncompleteTask / spawnNextOccurrence.
           setPatch(id, null);
-        } catch {
+        } catch (error) {
           setPatch(id, null);
+          Alert.alert(
+            'Couldn’t update task',
+            error instanceof Error ? error.message : 'Try again in a moment.'
+          );
         }
       })();
     },
-    [setPatch, tasksById]
+    [setPatch, tasksById, trackTaskStatusChange]
   );
 
   const handleTogglePin = useCallback(
@@ -197,19 +208,31 @@ export default function CalendarScreen() {
         try {
           await tasksRepo.setPinned(id, nextPinned);
           setPatch(id, null);
-        } catch {
+        } catch (error) {
           setPatch(id, null);
+          Alert.alert(
+            'Couldn’t update pin',
+            error instanceof Error ? error.message : 'Try again in a moment.'
+          );
         }
       })();
     },
     [setPatch]
   );
 
-  // Editor — create-on-day uses openCreate but we'd need to prefill; for V0
-  // creating from the calendar lands a task with no date. Editing works as
-  // expected; the dbVersion subscription above takes care of refreshing the
-  // markers + day list when the editor commits.
+  // Edits and creates refresh the day list and marker dots through DB events.
   const editor = useTaskEditor();
+
+  const handleCalendarChange = useCallback((next: number) => {
+    setMonth(next);
+    if (calendarCollapsed) setSelectedDay(startOfDay(next));
+  }, [calendarCollapsed]);
+
+  const handleSelectDay = useCallback((day: number) => {
+    const normalized = startOfDay(day);
+    setSelectedDay(normalized);
+    setMonth(calendarCollapsed ? normalized : startOfMonth(normalized));
+  }, [calendarCollapsed]);
 
   const dayLabel = useMemo(() => {
     if (isSameDay(selectedDay, today)) return 'Today';
@@ -221,25 +244,65 @@ export default function CalendarScreen() {
     });
   }, [selectedDay, today]);
 
+  const renderTask = useCallback(({ item }: { item: Task }) => {
+    const category = item.categoryId ? categoriesById.get(item.categoryId) ?? null : null;
+    return (
+      <TaskRow
+        task={item}
+        category={category}
+        subtaskCounts={subtaskCounts[item.id]}
+        hasReminder={reminderIds.has(item.id)}
+        reminderState={reminderHealth[item.id]}
+        hasRepeat={repeatIds.has(item.id)}
+        onToggleComplete={handleToggleComplete}
+        onTogglePin={handleTogglePin}
+        onPress={editor.openEdit}
+      />
+    );
+  }, [
+    categoriesById,
+    subtaskCounts,
+    reminderIds,
+    reminderHealth,
+    repeatIds,
+    handleToggleComplete,
+    handleTogglePin,
+    editor.openEdit,
+  ]);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.color.background }]} edges={['top']}>
-      <ScrollView
+      <FlatList
+        data={visibleTasks}
+        keyExtractor={(task) => task.id}
+        renderItem={renderTask}
+        ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+        refreshing={loading}
+        onRefresh={() => { void refresh(); }}
         contentContainerStyle={[
           styles.content,
           { paddingHorizontal: t.spacing.xl, paddingBottom: t.spacing['6xl'] },
         ]}
-      >
+        ListHeaderComponent={(
+          <>
         <View style={[styles.headerRow, { marginTop: t.spacing.sm, marginBottom: t.spacing.md }]}>
-          <Text
-            style={{
-              color: t.color.textPrimary,
-              fontSize: t.fontSize['2xl'],
-              fontWeight: t.fontWeight.bold,
-              flex: 1,
-            }}
-          >
-            {dayLabel}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <View style={[styles.dayKicker, { backgroundColor: t.color.infoSoft, borderRadius: t.radius.pill }]}>
+              <Icon name="calendar-tab-filled" size={13} color={t.color.info} />
+              <Text style={{ color: t.color.info, fontSize: t.fontSize.xs, fontWeight: t.fontWeight.bold, letterSpacing: t.tracking.wide }}>
+                DAY VIEW
+              </Text>
+            </View>
+            <Text
+              style={{
+                color: t.color.textPrimary,
+                fontSize: t.fontSize['2xl'],
+                fontWeight: t.fontWeight.heavy,
+              }}
+            >
+              {dayLabel}
+            </Text>
+          </View>
           {!isSameDay(selectedDay, today) ? (
             <Pressable
               onPress={() => {
@@ -252,7 +315,7 @@ export default function CalendarScreen() {
               style={({ pressed }) => [
                 styles.todayButton,
                 {
-                  backgroundColor: pressed ? t.color.accentMuted : t.color.surfaceMuted,
+                  backgroundColor: pressed ? t.color.warnSoft : t.color.surface,
                   borderRadius: t.radius.pill,
                   marginRight: t.spacing.sm,
                 },
@@ -296,16 +359,19 @@ export default function CalendarScreen() {
 
         <View
           style={{
-            backgroundColor: t.color.surfaceMuted,
+            backgroundColor: t.color.infoSoft,
+            borderColor: t.color.infoSoft,
+            borderWidth: 1,
             borderRadius: t.radius['2xl'],
             padding: t.spacing.lg,
+            ...t.elevation.sm,
           }}
         >
           <CalendarGrid
             month={month}
-            onMonthChange={setMonth}
+            onMonthChange={handleCalendarChange}
             selected={selectedDay}
-            onSelect={setSelectedDay}
+            onSelect={handleSelectDay}
             markedDays={markedDays}
             disablePast={false}
             mode={calendarCollapsed ? 'week' : 'month'}
@@ -320,7 +386,7 @@ export default function CalendarScreen() {
               fontWeight: t.fontWeight.semibold,
               letterSpacing: t.tracking.wide,
               textTransform: 'uppercase',
-              marginBottom: t.spacing.sm,
+              marginBottom: visibleTasks.length === 0 ? 0 : t.spacing.sm,
             }}
           >
             {visibleTasks.length === 0
@@ -328,7 +394,23 @@ export default function CalendarScreen() {
               : `${visibleTasks.length} ${visibleTasks.length === 1 ? 'task' : 'tasks'}`}
           </Text>
 
-          {visibleTasks.length === 0 ? (
+          {error ? (
+            <View style={{ paddingVertical: t.spacing['2xl'], alignItems: 'center' }}>
+              <Text style={{ color: t.color.danger, fontSize: t.fontSize.sm, textAlign: 'center' }}>
+                Couldn’t load this day. {error}
+              </Text>
+              <Pressable
+                onPress={() => { void refresh(); }}
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading this day"
+                style={{ marginTop: t.spacing.sm, padding: t.spacing.sm }}
+              >
+                <Text style={{ color: t.color.accent, fontSize: t.fontSize.sm, fontWeight: t.fontWeight.bold }}>
+                  Try again
+                </Text>
+              </Pressable>
+            </View>
+          ) : visibleTasks.length === 0 ? (
             <View
               style={{
                 paddingVertical: t.spacing['2xl'],
@@ -344,31 +426,14 @@ export default function CalendarScreen() {
                 Tap + to add a task for this day.
               </Text>
             </View>
-          ) : (
-            <View style={{ gap: 6 }}>
-              {visibleTasks.map((task) => {
-                const cat = task.categoryId ? categoriesById.get(task.categoryId) ?? null : null;
-                return (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    category={cat}
-                    subtaskCounts={subtaskCounts[task.id]}
-                    hasReminder={reminderIds.has(task.id)}
-                    hasRepeat={repeatIds.has(task.id)}
-                    onToggleComplete={handleToggleComplete}
-                    onTogglePin={handleTogglePin}
-                    onPress={editor.openEdit}
-                  />
-                );
-              })}
-            </View>
-          )}
+          ) : null}
         </View>
-      </ScrollView>
+          </>
+        )}
+      />
 
       <Fab
-        onPress={editor.openCreate}
+        onPress={() => editor.openCreate({ dueAt: selectedDay })}
         accessibilityLabel="Add task"
         hint="Opens the task composer"
       />
@@ -384,6 +449,15 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  dayKicker: {
+    alignSelf: 'flex-start',
+    minHeight: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    marginBottom: 5,
   },
   todayButton: {
     paddingHorizontal: 14,

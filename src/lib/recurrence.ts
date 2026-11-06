@@ -18,6 +18,8 @@ export type RepeatRuleInput = {
   byMonthDay: number | null;    // 1..31; null = use anchor's day
   byMonth: number | null;       // 1..12 (yearly); null = use anchor's month
   untilAt: number | null;       // last allowed start-of-day, inclusive
+  /** Stable first occurrence. Required for interval-based weekly rules. */
+  anchorAt?: number | null;
 };
 
 const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
@@ -35,6 +37,16 @@ function parseWeekdays(csv: string | null): number[] {
 
 function clampInterval(n: number): number {
   return n >= 1 ? Math.floor(n) : 1;
+}
+
+function calendarDayNumber(ts: number): number {
+  const d = new Date(ts);
+  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000);
+}
+
+function weekStart(ts: number): number {
+  const day = startOfDay(ts);
+  return addDays(day, -new Date(day).getDay());
 }
 
 /**
@@ -65,28 +77,21 @@ export function nextOccurrence(
         next = addDays(fromDay, interval * 7);
         break;
       }
-      // Find the next weekday in the set.
-      // For interval > 1, weekly cadence skips weeks: scan forward day by day,
-      // but only count days within the "active" weeks.
-      const fromWeekday = new Date(fromDay).getDay();
-      // Try days 1..7 within the same week first (interval kicks in only when
-      // wrapping past Saturday).
+      const anchorWeek = weekStart(rule.anchorAt ?? fromDay);
       let candidate: number | null = null;
-      for (let delta = 1; delta <= 7; delta++) {
-        const wd = (fromWeekday + delta) % 7;
-        if (weekdays.includes(wd)) {
-          candidate = addDays(fromDay, delta);
+      // One full cadence plus a week always contains the next selected day.
+      for (let delta = 1; delta <= interval * 7 + 7; delta += 1) {
+        const day = addDays(fromDay, delta);
+        if (!weekdays.includes(new Date(day).getDay())) continue;
+        const weekIndex = Math.floor(
+          (calendarDayNumber(weekStart(day)) - calendarDayNumber(anchorWeek)) / 7
+        );
+        if (weekIndex >= 0 && weekIndex % interval === 0) {
+          candidate = day;
           break;
         }
       }
-      if (candidate === null) {
-        // Shouldn't happen — weekdays.length > 0 guarantees a hit within 7
-        // days. Fallback to a week stride to keep the function total.
-        candidate = addDays(fromDay, interval * 7);
-      }
-      // If interval > 1, push the candidate forward by (interval-1) full weeks.
-      // (interval=1 → next week's first matching day; interval=2 → skip a week.)
-      if (interval > 1) candidate = addDays(candidate, (interval - 1) * 7);
+      if (candidate === null) return null;
       next = candidate;
       break;
     }

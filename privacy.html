@@ -4,240 +4,56 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Streak Todo Privacy Policy</title>
-    <meta
-      name="description"
-      content="Privacy Policy for the Streak Todo mobile application."
-    />
+    <meta name="description" content="Privacy Policy for the Streak Todo mobile app." />
     <style>
-      :root {
-        color-scheme: dark;
-        --bg: #14181f;
-        --panel: #1b212a;
-        --text: #f4efe6;
-        --muted: #b8afa3;
-        --accent: #e0b16c;
-        --border: #2a313c;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-          "Segoe UI", sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        line-height: 1.6;
-      }
-
-      main {
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 48px 20px 72px;
-      }
-
-      .eyebrow {
-        display: inline-block;
-        margin-bottom: 16px;
-        padding: 6px 10px;
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        color: var(--accent);
-        font-size: 12px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-
-      h1,
-      h2 {
-        line-height: 1.2;
-      }
-
-      h1 {
-        margin: 0 0 12px;
-        font-size: clamp(32px, 5vw, 44px);
-      }
-
-      h2 {
-        margin-top: 36px;
-        font-size: 20px;
-      }
-
-      p,
-      li {
-        color: var(--muted);
-        font-size: 16px;
-      }
-
-      ul {
-        padding-left: 20px;
-      }
-
-      .card {
-        margin-top: 24px;
-        padding: 20px;
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-      }
-
-      a {
-        color: var(--accent);
-      }
+      :root { color-scheme:light; --bg:#fff7e6; --panel:#fff; --ink:#25213a; --muted:#514b61; --green:#1f7159; --mint:#ddf5e9; --yellow:#ffe7a8; --lav:#e2e4ff; --border:#e5d9c6; }
+      * { box-sizing:border-box; } body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink); line-height:1.65; }
+      main { max-width:780px; margin:0 auto; padding:48px 20px 72px; }
+      .eyebrow { display:inline-flex; gap:8px; margin-bottom:16px; padding:7px 12px; border-radius:999px; color:var(--green); background:var(--mint); font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+      h1,h2 { line-height:1.2; } h1 { margin:0 0 12px; font-size:clamp(34px,6vw,50px); letter-spacing:-.04em; } h2 { margin-top:36px; font-size:21px; }
+      p,li { color:var(--muted); font-size:16px; } ul { padding-left:20px; }
+      .card { margin-top:28px; padding:22px; background:var(--panel); border:1px solid var(--border); border-radius:24px; box-shadow:0 12px 30px rgba(37,33,58,.06); }
+      .callout { padding:18px; border-radius:18px; background:var(--lav); } a { color:var(--green); font-weight:650; }
     </style>
   </head>
   <body>
     <main>
-      <div class="eyebrow">Streak Todo</div>
-      <h1>Privacy Policy</h1>
-      <p>Effective date: April 29, 2026 (revised for exact-alarm permission disclosure and task-content analytics)</p>
-      <p>
-        Streak Todo is a mobile task planning and scheduling application. This
-        page explains what information the app collects, how it is used, and
-        what choices users have.
-      </p>
+      <div class="eyebrow">✦ Streak Todo</div>
+      <h1>Privacy, without the fog.</h1>
+      <p>Effective August 11, 2026. Streak Todo is a local-first task planner published by CODERIXX.</p>
 
-      <h2>Information We Collect</h2>
-      <p>If you sign in with Google, we may receive:</p>
+      <h2>Your task content stays local</h2>
+      <p>Tasks, notes, subtasks, category names, dates, reminder text, repeat rules, completion history, and preferences stay in the app sandbox on your device. Streak Todo has no cloud task sync and does not upload that content to CODERIXX, Google, or Mixpanel.</p>
+
+      <h2>Optional Google sign-in</h2>
+      <p>You can connect Google or continue locally. If you sign in, Google provides a Google account identifier, email address, display name, and available basic profile fields. The app uses the identifier, email, and name to show the connected account and identify the signed-in user in Mixpanel. It does not store your Google password, request offline access, or store an ID token in its own preferences.</p>
+
+      <h2>Privacy-bounded Mixpanel analytics</h2>
+      <div class="callout"><p style="margin:0">Analytics is on by default. Turn it off any time under <strong>Insights → Privacy → Share product usage</strong>.</p></div>
+      <p>The app sends explicit product events such as app opens, onboarding, successful task/category actions, reminder scheduling, theme changes, and backup/reset actions. Coarse properties can include whether a task has a date, time, notes, category, reminder, repeat rule, a bounded subtask count, or the backup file size.</p>
+      <p><strong>Never sent to Mixpanel:</strong> task titles, notes, subtask text, category names, reminder text, search terms, or backup contents. Automatic event capture and session replay are off. Mixpanel may process standard app/device context, an SDK-generated identifier, and the IP address used for the request. IP geolocation enrichment is disabled, and the EU ingestion endpoint is configured. Signed-in profiles include Google ID, email, and display name.</p>
+
+      <h2>Backups and links</h2>
+      <p>Export creates a JSON file and opens your system share sheet. Import reads only the file you select. The app does not upload either file. Copies you save or send are controlled by you and the chosen destination. External links open in your browser.</p>
+
+      <h2>Providers, security, and permissions</h2>
+      <p>Google provides optional authentication and Mixpanel provides product analytics. Data is not sold or used for third-party advertising. App-managed network traffic uses HTTPS. Android's INTERNET permission supports those services; notification, exact-alarm, boot, wake-lock, and vibration permissions support local reminders. The system document picker avoids broad storage permission.</p>
+
+      <h2>Retention and deletion</h2>
       <ul>
-        <li>Your Google account email address</li>
-        <li>Your display name</li>
-        <li>Your first and last name, when available</li>
-        <li>Your profile image URL, when available</li>
-        <li>Your Google account identifier</li>
+        <li>Delete tasks and Trash items, or use <strong>Insights → Data → Reset local data</strong>.</li>
+        <li>Sign out to disconnect Google from the app; this does not delete your Google account or previously received analytics.</li>
+        <li>Turn off product usage analytics to stop new Mixpanel events.</li>
+        <li>Use the <a href="/delete-account">deletion page</a> or email <a href="mailto:ankitpathakofficial@gmail.com">ankitpathakofficial@gmail.com</a> to request deletion of the Mixpanel profile and associated records. Include the Google sign-in email so the request can be matched; verification may be required.</li>
       </ul>
-      <p>If you create tasks in the app, the app stores task-related content such as task titles, notes, subtasks, categories, due dates and times, reminder settings, and repeat settings. This content is stored locally on your device.</p>
+      <p>Exported backups remain at their destination until you delete them. Android device backup can preserve eligible app data according to device settings.</p>
 
-      <h2>Analytics</h2>
-      <p>
-        We use Mixpanel (with EU data residency) to understand app usage and
-        improve the product. Events are sent from the app whenever you take
-        one of the actions listed below. Events currently tracked include:
-      </p>
-      <ul>
-        <li>App opens (cold start, after sign-in)</li>
-        <li>Onboarding completion</li>
-        <li>Task creation, editing, completion, uncompletion, and deletion</li>
-        <li>Category creation and deletion</li>
-        <li>Reminder scheduling</li>
-        <li>Theme preference changes</li>
-        <li>Custom repeat-rule configuration (frequency, interval, weekday count, end-date presence)</li>
-        <li>Backup export, backup import, and local-data reset (file size only — never file contents)</li>
-      </ul>
-      <p>
-        For task-related analytics events, we also send limited task content
-        to Mixpanel so we can understand what kinds of work people use the
-        app for. That content may include:
-      </p>
-      <ul>
-        <li>Task titles</li>
-        <li>Task notes</li>
-        <li>Up to the first 10 subtask titles attached to the task</li>
-      </ul>
-      <p>
-        These fields are sent on task creation, editing, completion,
-        uncompletion, and deletion events. Long text is truncated before
-        sending.
-      </p>
-      <p>
-        When you sign in with Google, the app also associates your Google
-        account identifier, email, name, given/family name, profile image URL,
-        device platform, and a first-seen timestamp with your Mixpanel
-        identity so analytics can be filtered by user.
-      </p>
-      <p>
-        Backup file contents are never sent to Mixpanel. Some events also
-        include small, non-content metadata such as boolean composition
-        flags (“had a due date”, “had a reminder”, and similar) and counts
-        (interval N, weekday count, byte size).
-      </p>
-
-      <h2>How We Use Information</h2>
-      <ul>
-        <li>Provide sign-in and account functionality</li>
-        <li>Save and organize your tasks</li>
-        <li>Schedule reminders you request</li>
-        <li>Measure feature usage and improve the app</li>
-        <li>Monitor product quality and release health</li>
-      </ul>
-
-      <h2>Data Sharing</h2>
-      <p>
-        We do not sell personal information. We share limited data with service
-        providers that help operate the app, including Google for
-        authentication and Mixpanel for analytics.
-      </p>
-
-      <h2>Data Storage</h2>
-      <p>
-        Task data is primarily stored locally on your device in the current
-        version of the app. Authentication tokens and some local preferences
-        may be stored using secure device storage where supported.
-      </p>
-
-      <h2>Your Choices</h2>
-      <ul>
-        <li>Choose whether to sign in with Google</li>
-        <li>Delete tasks inside the app</li>
-        <li>Sign out of your account (this stops new analytics events from being attached to your identity)</li>
-        <li>Use “Reset local data” on the Profile screen to wipe all local tasks, categories, reminders, repeat rules, and subtasks from your device</li>
-        <li>Uninstall the app</li>
-      </ul>
-      <h3>Deleting analytics data already collected</h3>
-      <p>
-        Sign-out and uninstalling stop <em>future</em> events from being
-        recorded against you, but they do not retroactively remove events
-        already sent to Mixpanel. The app does not currently provide an
-        in-app self-serve flow to delete already-collected analytics data.
-      </p>
-      <p>
-        To request deletion of the analytics profile and historical events
-        associated with your Google account identifier, email
-        <a href="mailto:ankitpathakofficial@gmail.com">ankitpathakofficial@gmail.com</a>
-        with the subject line “Delete my analytics data” and the email
-        address you signed in with. We process these requests manually via
-        Mixpanel’s GDPR data-deletion API and will confirm completion within
-        30 days, in line with applicable data-protection law.
-      </p>
-
-      <h2>Permissions Used by the App</h2>
-      <p>The Android app declares the following permissions:</p>
-      <ul>
-        <li><strong>POST_NOTIFICATIONS</strong> — to display reminder notifications you set inside the app.</li>
-        <li><strong>SCHEDULE_EXACT_ALARM</strong> — to deliver reminder notifications at the user-set time without being delayed by Android's battery-saver batching. Auto-granted on install for productivity and calendar apps; revocable in system settings, in which case reminders fall back to inexact delivery (still functional, but may be delayed by several minutes).</li>
-        <li><strong>RECEIVE_BOOT_COMPLETED</strong> — to re-arm any pending reminders after the device restarts. Without this, scheduled reminders would not survive a reboot.</li>
-        <li><strong>WAKE_LOCK</strong> — used by the notification system to wake the device when an exact reminder fires. We do not hold wake locks for any other purpose.</li>
-      </ul>
-      <p>We do not use any other Android runtime permissions.</p>
-
-      <h2>Children's Privacy</h2>
-      <p>
-        Streak Todo is not directed to children under 13, and we do not
-        knowingly collect personal information from children under 13.
-      </p>
-
-      <h2>Security</h2>
-      <p>
-        We use reasonable measures designed to protect information, but no
-        method of storage or transmission is completely secure.
-      </p>
-
-      <h2>Changes To This Policy</h2>
-      <p>
-        We may update this Privacy Policy from time to time. If we make
-        material changes, we will revise the effective date on this page.
-      </p>
+      <h2>Children and changes</h2>
+      <p>Streak Todo is not directed to children under 13, and we do not knowingly collect personal information from children. Material policy changes will update the date above.</p>
 
       <div class="card">
-        <h2>Contact</h2>
-        <p>
-          If you have questions about this Privacy Policy, contact
-          <a href="mailto:ankitpathakofficial@gmail.com"
-            >ankitpathakofficial@gmail.com</a
-          >.
-        </p>
+        <h2 style="margin-top:0">Contact</h2>
+        <p>Questions and deletion requests: <a href="mailto:ankitpathakofficial@gmail.com">ankitpathakofficial@gmail.com</a>.</p>
       </div>
     </main>
   </body>

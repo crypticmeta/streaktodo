@@ -9,7 +9,7 @@
  * caller's transaction story.
  */
 import { useCallback, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import {
   ComposerInitial,
   ComposerSubmitInput,
@@ -27,7 +27,6 @@ import * as analytics from './analytics';
 import * as scheduler from './notificationScheduler';
 
 const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
-const EXACT_ALARM_REQUIRED_SENTINEL = 'EXACT_ALARM_REQUIRED';
 
 function repeatRuleFromSchedule(s: ScheduleDraft): CreateTaskFullInput['repeatRule'] {
   if (s.repeat.preset === 'none' || s.dueAt === null) return null;
@@ -48,11 +47,9 @@ function repeatRuleFromSchedule(s: ScheduleDraft): CreateTaskFullInput['repeatRu
     case 'custom':
       return s.repeat.custom
         ? {
-            // Persist as 'custom' so we know the user customized something,
-            // even if the underlying frequency unit is one of the standard
-            // four. The runtime resolves the underlying unit from byWeekday
-            // / byMonthDay / byMonth presence.
-            freq: 'custom',
+            // Store the actual cadence unit. "Custom" is an editor state,
+            // not recurrence math.
+            freq: s.repeat.custom.freq,
             intervalN: s.repeat.custom.intervalN,
             byWeekday: s.repeat.custom.byWeekday ?? null,
             byMonthDay: s.repeat.custom.byMonthDay ?? null,
@@ -120,8 +117,9 @@ function initialFromGraph(graph: TaskGraph): ComposerInitial {
       ? {
           enabled: true,
           leadMinutes: graph.reminders[0].leadMinutes,
-          type: graph.reminders[0].type,
-          screenLock: false,
+          // V1 exposes standard local notifications only. Older backups with
+          // a dormant alarm/silent value normalize to the supported type.
+          type: 'notification',
         }
       : DEFAULT_REMINDER,
     repeat: repeatDraft,
@@ -130,7 +128,11 @@ function initialFromGraph(graph: TaskGraph): ComposerInitial {
   return {
     title: graph.task.title,
     notes: graph.task.notes,
-    subtasks: graph.subtaskTitles,
+    subtasks: graph.subtasks.map((subtask) => ({
+      id: subtask.id,
+      title: subtask.title,
+      status: subtask.status,
+    })),
     categoryId: graph.task.categoryId,
     schedule,
   };
@@ -145,29 +147,9 @@ type UseTaskEditorReturn = {
     onSubmit: (input: ComposerSubmitInput) => Promise<void>;
     onDelete: (() => void) | undefined;
   };
-  openCreate: () => void;
+  openCreate: (defaults?: { dueAt?: number | null }) => void;
   openEdit: (taskId: string) => Promise<void>;
 };
-
-async function confirmInexactReminderSave(): Promise<'open-settings' | 'save-without-reminder'> {
-  return await new Promise((resolve) => {
-    Alert.alert(
-      'Reminder needs exact alarms',
-      'Turn on "Alarms & reminders" for Streak Todo to save an on-time reminder. You can open settings now, or save this task without a reminder.',
-      [
-        {
-          text: 'Open settings',
-          onPress: () => resolve('open-settings'),
-        },
-        {
-          text: 'Save without reminder',
-          style: 'destructive',
-          onPress: () => resolve('save-without-reminder'),
-        },
-      ]
-    );
-  });
-}
 
 /**
  * No `onChanged` callback needed — every repo write emits `tasks-changed`
@@ -179,9 +161,19 @@ export function useTaskEditor(): UseTaskEditorReturn {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingInitial, setEditingInitial] = useState<ComposerInitial | null>(null);
 
-  const openCreate = useCallback(() => {
+  const openCreate = useCallback((defaults?: { dueAt?: number | null }) => {
     setEditingTaskId(null);
-    setEditingInitial(null);
+    setEditingInitial(
+      defaults?.dueAt !== undefined
+        ? {
+            title: '',
+            notes: null,
+            subtasks: [],
+            categoryId: null,
+            schedule: { ...EMPTY_SCHEDULE, dueAt: defaults.dueAt },
+          }
+        : null
+    );
     setComposerOpen(true);
   }, []);
 
@@ -205,106 +197,113 @@ export function useTaskEditor(): UseTaskEditorReturn {
   }, []);
 
   const onSubmit = useCallback(
-    async ({ title, notes, subtasks, categoryId, schedule }: ComposerSubmitInput) => {
-      let effectiveSchedule = schedule;
-      if (schedule.reminder.enabled) {
-        const exactAlarmState = await scheduler.getExactAlarmState();
-        if (exactAlarmState === 'denied') {
-          const choice = await confirmInexactReminderSave();
-          if (choice === 'open-settings') {
-            await scheduler.openExactAlarmSettings();
-            throw new Error(EXACT_ALARM_REQUIRED_SENTINEL);
-          }
-          effectiveSchedule = {
-            ...schedule,
-            reminder: {
-              ...schedule.reminder,
-              enabled: false,
-            },
-          };
-        }
-      }
-
+    async ({ title, notes, subtasks, subtaskItems, categoryId, schedule }: ComposerSubmitInput) => {
       const payload: CreateTaskFullInput = {
         task: {
           title,
           notes,
           categoryId,
-          dueAt: effectiveSchedule.dueAt,
-          dueTime: effectiveSchedule.dueTime,
+          dueAt: schedule.dueAt,
+          dueTime: schedule.dueTime,
         },
         subtaskTitles: subtasks,
-        reminders: remindersFromSchedule(effectiveSchedule),
-        repeatRule: repeatRuleFromSchedule(effectiveSchedule),
+        subtasks: subtaskItems,
+        reminders: remindersFromSchedule(schedule),
+        repeatRule: repeatRuleFromSchedule(schedule),
       };
 
       let savedTask: Task;
-      const isEdit = Boolean(editingTaskId);
+      const isEdit = editingTaskId !== null;
       if (editingTaskId) {
         // updateTaskFull soft-deletes existing reminder rows, so any prior
         // OS notifications must be cancelled before the new ones are armed.
-        void scheduler.cancelForTask(editingTaskId);
-        savedTask = await tasksRepo.updateTaskFull(editingTaskId, payload);
+        const previousTask = await tasksRepo.getTaskById(editingTaskId);
+        await scheduler.cancelForTask(editingTaskId);
+        try {
+          savedTask = await tasksRepo.updateTaskFull(editingTaskId, payload);
+        } catch (error) {
+          // The DB update is transactional, but cancellation is an OS side
+          // effect. Restore the old reminder after a failed save.
+          if (previousTask?.dueAt !== null && previousTask) {
+            await scheduler.scheduleForTask({
+              taskId: previousTask.id,
+              taskTitle: previousTask.title,
+              taskDueAt: previousTask.dueAt,
+              taskDueTime: previousTask.dueTime,
+            }).catch(() => {});
+          }
+          throw error;
+        }
       } else {
         savedTask = await tasksRepo.createTaskFull(payload);
       }
 
-      if (effectiveSchedule.reminder.enabled && savedTask.dueAt !== null) {
-        void scheduler.scheduleForTask({
-          taskId: savedTask.id,
-          taskTitle: savedTask.title,
-          taskDueAt: savedTask.dueAt,
-          taskDueTime: savedTask.dueTime,
-        });
-        void analytics.track('notification_scheduled', {
-          lead_minutes: effectiveSchedule.reminder.leadMinutes,
-        });
-      }
-      const composition = {
-        has_due_date: savedTask.dueAt !== null,
-        has_time: savedTask.dueTime !== null,
-        has_notes: notes !== null && notes.length > 0,
-        has_subtasks: subtasks.length > 0,
-        has_category: categoryId !== null,
-        has_reminder: effectiveSchedule.reminder.enabled,
-        has_repeat: effectiveSchedule.repeat.preset !== 'none',
-      };
-      if (isEdit) {
-        // Edit signal carries the same composition flags as create so the
-        // post-edit shape is comparable to the post-create shape downstream.
-        void analytics.track('task_edited', {
-          ...composition,
-          ...analytics.buildTaskTextProps({
-            title: savedTask.title,
-            notes,
-            subtasks,
-          }),
-        });
-      } else {
-        void analytics.track('task_created', {
-          ...composition,
-          ...analytics.buildTaskTextProps({
-            title: savedTask.title,
-            notes,
-            subtasks,
-          }),
-        });
+      void analytics.track(
+        isEdit ? 'task_edited' : 'task_created',
+        analytics.buildTaskShapeProps({
+          hasDueDate: savedTask.dueAt !== null,
+          hasTime: savedTask.dueTime !== null,
+          hasNotes: Boolean(savedTask.notes?.trim()),
+          subtaskCount: subtaskItems.length,
+          hasCategory: savedTask.categoryId !== null,
+          hasReminder: payload.reminders !== undefined,
+          hasRepeat: payload.repeatRule !== null,
+        })
+      );
+
+      if (schedule.reminder.enabled && savedTask.dueAt !== null) {
+        try {
+          const reminderResult = await scheduler.scheduleForTask({
+            taskId: savedTask.id,
+            taskTitle: savedTask.title,
+            taskDueAt: savedTask.dueAt,
+            taskDueTime: savedTask.dueTime,
+          });
+          if (reminderResult.state === 'scheduled') {
+            void analytics.track('notification_scheduled', {
+              lead_minutes: schedule.reminder.leadMinutes,
+              via: isEdit ? 'edit' : 'create',
+            });
+            if (reminderResult.message) {
+              Alert.alert('Reminder scheduled', reminderResult.message, [
+                { text: 'Keep best effort' },
+                {
+                  text: 'Improve accuracy',
+                  onPress: () => { void scheduler.openExactAlarmSettings(); },
+                },
+              ]);
+            }
+          } else if (reminderResult.message) {
+            Alert.alert('Task saved; reminder needs attention', reminderResult.message, [
+              { text: 'Not now', style: 'cancel' },
+              {
+                text: 'Open settings',
+                onPress: () => { void Linking.openSettings(); },
+              },
+            ]);
+          }
+        } catch (error) {
+          // The database save has already committed. Keep that success and
+          // report only the secondary OS-side failure.
+          Alert.alert(
+            'Task saved; reminder needs attention',
+            error instanceof Error
+              ? error.message
+              : 'The operating system could not schedule this reminder.'
+          );
+        }
       }
 
-      // Custom repeat is the most expensive feature surface to maintain —
-      // surface a dedicated event so we can answer "was the custom editor
-      // worth shipping" from the analytics alone, without inferring it from
-      // the generic has_repeat flag.
-      if (effectiveSchedule.repeat.preset === 'custom' && effectiveSchedule.repeat.custom) {
-        const c = effectiveSchedule.repeat.custom;
-        const weekdayCount = c.byWeekday
-          ? c.byWeekday.split(',').filter(Boolean).length
+      if (schedule.repeat.preset === 'custom' && schedule.repeat.custom) {
+        const custom = schedule.repeat.custom;
+        const weekdayCount = custom.byWeekday
+          ? custom.byWeekday.split(',').filter(Boolean).length
           : 0;
         void analytics.track('custom_repeat_configured', {
-          freq: c.freq,
-          interval_n: c.intervalN,
+          frequency: custom.freq,
+          interval: custom.intervalN,
           weekday_count: weekdayCount,
-          has_until: effectiveSchedule.repeat.untilAt != null,
+          has_until: schedule.repeat.untilAt != null,
           via: isEdit ? 'edit' : 'create',
         });
       }
@@ -317,26 +316,65 @@ export function useTaskEditor(): UseTaskEditorReturn {
     const id = editingTaskId;
     Alert.alert(
       'Delete task?',
-      'This will remove the task and its reminders. You can’t undo this yet.',
+      'The task and its reminders will move to Trash.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            void scheduler.cancelForTask(id);
+            let task: Task | null = null;
             try {
-              const task = await tasksRepo.getTaskById(id);
+              task = await tasksRepo.getTaskById(id);
+              await scheduler.cancelForTask(id);
               await tasksRepo.softDeleteTask(id);
-              void analytics.track('task_deleted', task
-                ? analytics.buildTaskTextProps({
-                    title: task.title,
-                    notes: task.notes,
-                  })
-                : undefined);
+              void analytics.track('task_deleted', {
+                source: 'composer',
+                had_due_date: task ? task.dueAt !== null : null,
+                had_notes: Boolean(task?.notes?.trim()),
+                had_category: task ? task.categoryId !== null : null,
+              });
               onClose();
-            } catch {
-              // best-effort
+              Alert.alert('Moved to Trash', 'You can restore this task now or later from Profile.', [
+                { text: 'Done', style: 'cancel' },
+                {
+                  text: 'Undo',
+                  onPress: () => {
+                    void (async () => {
+                      try {
+                        await tasksRepo.restoreTask(id);
+                        const restored = await tasksRepo.getTaskById(id);
+                        if (restored) {
+                          await scheduler.scheduleForTask({
+                            taskId: restored.id,
+                            taskTitle: restored.title,
+                            taskDueAt: restored.dueAt,
+                            taskDueTime: restored.dueTime,
+                          });
+                        }
+                      } catch (error) {
+                        Alert.alert(
+                          'Couldn’t restore task',
+                          error instanceof Error ? error.message : 'Try again in a moment.'
+                        );
+                      }
+                    })();
+                  },
+                },
+              ]);
+            } catch (error) {
+              if (task?.dueAt !== null && task) {
+                await scheduler.scheduleForTask({
+                  taskId: task.id,
+                  taskTitle: task.title,
+                  taskDueAt: task.dueAt,
+                  taskDueTime: task.dueTime,
+                }).catch(() => {});
+              }
+              Alert.alert(
+                'Couldn’t delete task',
+                error instanceof Error ? error.message : 'Try again in a moment.'
+              );
             }
           },
         },

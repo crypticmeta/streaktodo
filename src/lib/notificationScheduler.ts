@@ -16,6 +16,9 @@
 
 import { NativeModules, Platform } from 'react-native';
 import { getDb, remindersRepo, tasksRepo } from '../db';
+import { emit } from '../db/events';
+import { computeReminderFireAt } from './reminderTime';
+export { computeReminderFireAt } from './reminderTime';
 
 type NotificationsModule = typeof import('expo-notifications');
 type NotificationResponseLike = {
@@ -48,7 +51,7 @@ function loadModule(): Promise<NotificationsModule | null> {
   return modulePromise;
 }
 
-type PermissionState = 'unknown' | 'granted' | 'denied';
+export type PermissionState = 'unknown' | 'granted' | 'denied';
 export type ExactAlarmState = 'granted' | 'denied' | 'unavailable';
 let permissionCache: PermissionState = 'unknown';
 const REMINDER_CATEGORY_ID = 'REMINDER';
@@ -239,21 +242,34 @@ export async function ensurePermission(): Promise<PermissionState> {
   if (permissionCache !== 'unknown') return permissionCache;
   const Notifications = await loadModule();
   if (!Notifications) {
-    permissionCache = 'denied';
-    return 'denied';
+    return 'unknown';
   }
 
-  // Android 13+ requires a channel before the OS will show the prompt.
-  await configureNotificationSurface(Notifications);
+  try {
+    // Android 13+ requires a channel before the OS will show the prompt.
+    await configureNotificationSurface(Notifications);
 
-  const existing = await Notifications.getPermissionsAsync();
-  let state = toPermissionState(existing);
-  if (state === 'unknown') {
-    const req = await Notifications.requestPermissionsAsync();
-    state = toPermissionState(req);
+    const existing = await Notifications.getPermissionsAsync();
+    let state = toPermissionState(existing);
+    if (state === 'unknown') {
+      const req = await Notifications.requestPermissionsAsync();
+      // A response to an explicit prompt is definitive even when Android says
+      // it may ask again later. The canAskAgain workaround only applies to the
+      // pre-prompt getPermissionsAsync response.
+      state = req.status === 'granted'
+        ? 'granted'
+        : req.status === 'denied'
+          ? 'denied'
+          : 'unknown';
+    }
+    permissionCache = state;
+    return permissionCache;
+  } catch {
+    // Native services can be temporarily unavailable. Keep this retryable
+    // and let the caller display a scheduling-specific error.
+    permissionCache = 'unknown';
+    return 'unknown';
   }
-  permissionCache = state;
-  return permissionCache;
 }
 
 /** Reset the cached permission. Call when the user changes system settings. */
@@ -271,20 +287,6 @@ export function resetPermissionCache(): void {
  *   - dueTime is minutes since midnight (or null = all-day → fires at 09:00)
  *   - leadMinutes is how far before due time to fire (0 = at time)
  */
-export function computeReminderFireAt(args: {
-  dueAt: number | null;
-  dueTime: number | null;
-  leadMinutes: number;
-  nowTs?: number;
-}): number | null {
-  if (args.dueAt === null) return null;
-  const minutes = args.dueTime ?? 9 * 60; // default 09:00 for all-day tasks
-  const fire = args.dueAt + minutes * 60 * 1000 - args.leadMinutes * 60 * 1000;
-  const now = args.nowTs ?? Date.now();
-  if (fire <= now) return null;
-  return fire;
-}
-
 /**
  * Schedule a single OS notification.
  * Returns the OS notification id (so we can cancel/replace it later) or null
@@ -363,9 +365,21 @@ export async function cancelForTask(taskId: string): Promise<void> {
   for (const r of reminders) {
     if (!r.scheduledNotificationId) continue;
     await cancelOne(r.scheduledNotificationId);
-    await remindersRepo.updateReminder(r.id, { scheduledNotificationId: null });
+    await remindersRepo.updateReminder(r.id, {
+      scheduledNotificationId: null,
+      scheduleState: 'pending',
+      scheduleError: null,
+      scheduledFor: null,
+    });
   }
 }
+
+export type ScheduleForTaskResult = {
+  state: 'scheduled' | 'permission_denied' | 'invalid' | 'error' | 'no_reminders';
+  scheduledCount: number;
+  exactAlarm: ExactAlarmState;
+  message: string | null;
+};
 
 /**
  * Schedule every active reminder for a task. Cancels any prior schedules
@@ -379,8 +393,37 @@ export async function scheduleForTask(args: {
   taskTitle: string;
   taskDueAt: number | null;
   taskDueTime: number | null;
-}): Promise<void> {
+}): Promise<ScheduleForTaskResult> {
   const reminders = await remindersRepo.listRemindersByTask(args.taskId);
+  const exactAlarm = await getExactAlarmState();
+  if (reminders.length === 0) {
+    return { state: 'no_reminders', scheduledCount: 0, exactAlarm, message: null };
+  }
+  const permission = await ensurePermission();
+  if (permission !== 'granted') {
+    const denied = permission === 'denied';
+    await Promise.all(reminders.map((reminder) => remindersRepo.updateReminder(reminder.id, {
+      scheduledNotificationId: null,
+      scheduleState: denied ? 'permission_denied' : 'error',
+      scheduleError: denied
+        ? 'Notifications are disabled in system settings.'
+        : 'Notification permission could not be checked.',
+      scheduledFor: null,
+    })));
+    emit('tasks-changed');
+    return {
+      state: denied ? 'permission_denied' : 'error',
+      scheduledCount: 0,
+      exactAlarm,
+      message: denied
+        ? 'Notifications are off. Allow them in system settings to receive reminders.'
+        : 'The task was saved, but notification permission could not be checked. Try again after reopening the app.',
+    };
+  }
+
+  let scheduledCount = 0;
+  let invalidCount = 0;
+  let failedCount = 0;
   for (const r of reminders) {
     await cancelOne(r.scheduledNotificationId);
     const fireAt = computeReminderFireAt({
@@ -389,16 +432,62 @@ export async function scheduleForTask(args: {
       leadMinutes: r.leadMinutes,
     });
     if (fireAt === null) {
-      await remindersRepo.updateReminder(r.id, { scheduledNotificationId: null });
+      invalidCount += 1;
+      await remindersRepo.updateReminder(r.id, {
+        scheduledNotificationId: null,
+        scheduleState: 'invalid',
+        scheduleError: 'This reminder time has already passed.',
+        scheduledFor: null,
+      });
       continue;
     }
-    const id = await scheduleOne({
-      taskId: args.taskId,
-      taskTitle: args.taskTitle,
-      fireAt,
-    });
-    await remindersRepo.updateReminder(r.id, { scheduledNotificationId: id });
+    try {
+      const id = await scheduleOne({
+        taskId: args.taskId,
+        taskTitle: args.taskTitle,
+        fireAt,
+      });
+      if (!id) throw new Error('The operating system did not schedule the reminder.');
+      scheduledCount += 1;
+      await remindersRepo.updateReminder(r.id, {
+        scheduledNotificationId: id,
+        scheduleState: 'scheduled',
+        scheduleError: null,
+        scheduledFor: fireAt,
+      });
+    } catch (error) {
+      failedCount += 1;
+      await remindersRepo.updateReminder(r.id, {
+        scheduledNotificationId: null,
+        scheduleState: 'error',
+        scheduleError: error instanceof Error ? error.message : 'Reminder scheduling failed.',
+        scheduledFor: null,
+      });
+    }
   }
+  if (failedCount > 0) {
+    emit('tasks-changed');
+    return {
+      state: 'error', scheduledCount, exactAlarm,
+      message: 'The task was saved, but at least one reminder could not be scheduled.',
+    };
+  }
+  if (invalidCount > 0 && scheduledCount === 0) {
+    emit('tasks-changed');
+    return {
+      state: 'invalid', scheduledCount: 0, exactAlarm,
+      message: 'The reminder time has already passed. Choose a future time.',
+    };
+  }
+  emit('tasks-changed');
+  return {
+    state: 'scheduled',
+    scheduledCount,
+    exactAlarm,
+    message: exactAlarm === 'denied'
+      ? 'Reminder scheduled. Android may deliver it late until exact alarms are allowed.'
+      : null,
+  };
 }
 
 /**
@@ -432,11 +521,21 @@ export async function reconcileAll(): Promise<void> {
   const permissionState = toPermissionState(status);
   if (permissionState !== 'granted') {
     permissionCache = permissionState;
+    if (permissionState === 'denied') {
+      const rows = await remindersRepo.listAllActiveRemindersWithTask();
+      await Promise.all(rows.map((row) => remindersRepo.updateReminder(row.reminderId, {
+        scheduleState: 'permission_denied',
+        scheduleError: 'Notifications are disabled in system settings.',
+      })));
+      emit('tasks-changed');
+    }
     return;
   }
   permissionCache = permissionState;
 
   const rows = await remindersRepo.listAllActiveRemindersWithTask();
+  const scheduledRequests = await Notifications.getAllScheduledNotificationsAsync();
+  const liveIds = new Set(scheduledRequests.map((request) => request.identifier));
   for (const row of rows) {
     const fireAt = computeReminderFireAt({
       dueAt: row.taskDueAt,
@@ -445,27 +544,56 @@ export async function reconcileAll(): Promise<void> {
     });
 
     if (fireAt === null) {
-      // Past due or undated — clear stale id if any.
-      if (row.scheduledNotificationId) {
-        await cancelOne(row.scheduledNotificationId);
+      // Past due or undated — clear stale ids and health regardless of the
+      // reminder's previous state (including permission-denied rows).
+      if (row.scheduledNotificationId) await cancelOne(row.scheduledNotificationId);
+      if (
+        row.scheduledNotificationId ||
+        row.scheduleState !== 'invalid' ||
+        row.scheduledFor !== null
+      ) {
         await remindersRepo.updateReminder(row.reminderId, {
           scheduledNotificationId: null,
+          scheduleState: 'invalid',
+          scheduleError: 'This reminder time has already passed.',
+          scheduledFor: null,
         });
       }
       continue;
     }
 
-    // Re-arm. Cancel any prior id first so we never accumulate duplicates.
+    if (
+      row.scheduledNotificationId &&
+      liveIds.has(row.scheduledNotificationId) &&
+      row.scheduledFor === fireAt
+    ) {
+      continue;
+    }
+
+    // Re-arm only missing or changed requests.
     await cancelOne(row.scheduledNotificationId);
-    const id = await scheduleOne({
-      taskId: row.taskId,
-      taskTitle: row.taskTitle,
-      fireAt,
-    });
-    await remindersRepo.updateReminder(row.reminderId, {
-      scheduledNotificationId: id,
-    });
+    try {
+      const id = await scheduleOne({
+        taskId: row.taskId,
+        taskTitle: row.taskTitle,
+        fireAt,
+      });
+      await remindersRepo.updateReminder(row.reminderId, {
+        scheduledNotificationId: id,
+        scheduleState: id ? 'scheduled' : 'error',
+        scheduleError: id ? null : 'The operating system did not schedule the reminder.',
+        scheduledFor: id ? fireAt : null,
+      });
+    } catch (error) {
+      await remindersRepo.updateReminder(row.reminderId, {
+        scheduledNotificationId: null,
+        scheduleState: 'error',
+        scheduleError: error instanceof Error ? error.message : 'Reminder scheduling failed.',
+        scheduledFor: null,
+      });
+    }
   }
+  if (rows.length > 0) emit('tasks-changed');
 }
 
 /**
@@ -546,11 +674,11 @@ async function completeTaskFromNotification(taskId: string): Promise<void> {
   const task = await tasksRepo.getTaskById(taskId);
   if (!task || task.status === 'done') return;
 
-  await tasksRepo.completeTask(taskId);
-  await cancelForTask(taskId);
+  const result = await tasksRepo.completeTaskAndSpawnNext(taskId);
+  await cancelForTask(taskId).catch(() => {});
 
   try {
-    const spawned = await tasksRepo.spawnNextOccurrence(taskId);
+    const spawned = result.spawned;
     if (spawned && spawned.dueAt !== null) {
       await scheduleForTask({
         taskId: spawned.id,
@@ -582,22 +710,36 @@ async function snoozeTaskFromNotification(args: {
     });
     await remindersRepo.updateReminder(reminder.reminderId, {
       scheduledNotificationId: nextId,
+      scheduleState: nextId ? 'scheduled' : 'error',
+      scheduleError: nextId ? null : 'The operating system did not schedule the snooze.',
+      scheduledFor: nextId ? fireAt : null,
     });
+    emit('tasks-changed');
     return;
   }
 
   const task = await tasksRepo.getTaskById(args.taskId);
   if (!task || task.status === 'done') return;
-  await scheduleOne({
+  const reminders = await remindersRepo.listRemindersByTask(task.id);
+  const fallbackReminder = reminders[0];
+  if (!fallbackReminder) return;
+  const nextId = await scheduleOne({
     taskId: task.id,
     taskTitle: task.title,
     fireAt,
   });
+  await remindersRepo.updateReminder(fallbackReminder.id, {
+    scheduledNotificationId: nextId,
+    scheduleState: nextId ? 'scheduled' : 'error',
+    scheduleError: nextId ? null : 'The operating system did not schedule the snooze.',
+    scheduledFor: nextId ? fireAt : null,
+  });
+  emit('tasks-changed');
 }
 
 export async function handleNotificationResponse(
   response: NotificationResponseLike
-): Promise<void> {
+): Promise<{ openTaskId: string } | null> {
   const notificationIdentifier = response.notification.request.identifier;
   const data = response.notification.request.content.data;
   logNotificationTiming(data, `response:${response.actionIdentifier}`);
@@ -606,16 +748,16 @@ export async function handleNotificationResponse(
       await dismissPresentedNotification(notificationIdentifier);
       await scheduleDebugNotificationAt(Date.now() + SNOOZE_MINUTES * 60 * 1000);
     }
-    return;
+    return null;
   }
 
   const taskId = taskIdFromData(data);
-  if (!taskId) return;
+  if (!taskId) return null;
 
   if (response.actionIdentifier === REMINDER_ACTION_DONE) {
     await dismissPresentedNotification(notificationIdentifier);
     await completeTaskFromNotification(taskId);
-    return;
+    return null;
   }
 
   if (response.actionIdentifier === REMINDER_ACTION_SNOOZE) {
@@ -624,7 +766,9 @@ export async function handleNotificationResponse(
       taskId,
       scheduledNotificationId: notificationIdentifier,
     });
+    return null;
   }
+  return { openTaskId: taskId };
 }
 
 /**
@@ -645,7 +789,10 @@ export async function resetAllScheduledNotifications(): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `UPDATE task_reminders
-        SET scheduled_notification_id = NULL
-      WHERE scheduled_notification_id IS NOT NULL`
+        SET scheduled_notification_id = NULL,
+            scheduled_for = NULL,
+            schedule_state = 'pending',
+            schedule_error = NULL
+      WHERE deleted_at IS NULL`
   );
 }

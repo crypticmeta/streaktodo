@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+  <!-- Encrypted SecureStore values cannot be decrypted after reinstall when
+       the Android Keystore key is gone. Back up everything else normally. -->
+  <exclude domain="sharedpref" path="SecureStore"/>
+</full-backup-content>

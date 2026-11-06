@@ -3,6 +3,7 @@ import { getDb } from '../client';
 import { emit } from '../events';
 import { newId } from '../ids';
 import { now } from '../time';
+import { withExclusiveTransaction } from '../transactions';
 import { categoryFromRow, type Category } from '../schema';
 
 // Stable IDs so default categories survive across reinstalls / restores.
@@ -13,9 +14,9 @@ export const DEFAULT_CATEGORY_IDS = {
 } as const;
 
 const DEFAULTS: ReadonlyArray<{ id: string; name: string; color: string; icon: string; sortOrder: number }> = [
-  { id: DEFAULT_CATEGORY_IDS.work,     name: 'Work',     color: '#3f7e69', icon: 'briefcase', sortOrder: 0 },
-  { id: DEFAULT_CATEGORY_IDS.personal, name: 'Personal', color: '#b58a3d', icon: 'user',      sortOrder: 1 },
-  { id: DEFAULT_CATEGORY_IDS.wishlist, name: 'Wishlist', color: '#8a1d1d', icon: 'star',      sortOrder: 2 },
+  { id: DEFAULT_CATEGORY_IDS.work,     name: 'Work',     color: '#217A5B', icon: 'briefcase', sortOrder: 0 },
+  { id: DEFAULT_CATEGORY_IDS.personal, name: 'Personal', color: '#C27A00', icon: 'user',      sortOrder: 1 },
+  { id: DEFAULT_CATEGORY_IDS.wishlist, name: 'Wishlist', color: '#B44A8A', icon: 'star',      sortOrder: 2 },
 ];
 
 export type CreateCategoryInput = {
@@ -31,6 +32,25 @@ export type UpdateCategoryInput = {
   icon?: string | null;
   sortOrder?: number;
 };
+
+function validateCategoryInput(input: {
+  name: string;
+  color?: string | null;
+  icon?: string | null;
+  sortOrder?: number;
+}): string {
+  const name = input.name.trim();
+  if (!name) throw new Error('Add a category name.');
+  if (name.length > 60) throw new Error('Category names can be up to 60 characters.');
+  if (input.color !== undefined && input.color !== null && !/^#[0-9a-fA-F]{6}$/.test(input.color)) {
+    throw new Error('Choose a valid category color.');
+  }
+  if ((input.icon?.length ?? 0) > 80) throw new Error('Category icon is too long.');
+  if (input.sortOrder !== undefined && !Number.isInteger(input.sortOrder)) {
+    throw new Error('Category order must be a whole number.');
+  }
+  return name;
+}
 
 export async function listCategories(): Promise<Category[]> {
   const db = await getDb();
@@ -53,19 +73,19 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
   const db = await getDb();
   const id = newId();
   const ts = now();
-  await db.runAsync(
-    `INSERT INTO categories (id, name, color, icon, is_default, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 0, ?, ?, ?)`,
-    [
-      id,
-      input.name,
-      input.color ?? null,
-      input.icon ?? null,
-      input.sortOrder ?? 0,
-      ts,
-      ts,
-    ]
-  );
+  const name = validateCategoryInput(input);
+  await withExclusiveTransaction(db, async (tx) => {
+    const duplicate = await tx.getFirstAsync<{ id: string }>(
+      `SELECT id FROM categories WHERE deleted_at IS NULL AND name = ? COLLATE NOCASE`,
+      [name]
+    );
+    if (duplicate) throw new Error('A category with this name already exists.');
+    await tx.runAsync(
+      `INSERT INTO categories (id, name, color, icon, is_default, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 0, ?, ?, ?)`,
+      [id, name, input.color ?? null, input.icon ?? null, input.sortOrder ?? 0, ts, ts]
+    );
+  });
   const created = await getCategoryById(id);
   if (!created) throw new Error('Category insert succeeded but row not found');
   emit('categories-changed');
@@ -74,10 +94,26 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
 
 export async function updateCategory(id: string, patch: UpdateCategoryInput): Promise<void> {
   const db = await getDb();
+  const current = await getCategoryById(id);
+  if (!current) throw new Error('Category no longer exists.');
+  const name = validateCategoryInput({
+    name: patch.name ?? current.name,
+    color: patch.color === undefined ? current.color : patch.color,
+    icon: patch.icon === undefined ? current.icon : patch.icon,
+    sortOrder: patch.sortOrder === undefined ? current.sortOrder : patch.sortOrder,
+  });
+  if (patch.name !== undefined) {
+    const duplicate = await db.getFirstAsync<{ id: string }>(
+      `SELECT id FROM categories
+        WHERE deleted_at IS NULL AND id <> ? AND name = ? COLLATE NOCASE`,
+      [id, name]
+    );
+    if (duplicate) throw new Error('A category with this name already exists.');
+  }
   const sets: string[] = [];
   const args: (string | number | null)[] = [];
 
-  if (patch.name !== undefined)      { sets.push('name = ?');       args.push(patch.name); }
+  if (patch.name !== undefined)      { sets.push('name = ?');       args.push(name); }
   if (patch.color !== undefined)     { sets.push('color = ?');      args.push(patch.color); }
   if (patch.icon !== undefined)      { sets.push('icon = ?');       args.push(patch.icon); }
   if (patch.sortOrder !== undefined) { sets.push('sort_order = ?'); args.push(patch.sortOrder); }
@@ -88,7 +124,7 @@ export async function updateCategory(id: string, patch: UpdateCategoryInput): Pr
   args.push(id);
 
   await db.runAsync(
-    `UPDATE categories SET ${sets.join(', ')} WHERE id = ?`,
+    `UPDATE categories SET ${sets.join(', ')} WHERE id = ? AND deleted_at IS NULL`,
     args
   );
   emit('categories-changed');
@@ -116,10 +152,17 @@ export async function countTasksByCategory(): Promise<Map<string, number>> {
 export async function softDeleteCategory(id: string): Promise<void> {
   const db = await getDb();
   const ts = now();
-  await db.runAsync(
-    `UPDATE categories SET deleted_at = ?, updated_at = ? WHERE id = ?`,
-    [ts, ts, id]
-  );
+  await withExclusiveTransaction(db, async (tx) => {
+    await tx.runAsync(
+      `UPDATE tasks SET category_id = NULL, updated_at = ?
+        WHERE category_id = ? AND deleted_at IS NULL`,
+      [ts, id]
+    );
+    await tx.runAsync(
+      `UPDATE categories SET deleted_at = ?, updated_at = ? WHERE id = ?`,
+      [ts, ts, id]
+    );
+  });
   // Categories changing also affects tasks (filter pills, row meta).
   emit('categories-changed');
   emit('tasks-changed');
@@ -127,17 +170,27 @@ export async function softDeleteCategory(id: string): Promise<void> {
 
 // Idempotent. Called from getDb() on every app launch — safe to re-run.
 export async function seedDefaultCategoriesIfEmpty(db: SQLiteDatabase): Promise<void> {
-  const row = await db.getFirstAsync<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM categories WHERE deleted_at IS NULL`
-  );
-  if ((row?.n ?? 0) > 0) return;
-
-  const ts = now();
-  for (const d of DEFAULTS) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO categories (id, name, color, icon, is_default, sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 1, ?, ?, ?)`,
-      [d.id, d.name, d.color, d.icon, d.sortOrder, ts, ts]
+  await withExclusiveTransaction(db, async (tx) => {
+    const row = await tx.getFirstAsync<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM categories WHERE deleted_at IS NULL`
     );
-  }
+    if ((row?.n ?? 0) > 0) return;
+
+    const ts = now();
+    for (const d of DEFAULTS) {
+      await tx.runAsync(
+        `INSERT INTO categories (id, name, color, icon, is_default, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           color = excluded.color,
+           icon = excluded.icon,
+           is_default = 1,
+           sort_order = excluded.sort_order,
+           updated_at = excluded.updated_at,
+           deleted_at = NULL`,
+        [d.id, d.name, d.color, d.icon, d.sortOrder, ts, ts]
+      );
+    }
+  });
 }

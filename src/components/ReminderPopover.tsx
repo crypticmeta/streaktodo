@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
-import type { ReminderType } from '../db';
+import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import * as scheduler from '../lib/notificationScheduler';
 import { useTheme } from '../theme';
 import {
@@ -16,7 +15,7 @@ type ReminderPopoverProps = {
 };
 
 const REMINDER_TYPE_OPTIONS: ReadonlyArray<{
-  value: ReminderType;
+  value: 'notification';
   label: string;
 }> = [
   { value: 'notification', label: 'Notification' },
@@ -106,17 +105,20 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
   const t = useTheme();
   const [draft, setDraft] = useState<ReminderDraft>(initial);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [permissionUnavailable, setPermissionUnavailable] = useState(false);
   const [exactAlarmDenied, setExactAlarmDenied] = useState(false);
 
   const refreshPermissionState = async (next: ReminderDraft) => {
     if (!next.enabled) {
       setPermissionDenied(false);
+      setPermissionUnavailable(false);
       setExactAlarmDenied(false);
       return;
     }
 
     const result = await scheduler.ensurePermission();
     setPermissionDenied(result === 'denied');
+    setPermissionUnavailable(result === 'unknown');
     if (result !== 'granted') {
       setExactAlarmDenied(false);
       return;
@@ -139,6 +141,7 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
 
     const notificationsPermission = await scheduler.ensurePermission();
     setPermissionDenied(notificationsPermission === 'denied');
+    setPermissionUnavailable(notificationsPermission === 'unknown');
     if (notificationsPermission !== 'granted') {
       setExactAlarmDenied(false);
       setDraft((d) => ({ ...d, enabled: true }));
@@ -146,30 +149,11 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
     }
 
     const exactAlarmState = await scheduler.getExactAlarmState();
-    const needsExactAlarmGrant = exactAlarmState === 'denied';
-    if (needsExactAlarmGrant) {
-      setDraft((d) => ({ ...d, enabled: false }));
-      setExactAlarmDenied(true);
-      Alert.alert(
-        'Allow exact alarms?',
-        'Turn on "Alarms & reminders" for Streak Todo before enabling reminders. Without it, Android may delay reminders by several minutes.',
-        [
-          { text: 'Not now', style: 'cancel' },
-          {
-            text: 'Open settings',
-            onPress: () => {
-              void scheduler.openExactAlarmSettings();
-            },
-          },
-        ]
-      );
-      return;
-    }
-
     const next = { ...draft, enabled: true };
     setDraft(next);
     setPermissionDenied(false);
-    setExactAlarmDenied(false);
+    setPermissionUnavailable(false);
+    setExactAlarmDenied(exactAlarmState === 'denied');
   };
 
   return (
@@ -218,6 +202,7 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
             <Switch
               value={draft.enabled}
               onValueChange={handleToggle}
+              accessibilityLabel="Task reminder"
               trackColor={{ true: t.color.accent, false: t.color.border }}
               thumbColor={t.color.surface}
             />
@@ -237,6 +222,24 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
               </Text>
               <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.xs, marginTop: 4, lineHeight: 18 }}>
                 Your task will save, but no reminder will fire until you allow notifications in system settings.
+              </Text>
+            </View>
+          ) : null}
+
+          {permissionUnavailable && draft.enabled ? (
+            <View
+              style={{
+                marginTop: t.spacing.md,
+                padding: t.spacing.md,
+                borderRadius: t.radius.md,
+                backgroundColor: t.color.warnSoft,
+              }}
+            >
+              <Text style={{ color: t.color.textPrimary, fontSize: t.fontSize.sm, fontWeight: t.fontWeight.semibold }}>
+                Couldn’t check notifications
+              </Text>
+              <Text style={{ color: t.color.textSecondary, fontSize: t.fontSize.xs, marginTop: 4, lineHeight: 18 }}>
+                The task can still save. Reopen the app and try the reminder again.
               </Text>
             </View>
           ) : null}
@@ -282,7 +285,7 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
               />
 
               <InlineSelect
-                label="Reminder Type"
+                label="Reminder type"
                 value={draft.type}
                 options={REMINDER_TYPE_OPTIONS}
                 onChange={(type) => setDraft((d) => ({ ...d, type }))}
@@ -293,7 +296,7 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
           <View style={[styles.footer, { marginTop: t.spacing['2xl'] }]}>
             <Pressable onPress={onCancel} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cancel">
               <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.md, fontWeight: t.fontWeight.semibold }}>
-                CANCEL
+                Cancel
               </Text>
             </Pressable>
             <Pressable
@@ -304,7 +307,7 @@ export function ReminderPopover({ visible, initial, onCancel, onConfirm }: Remin
               style={{ marginLeft: 24 }}
             >
               <Text style={{ color: t.color.accent, fontSize: t.fontSize.md, fontWeight: t.fontWeight.bold }}>
-                DONE
+                Done
               </Text>
             </Pressable>
           </View>

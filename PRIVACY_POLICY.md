@@ -1,190 +1,119 @@
 # Streak Todo Privacy Policy
 
-This is a starter draft, not final legal advice. Review it before publishing.
+Effective date: `2026-08-11`
 
-## Privacy Policy
+Streak Todo is a local-first task planner published by CODERIXX. This policy
+describes the current mobile build.
 
-Effective date: `2026-04-29` (last revised when exact-alarm permissions and task-content analytics were enabled)
+## Task data stays local
 
-Streak Todo ("we", "our", or "us") provides a mobile task planning and
-scheduling application.
+Tasks, notes, subtasks, category names, dates, reminder text, repeat rules,
+completion history, and local preferences are stored in the app sandbox on
+your device. Streak Todo does not provide cloud task sync and does not upload
+this content to CODERIXX, Google, or Mixpanel.
 
-This Privacy Policy explains what information the app collects, how it is used,
-and what choices users have.
+Recently deleted tasks remain in the in-app Trash until you restore them,
+delete them permanently, empty Trash, reset local data, or uninstall the app.
+Android device backup may preserve eligible app data according to your device
+and Google backup settings.
 
-## Information we collect
+## Optional Google sign-in
 
-### Information you provide
+You may connect a Google account or continue locally without an account. When
+you choose Google sign-in, Google provides a Google account identifier, email
+address, display name, and other basic profile fields made available by the
+Google sign-in SDK. Streak Todo uses the identifier, email, and display name to
+show the connected account and identify that signed-in user in Mixpanel.
 
-If you sign in with Google, we may receive:
+Streak Todo does not store your Google password, request offline access, store
+an ID token in its own preferences, or upload task data to a CODERIXX account
+server. Google processes the sign-in flow under Google's own terms and privacy
+policy.
 
-- your Google account email address
-- your display name
-- your first name and last name, when available
-- your profile image URL, when available
-- your Google account identifier
+## Product analytics
 
-If you create tasks in the app, the app stores task-related content such as:
+Mixpanel product analytics is enabled by default and can be turned off at any
+time under **Insights → Privacy → Share product usage**. The app disables
+automatic event capture and session replay and sends only explicitly defined
+events, such as app opens, sign-in or local-mode selection, onboarding
+completion, successful task/category actions, reminder scheduling, theme
+changes, and backup/reset actions.
 
-- task titles
-- categories
-- subtasks
-- due dates and times
-- reminder settings
-- repeat settings
+Event properties are limited to coarse product context such as the source
+screen, whether a task has a due date, time, notes, category, reminder, or
+repeat rule, a bounded subtask count, recurrence shape, and backup file size.
+Streak Todo does **not** send task titles, notes, subtask text, category names,
+reminder text, search terms, or backup contents to Mixpanel.
 
-## Analytics and diagnostic data
+Mixpanel may also process standard SDK and device context, including an
+SDK-generated identifier, app and OS versions, device/platform information,
+and the IP address used to make the network request. IP-based geolocation
+enrichment is disabled. Signed-in Mixpanel profiles include the Google account
+identifier, email address, and display name. The app uses Mixpanel's EU
+ingestion endpoint. Turning analytics off stops new app analytics events; data
+already sent is handled under the retention and deletion controls below.
 
-We use Mixpanel to understand app usage and improve the product. Events are
-sent from the app whenever you take one of the actions listed below.
+Streak Todo has no advertising SDK, ad tracking, session replay, crash-reporting
+SDK, or remote push service.
 
-Events currently tracked include:
+## Manual backups and external links
 
-- app opens (cold start, after sign-in)
-- onboarding completion
-- task creation, editing, completion, uncompletion, and deletion
-- category creation and deletion
-- reminder scheduling
-- theme preference changes
-- custom repeat-rule configuration (frequency, interval, weekday count, end-date presence)
-- backup export, backup import, and local-data reset (file size only — never file contents)
+Backup export creates a JSON file and opens your device's standard share
+sheet. Backup import reads only the file you select. Streak Todo does not
+upload either file. Copies you save or send are controlled by you and by the
+destination you choose.
 
-For task-related analytics events, we also send limited task content to
-Mixpanel so we can understand what kinds of work people use the app for.
-That content may include:
+External links open in your system browser, where the destination site's own
+privacy practices apply.
 
-- task titles
-- task notes
-- up to the first 10 subtask titles attached to the task
+## Service providers and sharing
 
-These fields are sent on task creation, editing, completion, uncompletion,
-and deletion events. Long text is truncated before sending.
+Streak Todo uses Google for optional authentication and Mixpanel as a product
+analytics service provider. Data is not sold and is not used for third-party
+advertising. Network data is transmitted over HTTPS. Service-provider handling
+is also governed by their applicable terms and privacy documentation.
 
-When you sign in with Google, the app also associates the following profile
-information with your Mixpanel identity so analytics can be filtered by user:
+## Retention and deletion
 
-- your Google account identifier
-- your email, display name, given name, family name, and profile image URL when available
-- the device platform (Android or iOS)
-- the timestamp of when this Mixpanel identity was first seen
+- Delete individual tasks, restore or permanently remove Trash items, or use
+  **Insights → Data → Reset local data** to erase the local database.
+- Use **Sign out** to disconnect the Google session from Streak Todo. Signing
+  out does not delete your Google account or analytics data already received.
+- Turn off **Share product usage** to stop new Mixpanel events from the app.
+- Use [the Streak Todo deletion page](https://streaktodo.coderixx.com/delete-account)
+  or email `ankitpathakofficial@gmail.com` to request deletion of the Mixpanel
+  profile and associated analytics records. Include the email address used for
+  Google sign-in so the request can be matched. We may ask you to verify the
+  request before processing it.
+- You can separately remove Streak Todo's access from your Google Account
+  settings. CODERIXX cannot delete your Google account.
 
-Task titles, notes, and a limited number of subtask titles may be sent to
-Mixpanel as described above. Backup file contents are never sent to
-Mixpanel. Some analytics events also include small metadata such as boolean
-composition flags ("had a due date", "had a reminder", etc.) and counts
-(interval N, weekday count, byte size).
+Exported JSON backups remain wherever you saved or sent them and must be
+deleted from those destinations separately.
 
-## How we use information
+## Android permissions
 
-We use information to:
+- `INTERNET` supports Google sign-in and Mixpanel analytics.
+- `POST_NOTIFICATIONS` displays reminders you choose to create.
+- `SCHEDULE_EXACT_ALARM` lets you opt in to more precise reminder delivery on
+  supported Android versions; reminders remain best effort when denied.
+- `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK`, and `VIBRATE` support local reminder
+  delivery and recovery.
 
-- provide sign-in and account functionality
-- save and organize your tasks
-- schedule reminders you request
-- measure feature usage and improve the app
-- monitor product quality and release health
+The app uses the system document picker and share sheet instead of broad photo,
+media, or file-storage access.
 
-## Data sharing
+## Security and children
 
-We do not sell personal information.
-
-We share limited data with service providers that help operate the app, such as:
-
-- Google, for authentication
-- Mixpanel, for analytics
-
-These providers process data under their own terms and privacy policies.
-
-## Data storage
-
-Task data is primarily stored locally on your device in the current version of
-the app.
-
-Authentication tokens and certain local preferences may be stored using secure
-device storage where supported.
-
-## Data retention
-
-We retain analytics and account-related data only as long as reasonably needed
-for product operations, security, support, and legal compliance.
-
-Local task data remains on your device until you delete it or uninstall the app,
-subject to platform backup behavior.
-
-## Your choices
-
-You can:
-
-- choose whether to sign in with Google
-- delete tasks inside the app
-- sign out of your account (this stops new analytics events from being attached to your identity)
-- use the "Reset local data" action on the Profile screen to wipe all local
-  tasks, categories, reminders, repeat rules, and subtasks from this device
-- uninstall the app
-
-### Deleting analytics data already collected
-
-Sign-out and uninstalling stop *future* events from being recorded against
-you, but they do not retroactively remove events already sent to Mixpanel.
-The app does not currently provide an in-app self-serve flow to delete
-already-collected analytics data.
-
-To request deletion of the analytics profile and historical events
-associated with your Google account identifier, email
-`ankitpathakofficial@gmail.com` with the subject line "Delete my analytics
-data" and the email address you signed in with. We process these requests
-manually via Mixpanel's GDPR data-deletion API and will confirm completion
-within 30 days, in line with applicable data-protection law.
-
-## Permissions used by the app
-
-The Android app declares the following permissions:
-
-- **POST_NOTIFICATIONS** — to display reminder notifications you set inside the app.
-- **SCHEDULE_EXACT_ALARM** — to deliver reminder notifications at the
-  user-set time without being delayed by Android's battery-saver
-  batching. Auto-granted on install for productivity / calendar apps;
-  revocable in system settings, in which case reminders fall back to
-  inexact delivery (still functional, but may be delayed by several
-  minutes).
-- **RECEIVE_BOOT_COMPLETED** — to re-arm any pending reminders after the
-  device restarts. Without this, scheduled reminders would not survive
-  a reboot.
-- **WAKE_LOCK** — used by the notification system to wake the device
-  when an exact reminder fires. We do not hold wake locks for any other
-  purpose.
-
-We do not use any other Android runtime permissions.
-
-## Children's privacy
-
+Platform sandboxing and protected preference storage help secure local data,
+and service-provider traffic uses HTTPS, but no method is completely risk-free.
 Streak Todo is not directed to children under 13, and we do not knowingly
-collect personal information from children under 13.
+collect personal information from children.
 
-## Security
+## Changes and contact
 
-We use reasonable measures designed to protect information, but no method of
-storage or transmission is completely secure.
+Material changes will update the effective date above. Questions or deletion
+requests can be sent to `ankitpathakofficial@gmail.com`.
 
-## International processing
-
-Your information may be processed in countries other than your own, depending on
-the service providers used to operate the app.
-
-## Changes to this policy
-
-We may update this Privacy Policy from time to time. If we make material
-changes, we will revise the effective date above.
-
-## Contact
-
-If you have questions about this Privacy Policy, contact:
-
-ankitpathakofficial@gmail.com
-
-## Pre-publish review checklist
-
-- Confirm the contact email is correct
-- Confirm Mixpanel region and retention settings
-- Confirm the policy matches the actual shipped build
-- Publish this document at `https://streaktodo.coderixx.com/privacy`
+Before publishing a release, verify this policy against the dependency list,
+merged Android manifest, analytics event schema, and shipped runtime behavior.

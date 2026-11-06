@@ -7,9 +7,17 @@ type CategoryPillsProps = {
   /** null = "All" (no filter). */
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  includeUncategorized?: boolean;
 };
 
-export function CategoryPills({ categories, selectedId, onSelect }: CategoryPillsProps) {
+export const UNCATEGORIZED_CATEGORY_FILTER = '__uncategorized__';
+
+export function CategoryPills({
+  categories,
+  selectedId,
+  onSelect,
+  includeUncategorized = false,
+}: CategoryPillsProps) {
   const t = useTheme();
 
   return (
@@ -26,6 +34,13 @@ export function CategoryPills({ categories, selectedId, onSelect }: CategoryPill
         selected={selectedId === null}
         onPress={() => onSelect(null)}
       />
+      {includeUncategorized ? (
+        <Pill
+          label="No category"
+          selected={selectedId === UNCATEGORIZED_CATEGORY_FILTER}
+          onPress={() => onSelect(UNCATEGORIZED_CATEGORY_FILTER)}
+        />
+      ) : null}
       {categories.map((c) => (
         <Pill
           key={c.id}

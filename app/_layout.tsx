@@ -1,10 +1,10 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider, useAuth } from '../src/lib/auth';
 import { getDb } from '../src/db';
+import { AuthProvider, useAuth } from '../src/lib/auth';
 import * as analytics from '../src/lib/analytics';
 import * as scheduler from '../src/lib/notificationScheduler';
 import { OnboardingProvider, useOnboarding } from '../src/lib/onboarding';
@@ -12,8 +12,13 @@ import { ThemeProvider, useTheme } from '../src/theme';
 
 type DbState = { status: 'loading' } | { status: 'ready' } | { status: 'error'; message: string };
 
-function useDbBootstrap(): DbState {
+function useDbBootstrap(): { state: DbState; retry: () => void } {
   const [state, setState] = useState<DbState>({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => {
+    setState({ status: 'loading' });
+    setAttempt((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,10 +29,7 @@ function useDbBootstrap(): DbState {
         // Re-arm any reminders that the OS may have dropped (reboot,
         // force-quit, OEM battery killer). Best-effort; failures don't
         // block the app boot.
-        void scheduler.reconcileAll();
-        // Cold-start session marker. Mixpanel auto-tracks `App Open` already
-        // when trackAutomaticEvents is on, but we emit our own so the event
-        // schema is fully owned + consistent across versions.
+        void scheduler.reconcileAll().catch(() => {});
         void analytics.track('app_opened', { source: 'cold_start' });
       } catch (err) {
         if (cancelled) return;
@@ -40,13 +42,13 @@ function useDbBootstrap(): DbState {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
-  return state;
+  return { state, retry };
 }
 
 function AppGate() {
-  const dbState = useDbBootstrap();
+  const { state: dbState, retry: retryDb } = useDbBootstrap();
   const { state: authState } = useAuth();
   const { state: onboardingState } = useOnboarding();
   const router = useRouter();
@@ -78,7 +80,10 @@ function AppGate() {
           response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>
         ) => {
           if (!response) return;
-          await scheduler.handleNotificationResponse(response);
+          const result = await scheduler.handleNotificationResponse(response);
+          if (result?.openTaskId) {
+            router.replace({ pathname: '/(tabs)', params: { editTask: result.openTaskId } });
+          }
           await Notifications.clearLastNotificationResponseAsync();
         };
 
@@ -92,9 +97,12 @@ function AppGate() {
 
         responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
           void (async () => {
-            await scheduler.handleNotificationResponse(response);
+            const result = await scheduler.handleNotificationResponse(response);
+            if (result?.openTaskId) {
+              router.replace({ pathname: '/(tabs)', params: { editTask: result.openTaskId } });
+            }
             await Notifications.clearLastNotificationResponseAsync();
-          })();
+          })().catch(() => {});
         });
       } catch {
         // Best-effort only. Notifications still fire even if action wiring
@@ -107,6 +115,17 @@ function AppGate() {
       responseSubscription?.remove();
       receiveSubscription?.remove();
     };
+  }, [dbState.status, router]);
+
+  useEffect(() => {
+    if (dbState.status !== 'ready') return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      scheduler.resetPermissionCache();
+      void scheduler.reconcileAll().catch(() => {});
+      void analytics.track('app_opened', { source: 'foreground' });
+    });
+    return () => subscription.remove();
   }, [dbState.status]);
 
   useEffect(() => {
@@ -114,21 +133,12 @@ function AppGate() {
     if (authState.status === 'loading') return;
     if (onboardingState === 'loading') return;
 
-    const inAuthGroup = segments[0] === 'sign-in';
+    const inAuth = segments[0] === 'sign-in';
     const inOnboarding = segments[0] === 'onboarding';
-    // Both signed-in and guest are "let through" — the app is local-first
-    // and fully usable in either mode. Guest mode exists so Play Store
-    // reviewers (and privacy-conscious users) can use the app without a
-    // Google account.
-    const isAuthenticated =
-      authState.status === 'signed-in' || authState.status === 'guest';
+    const hasAccess = authState.status === 'signed-in' || authState.status === 'guest';
 
-    // Routing precedence:
-    //   1. Not authenticated → /sign-in
-    //   2. Authenticated but onboarding pending → /onboarding
-    //   3. Authenticated + onboarded → /(tabs)
-    if (!isAuthenticated) {
-      if (!inAuthGroup) router.replace('/sign-in');
+    if (!hasAccess) {
+      if (!inAuth) router.replace('/sign-in');
       return;
     }
 
@@ -137,7 +147,7 @@ function AppGate() {
       return;
     }
 
-    if (inAuthGroup || inOnboarding) {
+    if (inAuth || inOnboarding) {
       router.replace('/(tabs)');
     }
   }, [dbState.status, authState.status, onboardingState, segments, router]);
@@ -151,6 +161,23 @@ function AppGate() {
         <Text style={{ color: theme.color.textSecondary, textAlign: 'center', paddingHorizontal: 24 }}>
           {dbState.message}
         </Text>
+        <Pressable
+          onPress={retryDb}
+          accessibilityRole="button"
+          accessibilityLabel="Retry opening local data"
+          style={({ pressed }) => [
+            styles.retryButton,
+            {
+              backgroundColor: theme.color.accent,
+              borderRadius: theme.radius.pill,
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+        >
+          <Text style={{ color: theme.color.textOnAccent, fontWeight: theme.fontWeight.bold }}>
+            Retry
+          </Text>
+        </Pressable>
       </View>
     );
   }
@@ -177,6 +204,11 @@ function AppGate() {
   );
 }
 
+function ThemedStatusBar() {
+  const theme = useTheme();
+  return <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />;
+}
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
@@ -184,7 +216,7 @@ export default function RootLayout() {
         <AuthProvider>
           <OnboardingProvider>
             <AppGate />
-            <StatusBar style="auto" />
+            <ThemedStatusBar />
           </OnboardingProvider>
         </AuthProvider>
       </ThemeProvider>
@@ -197,5 +229,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  retryButton: {
+    marginTop: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
   },
 });

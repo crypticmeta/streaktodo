@@ -16,6 +16,7 @@ export function EditCategoryDialog({ visible, initial, onCancel, onSave }: EditC
   const [name, setName] = useState('');
   const [color, setColor] = useState<string>(CATEGORY_COLORS[0]!);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -24,6 +25,7 @@ export function EditCategoryDialog({ visible, initial, onCancel, onSave }: EditC
     // show it as selected by adding to the rendered palette inline.
     setColor(initial?.color ?? CATEGORY_COLORS[0]!);
     setSubmitting(false);
+    setError(null);
   }, [visible, initial]);
 
   const trimmed = name.trim();
@@ -32,8 +34,11 @@ export function EditCategoryDialog({ visible, initial, onCancel, onSave }: EditC
   const handleSave = async () => {
     if (!canSave) return;
     setSubmitting(true);
+    setError(null);
     try {
       await onSave({ name: trimmed, color });
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save this category.');
     } finally {
       setSubmitting(false);
     }
@@ -85,7 +90,10 @@ export function EditCategoryDialog({ visible, initial, onCancel, onSave }: EditC
 
           <TextInput
             value={name}
-            onChangeText={setName}
+            onChangeText={(next) => {
+              setName(next);
+              if (error) setError(null);
+            }}
             placeholder="Category name"
             placeholderTextColor={t.color.textMuted}
             maxLength={CATEGORY_NAME_MAX_LENGTH}
@@ -105,6 +113,11 @@ export function EditCategoryDialog({ visible, initial, onCancel, onSave }: EditC
               },
             ]}
           />
+          {error ? (
+            <Text style={{ color: t.color.danger, fontSize: t.fontSize.xs, marginTop: t.spacing.xs }}>
+              {error}
+            </Text>
+          ) : null}
 
           <Text
             style={{
@@ -145,7 +158,7 @@ export function EditCategoryDialog({ visible, initial, onCancel, onSave }: EditC
           <View style={[styles.footer, { marginTop: t.spacing['2xl'] }]}>
             <Pressable onPress={onCancel} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cancel">
               <Text style={{ color: t.color.textMuted, fontSize: t.fontSize.md, fontWeight: t.fontWeight.semibold }}>
-                CANCEL
+                Cancel
               </Text>
             </Pressable>
             <Pressable
@@ -158,7 +171,7 @@ export function EditCategoryDialog({ visible, initial, onCancel, onSave }: EditC
               style={{ marginLeft: 24, opacity: canSave ? 1 : 0.45 }}
             >
               <Text style={{ color: t.color.accent, fontSize: t.fontSize.md, fontWeight: t.fontWeight.bold }}>
-                {submitting ? 'SAVING…' : 'SAVE'}
+                {submitting ? 'Saving…' : 'Save'}
               </Text>
             </Pressable>
           </View>

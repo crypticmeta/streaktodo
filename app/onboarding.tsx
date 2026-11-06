@@ -1,17 +1,18 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
-  Dimensions,
   FlatList,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '../src/components/Icon';
+import * as analytics from '../src/lib/analytics';
 import { useOnboarding } from '../src/lib/onboarding';
 import { useTheme } from '../src/theme';
 
@@ -23,29 +24,33 @@ type Slide = {
   subtitle: string;
   /** Single-icon hero centered above the title. */
   icon: IconName;
+  tone: 'info' | 'warning' | 'accent';
 };
 
 const SLIDES: Slide[] = [
   {
     key: 'intro',
-    title: 'Plan once. Show up daily.',
+    title: 'Turn plans into little wins.',
     subtitle:
-      'A todo + scheduler that nudges you exactly when it should — and only when it should.',
+      'A focused task planner with optional reminders that stay on your device.',
     icon: 'tasks-filled',
+    tone: 'info',
   },
   {
     key: 'schedule',
-    title: 'Schedule, remind, repeat.',
+    title: 'Set it once. Let it nudge you.',
     subtitle:
-      'Date, time, reminder and repeat live on one sheet. Reminders actually fire — even after a reboot.',
+      'Set a date, time, local reminder, and repeat rule without leaving the task.',
     icon: 'calendar-tab-filled',
+    tone: 'warning',
   },
   {
     key: 'streak',
-    title: 'Honest streaks.',
+    title: 'A streak that tells the truth.',
     subtitle:
-      "We don't fake-encourage missed days. Your streak shows what really happened.",
+      'Finish a task to build your streak. Rest days hold it; missed scheduled days do not.',
     icon: 'star-filled',
+    tone: 'accent',
   },
 ];
 
@@ -56,7 +61,13 @@ export default function OnboardingScreen() {
   const listRef = useRef<FlatList<Slide>>(null);
   const [index, setIndex] = useState(0);
 
-  const screenWidth = Dimensions.get('window').width;
+  const { width: screenWidth } = useWindowDimensions();
+  const activeTone = SLIDES[index]?.tone ?? 'accent';
+  const activeColor = activeTone === 'info'
+    ? t.color.info
+    : activeTone === 'warning'
+      ? t.color.warn
+      : t.color.accent;
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const next = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
@@ -77,6 +88,7 @@ export default function OnboardingScreen() {
 
   const complete = async () => {
     await markCompleted();
+    void analytics.track('onboarding_completed', { completed_from_step: index + 1 });
     router.replace('/(tabs)');
   };
 
@@ -106,47 +118,72 @@ export default function OnboardingScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        getItemLayout={(_, itemIndex) => ({
+          length: screenWidth,
+          offset: screenWidth * itemIndex,
+          index: itemIndex,
+        })}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        renderItem={({ item }) => (
-          <View style={[styles.slide, { width: screenWidth, paddingHorizontal: t.spacing['2xl'] }]}>
-            <View
-              style={[
-                styles.iconBubble,
-                {
-                  backgroundColor: t.color.accentSoft,
-                  borderRadius: 999,
-                  marginBottom: t.spacing['2xl'],
-                },
-              ]}
-            >
-              <Icon name={item.icon} size={56} color={t.color.accent} />
+        renderItem={({ item, index: itemIndex }) => {
+          const color = item.tone === 'info'
+            ? t.color.info
+            : item.tone === 'warning'
+              ? t.color.warn
+              : t.color.accent;
+          const soft = item.tone === 'info'
+            ? t.color.infoSoft
+            : item.tone === 'warning'
+              ? t.color.warnSoft
+              : t.color.accentMuted;
+          return (
+            <View style={[styles.slide, { width: screenWidth, paddingHorizontal: t.spacing['2xl'] }]}>
+              <View style={[styles.scene, { backgroundColor: soft, borderRadius: t.radius['3xl'], padding: t.spacing['2xl'], ...t.elevation.sm }]}>
+                <View style={[styles.sceneDot, styles.sceneDotLarge, { backgroundColor: t.color.surface }]} />
+                <View style={[styles.sceneDot, styles.sceneDotSmall, { backgroundColor: t.color.surface }]} />
+                <Text style={{ color, fontSize: t.fontSize.xs, fontWeight: t.fontWeight.bold, letterSpacing: t.tracking.wider }}>
+                  LITTLE WIN {itemIndex + 1} OF {SLIDES.length}
+                </Text>
+                <View
+                  style={[
+                    styles.iconBubble,
+                    {
+                      backgroundColor: t.color.surface,
+                      borderRadius: t.radius['3xl'],
+                      marginVertical: t.spacing['2xl'],
+                      transform: [{ rotate: itemIndex === 1 ? '4deg' : '-4deg' }],
+                    },
+                  ]}
+                >
+                  <Icon name={item.icon} size={54} color={color} />
+                </View>
+                <Text
+                  style={{
+                    color: t.color.textPrimary,
+                    fontSize: t.fontSize['3xl'],
+                    fontWeight: t.fontWeight.heavy,
+                    letterSpacing: t.tracking.tight,
+                    textAlign: 'center',
+                  }}
+                >
+                  {item.title}
+                </Text>
+                <Text
+                  style={{
+                    color: t.color.textSecondary,
+                    fontSize: t.fontSize.md,
+                    lineHeight: t.fontSize.md * t.lineHeight.normal,
+                    textAlign: 'center',
+                    marginTop: t.spacing.md,
+                    maxWidth: 320,
+                  }}
+                >
+                  {item.subtitle}
+                </Text>
+              </View>
             </View>
-            <Text
-              style={{
-                color: t.color.textPrimary,
-                fontSize: t.fontSize['3xl'],
-                fontWeight: t.fontWeight.heavy,
-                letterSpacing: t.tracking.tight,
-                textAlign: 'center',
-              }}
-            >
-              {item.title}
-            </Text>
-            <Text
-              style={{
-                color: t.color.textSecondary,
-                fontSize: t.fontSize.md,
-                lineHeight: t.fontSize.md * t.lineHeight.normal,
-                textAlign: 'center',
-                marginTop: t.spacing.md,
-                maxWidth: 320,
-              }}
-            >
-              {item.subtitle}
-            </Text>
-          </View>
-        )}
+          );
+        }}
       />
 
       <View style={[styles.footer, { paddingHorizontal: t.spacing['2xl'], paddingBottom: t.spacing.xl }]}>
@@ -158,7 +195,7 @@ export default function OnboardingScreen() {
                 styles.dot,
                 {
                   backgroundColor:
-                    i === index ? t.color.accent : t.color.borderStrong,
+                    i === index ? activeColor : t.color.borderStrong,
                   width: i === index ? 22 : 8,
                   opacity: i === index ? 1 : 0.5,
                 },
@@ -172,10 +209,10 @@ export default function OnboardingScreen() {
           style={({ pressed }) => [
             styles.cta,
             {
-              backgroundColor: t.color.accent,
+              backgroundColor: activeColor,
               borderRadius: t.radius['2xl'],
               ...t.elevation.md,
-              shadowColor: t.color.accent,
+              shadowColor: activeColor,
               opacity: pressed ? 0.9 : 1,
               transform: [{ scale: pressed ? 0.98 : 1 }],
             },
@@ -190,7 +227,7 @@ export default function OnboardingScreen() {
               fontWeight: t.fontWeight.bold,
             }}
           >
-            {index === SLIDES.length - 1 ? 'Get started' : 'Next'}
+            {index === SLIDES.length - 1 ? 'Start my streak' : 'Keep going'}
           </Text>
         </Pressable>
       </View>
@@ -211,6 +248,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  scene: {
+    width: '100%',
+    maxWidth: 440,
+    minHeight: 430,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  sceneDot: { position: 'absolute', borderRadius: 999, opacity: 0.45 },
+  sceneDotLarge: { width: 108, height: 108, right: -34, top: -28 },
+  sceneDotSmall: { width: 52, height: 52, left: -18, bottom: 44 },
   iconBubble: {
     width: 112,
     height: 112,

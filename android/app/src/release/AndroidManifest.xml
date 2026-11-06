@@ -1,0 +1,53 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
+
+  <!-- Google sign-in and privacy-bounded Mixpanel analytics need app
+       networking in production. Task data and JSON backup contents remain
+       local unless the user explicitly exports a file through Android. -->
+
+  <!-- expo-notifications bundles optional remote-push and launcher-badge
+       integrations. StreakTodo schedules local reminders and explicitly keeps
+       badges off, so their permission surface is unnecessary in production. -->
+  <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" tools:node="remove"/>
+  <uses-permission android:name="com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE" tools:node="remove"/>
+  <uses-permission android:name="com.sec.android.provider.badge.permission.READ" tools:node="remove"/>
+  <uses-permission android:name="com.sec.android.provider.badge.permission.WRITE" tools:node="remove"/>
+  <uses-permission android:name="com.htc.launcher.permission.READ_SETTINGS" tools:node="remove"/>
+  <uses-permission android:name="com.htc.launcher.permission.UPDATE_SHORTCUT" tools:node="remove"/>
+  <uses-permission android:name="com.sonyericsson.home.permission.BROADCAST_BADGE" tools:node="remove"/>
+  <uses-permission android:name="com.sonymobile.home.permission.PROVIDER_INSERT_BADGE" tools:node="remove"/>
+  <uses-permission android:name="com.anddoes.launcher.permission.UPDATE_COUNT" tools:node="remove"/>
+  <uses-permission android:name="com.majeur.launcher.permission.UPDATE_BADGE" tools:node="remove"/>
+  <uses-permission android:name="com.huawei.android.launcher.permission.CHANGE_BADGE" tools:node="remove"/>
+  <uses-permission android:name="com.huawei.android.launcher.permission.READ_SETTINGS" tools:node="remove"/>
+  <uses-permission android:name="com.huawei.android.launcher.permission.WRITE_SETTINGS" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_APP_BADGE" tools:node="remove"/>
+  <uses-permission android:name="com.oppo.launcher.permission.READ_SETTINGS" tools:node="remove"/>
+  <uses-permission android:name="com.oppo.launcher.permission.WRITE_SETTINGS" tools:node="remove"/>
+  <uses-permission android:name="me.everything.badger.permission.BADGE_COUNT_READ" tools:node="remove"/>
+  <uses-permission android:name="me.everything.badger.permission.BADGE_COUNT_WRITE" tools:node="remove"/>
+
+  <application>
+    <!-- Development-client QR scanning is never reachable in a production
+         build. Removing its manifest roots also lets R8 discard the native
+         scanner integration instead of initializing ML Kit at app startup. -->
+    <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" tools:node="remove"/>
+    <activity android:name="com.google.mlkit.vision.codescanner.internal.GmsBarcodeScanningDelegateActivity" tools:node="remove"/>
+    <service android:name="com.google.mlkit.common.internal.MlKitComponentDiscoveryService" tools:node="remove"/>
+    <provider android:name="com.google.mlkit.common.internal.MlKitInitProvider" tools:node="remove"/>
+    <activity android:name="androidx.compose.ui.tooling.PreviewActivity" tools:node="remove"/>
+
+    <!-- Only local notifications are exposed in the product. Remove the
+         Firebase/FCM registration and transport entry points while preserving
+         Expo's NotificationsService, which handles alarms and reboot restore. -->
+    <meta-data android:name="com.google.firebase.messaging.default_notification_color" tools:node="remove"/>
+    <service android:name="expo.modules.notifications.service.ExpoFirebaseMessagingService" tools:node="remove"/>
+    <receiver android:name="com.google.firebase.iid.FirebaseInstanceIdReceiver" tools:node="remove"/>
+    <service android:name="com.google.firebase.messaging.FirebaseMessagingService" tools:node="remove"/>
+    <service android:name="com.google.firebase.components.ComponentDiscoveryService" tools:node="remove"/>
+    <provider android:name="com.google.firebase.provider.FirebaseInitProvider" tools:node="remove"/>
+    <service android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery" tools:node="remove"/>
+    <service android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService" tools:node="remove"/>
+    <receiver android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver" tools:node="remove"/>
+  </application>
+</manifest>

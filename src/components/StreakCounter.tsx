@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { StreakStats } from '../lib/streakStats';
 import { useTheme } from '../theme';
+import { Icon } from './Icon';
 
 type StreakCounterProps = {
   stats: StreakStats;
@@ -11,19 +12,15 @@ type StreakCounterProps = {
 // Five ring states:
 //   - active + today completed → filled accent, white number
 //   - active + today pending   → outlined accent, primary number
-//   - missed (current = 0 because today missed) → danger ring + strike + 0
 //   - no streak (no history)   → muted outline, em-dash
 export function StreakCounter({ stats }: StreakCounterProps) {
   const t = useTheme();
 
-  const ringState: 'filled' | 'outlined' | 'broken' | 'idle' = (() => {
-    // Today already missed → broken regardless of yesterday
-    if (stats.todayHasDueTask && !stats.todayCompleted && stats.current === 0) {
-      return 'broken';
-    }
+  const ringState: 'filled' | 'outlined' | 'idle' = (() => {
     if (stats.current > 0) {
       return stats.todayCompleted ? 'filled' : 'outlined';
     }
+    if (stats.todayHasDueTask) return 'outlined';
     return 'idle';
   })();
 
@@ -31,27 +28,21 @@ export function StreakCounter({ stats }: StreakCounterProps) {
     switch (ringState) {
       case 'filled':
         return {
-          backgroundColor: t.color.accent,
-          borderColor: t.color.accent,
-          borderWidth: 2,
+          backgroundColor: t.color.warn,
+          borderColor: t.color.warn,
+          borderWidth: 3,
         };
       case 'outlined':
         return {
-          backgroundColor: 'transparent',
-          borderColor: t.color.accent,
-          borderWidth: 2,
-        };
-      case 'broken':
-        return {
-          backgroundColor: 'transparent',
-          borderColor: t.color.danger,
-          borderWidth: 2,
+          backgroundColor: t.color.surface,
+          borderColor: t.color.warn,
+          borderWidth: 3,
         };
       case 'idle':
         return {
-          backgroundColor: 'transparent',
-          borderColor: t.color.borderStrong,
-          borderWidth: 2,
+          backgroundColor: t.color.surface,
+          borderColor: t.color.info,
+          borderWidth: 3,
         };
     }
   })();
@@ -59,11 +50,9 @@ export function StreakCounter({ stats }: StreakCounterProps) {
   const numberColor = (() => {
     switch (ringState) {
       case 'filled':
-        return t.color.textOnAccent;
+        return t.color.textInverse;
       case 'outlined':
         return t.color.textPrimary;
-      case 'broken':
-        return t.color.danger;
       case 'idle':
         return t.color.textMuted;
     }
@@ -76,9 +65,10 @@ export function StreakCounter({ stats }: StreakCounterProps) {
       style={[
         styles.container,
         {
-          backgroundColor: t.color.surface,
-          borderRadius: t.radius.xl,
+          backgroundColor: ringState === 'idle' ? t.color.infoSoft : t.color.warnSoft,
+          borderRadius: t.radius['2xl'],
           padding: t.spacing.xl,
+          ...t.elevation.sm,
         },
       ]}
     >
@@ -95,16 +85,21 @@ export function StreakCounter({ stats }: StreakCounterProps) {
           >
             {numberText}
           </Text>
-          {ringState === 'broken' ? (
-            <View
-              style={[
-                styles.strike,
-                { backgroundColor: t.color.danger },
-              ]}
-            />
-          ) : null}
         </View>
         <View style={styles.heroLabel}>
+          <View style={styles.kicker}>
+            <Icon name="flame" size={15} color={ringState === 'idle' ? t.color.info : t.color.warn} />
+            <Text
+              style={{
+                color: t.color.textMuted,
+                fontSize: t.fontSize.xs,
+                fontWeight: t.fontWeight.bold,
+                letterSpacing: t.tracking.wide,
+              }}
+            >
+              STREAK SPARK
+            </Text>
+          </View>
           <Text
             style={{
               color: t.color.textPrimary,
@@ -112,7 +107,9 @@ export function StreakCounter({ stats }: StreakCounterProps) {
               fontWeight: t.fontWeight.bold,
             }}
           >
-            {ringState === 'idle' ? 'No streak yet' : `${stats.current} day streak`}
+            {ringState === 'idle'
+              ? 'Your streak starts here'
+              : `${stats.current}-day streak`}
           </Text>
           <Text
             style={{
@@ -130,7 +127,7 @@ export function StreakCounter({ stats }: StreakCounterProps) {
         style={[
           styles.captionRow,
           {
-            backgroundColor: t.color.surfaceMuted,
+            backgroundColor: t.color.surface,
             borderRadius: t.radius.md,
             padding: t.spacing.md,
             marginTop: t.spacing.lg,
@@ -149,18 +146,15 @@ export function StreakCounter({ stats }: StreakCounterProps) {
   );
 }
 
-function captionForState(state: 'filled' | 'outlined' | 'broken' | 'idle', stats: StreakStats): string {
+function captionForState(state: 'filled' | 'outlined' | 'idle', stats: StreakStats): string {
   switch (state) {
     case 'filled':
-      return 'today done — keep it going.';
+      return 'Today is done. Keep the spark glowing.';
     case 'outlined':
-      return stats.todayHasDueTask
-        ? "today's not done yet."
-        : 'no task due today, streak holds.';
-    case 'broken':
-      return 'today missed. start again tomorrow.';
+      if (stats.current === 0) return 'One finished task lights the first spark.';
+      return stats.todayHasDueTask ? 'One more win keeps it alive.' : 'Rest day. Your streak is safe.';
     case 'idle':
-      return 'finish a task with a date to start a streak.';
+      return 'Finish any task today to light it up.';
   }
 }
 
@@ -209,24 +203,21 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   ring: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  strike: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    top: '50%',
-    height: 2,
-    transform: [{ translateY: -1 }, { rotate: '-12deg' }],
-    borderRadius: 1,
-  },
   heroLabel: {
     flex: 1,
+  },
+  kicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 4,
   },
   captionRow: {
     flexDirection: 'row',

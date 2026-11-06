@@ -15,12 +15,13 @@ const branding = {
 
   // Brand color used by native plugins (notifications icon tint, splash, etc).
   // This is a NATIVE-ONLY value. UI colors live in src/theme/tokens.ts.
-  primaryColor: '#1f2328',
-  backgroundColor: '#1f2328',
+  primaryColor: '#1d6d55',
+  backgroundColor: '#fff7e6',
 
   // Contact / legal — fill in before public launch.
   supportEmail: 'ankitpathakofficial@gmail.com',
   privacyUrl: 'https://streaktodo.coderixx.com/privacy',
+  deletionUrl: 'https://streaktodo.coderixx.com/delete-account',
   termsUrl: 'https://streaktodo.coderixx.com/terms',
 
   // Store presence (placeholders until first publish).
@@ -31,19 +32,15 @@ const branding = {
   twitter: '',
   instagram: '',
 
-  // Google iOS OAuth client URL scheme. The Google Sign-In plugin validates this
-  // at config time even on Android-only builds, so a placeholder ships by default.
-  // Format: com.googleusercontent.apps.<id> (the reversed iOS client ID — NOT the app scheme).
-  // Override via env BEFORE building for iOS:
-  //   EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.<your-ios-client-id>
+  // Google iOS OAuth client URL scheme. Android uses the public web client ID
+  // from EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID; this reversed iOS id is required by
+  // the native config plugin when an iOS build is generated.
   googleIosUrlScheme:
     process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME ||
     'com.googleusercontent.apps.placeholder-set-before-ios-build',
 
-  // Mixpanel project token. Public-by-design (it identifies the destination
-  // project; it does NOT grant write access beyond ingest). Override via env
-  // for staging/test projects:
-  //   EXPO_PUBLIC_MIXPANEL_TOKEN=<your-token>
+  // Mixpanel project tokens are public ingest identifiers, not API secrets.
+  // Override this for staging so development events do not pollute production.
   mixpanelToken:
     process.env.EXPO_PUBLIC_MIXPANEL_TOKEN ||
     'fbdf4b658ace1e0d297d30b78121dcf3',

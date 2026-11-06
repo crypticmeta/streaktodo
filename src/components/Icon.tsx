@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
 
 // Centralized icon component. We pick a small named set of icons here so the
@@ -9,8 +9,6 @@ export type IconName =
   // Composer / schedule action icons
   | 'calendar'        // 📅 → calendar-outline
   | 'subtask'         // 🔗 → list-outline
-  | 'template'        // 📋 → clipboard-outline (premium-flagged)
-  | 'send'            // ▴ → arrow-up
   | 'time'            // 🕒 → time-outline
   | 'reminder'        // 🔔 → notifications-outline
   | 'repeat'          // 🔁 → repeat
@@ -19,8 +17,8 @@ export type IconName =
   | 'tasks-filled'
   | 'calendar-tab'
   | 'calendar-tab-filled'
-  | 'profile'
-  | 'profile-filled'
+  | 'insights'
+  | 'insights-filled'
   // Row meta
   | 'reminder-filled'
   | 'repeat-filled'
@@ -29,6 +27,11 @@ export type IconName =
   | 'check'
   | 'close'
   | 'trash'
+  | 'search'
+  | 'restore'
+  | 'sparkles'
+  | 'flame'
+  | 'rocket'
   // Theme toggle
   | 'theme-system'
   | 'theme-light'
@@ -45,8 +48,6 @@ export type IconName =
 const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   calendar: 'calendar-outline',
   subtask: 'list-outline',
-  template: 'clipboard-outline',
-  send: 'arrow-up',
   time: 'time-outline',
   reminder: 'notifications-outline',
   repeat: 'repeat',
@@ -54,8 +55,8 @@ const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   'tasks-filled': 'checkmark-circle',
   'calendar-tab': 'calendar-outline',
   'calendar-tab-filled': 'calendar',
-  profile: 'person-circle-outline',
-  'profile-filled': 'person-circle',
+  insights: 'stats-chart-outline',
+  'insights-filled': 'stats-chart',
   'reminder-filled': 'notifications',
   'repeat-filled': 'repeat',
   star: 'star-outline',
@@ -63,6 +64,11 @@ const MAP: Record<IconName, ComponentProps<typeof Ionicons>['name']> = {
   check: 'checkmark',
   close: 'close',
   trash: 'trash-outline',
+  search: 'search-outline',
+  restore: 'arrow-undo-outline',
+  sparkles: 'sparkles',
+  flame: 'flame',
+  rocket: 'rocket-outline',
   'theme-system': 'phone-portrait-outline',
   'theme-light': 'sunny-outline',
   'theme-dark': 'moon-outline',

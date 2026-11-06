@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { timestampFromDateKey, type CalendarDate } from '../lib/date';
 
 // ─── Enums ──────────────────────────────────────────────────────────────
 
@@ -10,6 +11,15 @@ export type SubtaskStatus = (typeof subtaskStatuses)[number];
 
 export const reminderTypes = ['notification', 'silent', 'alarm'] as const;
 export type ReminderType = (typeof reminderTypes)[number];
+
+export const reminderScheduleStates = [
+  'pending',
+  'scheduled',
+  'permission_denied',
+  'invalid',
+  'error',
+] as const;
+export type ReminderScheduleState = (typeof reminderScheduleStates)[number];
 
 export const repeatFrequencies = ['daily', 'weekly', 'monthly', 'yearly', 'custom'] as const;
 export type RepeatFrequency = (typeof repeatFrequencies)[number];
@@ -39,6 +49,7 @@ export const taskRowSchema = z.object({
   notes: z.string().nullable(),
   category_id: z.string().nullable(),
   due_at: z.number().int().nullable(),
+  due_date: z.string().nullable(),
   due_time: z.number().int().min(0).max(1439).nullable(),
   status: z.enum(taskStatuses),
   is_pinned: sqliteBool,
@@ -47,6 +58,8 @@ export const taskRowSchema = z.object({
   created_at: z.number().int(),
   updated_at: z.number().int(),
   deleted_at: z.number().int().nullable(),
+  series_id: z.string().nullable(),
+  parent_occurrence_id: z.string().nullable(),
 });
 
 export const subtaskRowSchema = z.object({
@@ -66,6 +79,9 @@ export const reminderRowSchema = z.object({
   lead_minutes: z.number().int(),
   type: z.enum(reminderTypes),
   scheduled_notification_id: z.string().nullable(),
+  schedule_state: z.enum(reminderScheduleStates),
+  schedule_error: z.string().nullable(),
+  scheduled_for: z.number().int().nullable(),
   created_at: z.number().int(),
   updated_at: z.number().int(),
   deleted_at: z.number().int().nullable(),
@@ -80,6 +96,8 @@ export const repeatRuleRowSchema = z.object({
   by_month_day: z.number().int().nullable(),
   by_month: z.number().int().nullable(),
   until_at: z.number().int().nullable(),
+  anchor_date: z.string().nullable(),
+  until_date: z.string().nullable(),
   created_at: z.number().int(),
   updated_at: z.number().int(),
   deleted_at: z.number().int().nullable(),
@@ -106,6 +124,7 @@ export type Task = {
   notes: string | null;
   categoryId: string | null;
   dueAt: number | null;
+  dueDate: CalendarDate | null;
   dueTime: number | null;
   status: TaskStatus;
   isPinned: boolean;
@@ -114,6 +133,8 @@ export type Task = {
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
+  seriesId: string | null;
+  parentOccurrenceId: string | null;
 };
 
 export type Subtask = {
@@ -133,6 +154,9 @@ export type Reminder = {
   leadMinutes: number;
   type: ReminderType;
   scheduledNotificationId: string | null;
+  scheduleState: ReminderScheduleState;
+  scheduleError: string | null;
+  scheduledFor: number | null;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
@@ -147,6 +171,8 @@ export type RepeatRule = {
   byMonthDay: number | null;
   byMonth: number | null;
   untilAt: number | null;
+  anchorDate: CalendarDate | null;
+  untilDate: CalendarDate | null;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
@@ -171,12 +197,14 @@ export function categoryFromRow(raw: unknown): Category {
 
 export function taskFromRow(raw: unknown): Task {
   const r = taskRowSchema.parse(raw);
+  const dueDate = r.due_date as CalendarDate | null;
   return {
     id: r.id,
     title: r.title,
     notes: r.notes,
     categoryId: r.category_id,
-    dueAt: r.due_at,
+    dueAt: dueDate ? timestampFromDateKey(dueDate) : r.due_at,
+    dueDate,
     dueTime: r.due_time,
     status: r.status,
     isPinned: r.is_pinned,
@@ -185,6 +213,8 @@ export function taskFromRow(raw: unknown): Task {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     deletedAt: r.deleted_at,
+    seriesId: r.series_id,
+    parentOccurrenceId: r.parent_occurrence_id,
   };
 }
 
@@ -210,6 +240,9 @@ export function reminderFromRow(raw: unknown): Reminder {
     leadMinutes: r.lead_minutes,
     type: r.type,
     scheduledNotificationId: r.scheduled_notification_id,
+    scheduleState: r.schedule_state,
+    scheduleError: r.schedule_error,
+    scheduledFor: r.scheduled_for,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     deletedAt: r.deleted_at,
@@ -218,6 +251,8 @@ export function reminderFromRow(raw: unknown): Reminder {
 
 export function repeatRuleFromRow(raw: unknown): RepeatRule {
   const r = repeatRuleRowSchema.parse(raw);
+  const anchorDate = r.anchor_date as CalendarDate | null;
+  const untilDate = r.until_date as CalendarDate | null;
   return {
     id: r.id,
     taskId: r.task_id,
@@ -226,7 +261,9 @@ export function repeatRuleFromRow(raw: unknown): RepeatRule {
     byWeekday: r.by_weekday,
     byMonthDay: r.by_month_day,
     byMonth: r.by_month,
-    untilAt: r.until_at,
+    untilAt: untilDate ? timestampFromDateKey(untilDate) : r.until_at,
+    anchorDate,
+    untilDate,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     deletedAt: r.deleted_at,

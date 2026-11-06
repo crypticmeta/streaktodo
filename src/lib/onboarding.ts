@@ -1,7 +1,7 @@
 /**
  * Tracks whether the user has completed first-launch onboarding.
  *
- * Stored in expo-secure-store (already installed for the Google ID token).
+ * Stored in expo-secure-store so onboarding stays completed across launches.
  * The key carries a version suffix so we can re-trigger onboarding for
  * existing users if we ship a meaningfully different flow later — bump
  * the suffix from 'v1' → 'v2' and the next launch shows the new tour.
@@ -9,7 +9,6 @@
 
 import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import * as analytics from './analytics';
 
 const KEY = 'onboarding_completed_v1';
 
@@ -72,7 +71,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     // SecureStore write resolves.
     setState('completed');
     await writeOnboardingCompleted();
-    void analytics.track('onboarding_completed');
   };
 
   return createElement(OnboardingContext.Provider, { value: { state, markCompleted } }, children);
